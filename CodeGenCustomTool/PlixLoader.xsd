@@ -1,0 +1,60 @@
+﻿<?xml version="1.0"?>
+<xs:schema id="PLiXLoader"
+	elementFormDefault="qualified"
+	attributeFormDefault="unqualified"
+	targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiXLoader"
+	xmlns="http://schemas.neumont.edu/CodeGeneration/PLiXLoader"
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	>
+	<xs:element name="sourceFiles">
+		<xs:complexType>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element name="sourceFile">
+					<xs:complexType>
+						<xs:choice minOccurs="0" maxOccurs="unbounded">
+							<xs:element name="projectReference" minOccurs="0" maxOccurs="1">
+								<xs:complexType>
+									<xs:sequence></xs:sequence>
+									<!-- The name used to test for existence of the reference in the project
+										 with the EnvDTE.References.Item method-->
+									<xs:attribute name="namespace" type="xs:string" use="required" />
+									<!-- The string used to add a reference to the project if it is not
+										 already in the references collection -->
+									<xs:attribute name="assembly" type="xs:string" use="required" />
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="extensionClass" minOccurs="0" maxOccurs="1">
+								<xs:complexType>
+									<xs:sequence></xs:sequence>
+									<!-- The namespace for this extension in the transform file -->
+									<xs:attribute name="xslNamespace" type="xs:string" use="required" />
+									<!-- A fully qualified name for loading the class to instantiate and use with this extension -->
+									<xs:attribute name="className" type="xs:string" use="required" />
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="transformParameter" minOccurs="0" maxOccurs="1">
+								<xs:complexType>
+									<xs:sequence></xs:sequence>
+									<xs:attribute name="name" type="xs:string" use="required" />
+									<xs:attribute name="value" type="xs:string" use="required" />
+								</xs:complexType>
+							</xs:element>
+						</xs:choice>
+						<!--  -->
+						<xs:attribute name="file" type="xs:string" use="required">
+							<xs:annotation><xs:documentation>The name of the file relative to the location of the plix.xml file. Plix.xml should be placed in the root directory of the project.</xs:documentation></xs:annotation>
+						</xs:attribute>
+						<!--  -->
+						<xs:attribute name="transformFile" type="xs:string" use="optional">
+							<xs:annotation><xs:documentation>The transform file used to process the source file. If transformFile is not specified, then the default is the specified
+							 file with the extension replaced by '.xslt' or '.xsl' extensions.</xs:documentation></xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="liveDocumentObject" type="xs:string" use="optional">
+							<xs:annotation><xs:documentation>If the document is currently open in an editor and this value is set, then retrieve the file stream from automation model using this name.</xs:documentation></xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+			</xs:choice>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

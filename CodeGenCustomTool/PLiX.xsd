@@ -1,0 +1,2397 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<xs:schema
+	id="PLiX2" 
+	targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiX"
+	elementFormDefault="qualified"
+	xmlns="http://schemas.neumont.edu/CodeGeneration/PLiX"
+	xmlns:plx="http://schemas.neumont.edu/CodeGeneration/PLiX"
+	xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<!-- A schema used for code generation using an intermediate xml format known as PLiX (Programming Language in XML).
+		 The purpose of PLiX is to enable XSLT transforms to be written targeting the PLiX schema so that the
+		 code generation template does not need to worry about the final output language. A separate formatting
+		 operation is then invoked to produce the desired target output language. There are numerous advantages
+		 to this approach to code generation:
+		  1) Code generation is almost always a straight transformation process, meaning that all of the data
+			 is available from the input document. However, this data is rarely in a form that maps cleanly to
+			 code. Allowing users to write a transform instead of code allows them to concentrate on the data
+			 and incrementally refine their data structures until they are in a form that does map cleanly to
+			 the target code.
+		  2) Changes to the generated code are much easier to make for any level of the user. The original
+			 developer can produce a default template, but the end user is not required to use it and can
+			 easily plug in their own (generally a modification of the original). Keeping code generation data
+			 driven instead of locked in a binary gives user the flexibility they need to custom tailor
+			 generators to their own applications.
+		  3) The generated code does not need to be reparsed to modify it. Applying transforms in a pipeline
+			 after the initial intermediate xml is created allows cross cutting (aspects) and other code
+			 rules to be performed after the initial code is generated simply by modifying the xml. All code
+			 formatting happens after this stage.
+		  4) By design, PLiX is not limited to a core subset of language features. A language engine should be
+			 able to define a set of extension elements that are natively recognized by that language. A transform
+			 should be provided to reduce/expand those extension elements into core PLiX that can be rendered
+			 by any language. For example, the Handles and WithEvents keywords in VB.NET can be reduced to property
+			 procedures and extra code in the constructor. This is easily done in xsl.
+		  5) Language formatters can also reduce core PLiX elements that they do not render natively in the
+			 given language. For example, a complex conditional statement in C# if (null != (x = y as SomeType))
+			 can be rendered in VB using multiple statements and formatter-generated local variables.
+		
+		The PLiX schema design has some specific goals.
+		  1) Any snippet should be generatable with no outside context. This means that all of the information
+			 require to generate the snippet must be kept to that element. It also means that any element must
+			 be valid as a top-level element. Therefore, elements that have slightly different requirements
+			 (for example, a field declaration and a local variable declaration differ by readOnly and visibility attributes)
+			 must have different element names. The reasoning behind this design is to keep the element definitions
+			 as strict as possible at the xml level. The closer the error happens to the xml level, the easier it is
+			 for the transform developer to track. Having separate local and field tags instead of one variable tag
+			 enables us to recognize at the schema validation level that the 'visibility' attribute on a local variable
+			 is not allowed.
+		  2) The total number of top-level element names is kept to a minimum, with 'type' attributes providing
+			 discriminator information. For example, the 'operator' tag is used for assign, add, subtract, etc. instead
+			 of having individual assign, add, and subtract element names.
+		  3) Note that a balance needs to be maintained between the first two requirements because they are clearly
+			 at odds with each other. For example, the only difference between a nested class and top-level class is
+			 the restriction that top-level classes have fewer allowed visibility attributes that nested classes. It did
+			 not seem worth introducing 5 additional tag names for the 5 type tags so we could schema validate at subset-
+			 of-allowed-attribute-values level. Elements with different attribute sets are given different tag names, however.
+		  4) The schema should provide enough information to generate in any managed language. One example of a problem
+			 here is the different way parameters are forwarded in C# vs. C++. In C#, a 'ref int p1' is forwarded to a
+			 'ref int p2' on a different function using the ref keyword, so the pass style is always a function of the
+			 target ref-ness of the variable. In C++, the same parameter is passed without any modification. To generate
+			 correctly in both languages, the use of the incoming parameter is modified with an 'IndirectRead', and the pass gets
+			 a passStyle of 'Ref'. This way, both languages can generate the correct code.
+		  5) An attempt has been made to standardize attribute names. For example, an earlier rendition of the schema
+			 had an operator name, a call style, and value type. All of these now have a 'type' attribute.
+		  6) The assumption is made that all PLiX formatters will load PLiX xml with a validating reader so that the
+			 default elements can be picked up from the schema file and pre-validation can occur prior to a (much harder
+			 to debug) exception at the generator level.
+		  7) Text elements are not used except for string elements. This is done to facilitate the use of attribute
+			 value templates in transforms. These are frequently used, and much easier to write than a serious of
+			 xsl:value-of and xsl:text elements.
+		 -->
+	<xs:element name="root">
+		<xs:annotation>
+			<xs:documentation>The root PLiX element. Contains namespaceImport and namespace elements.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="namespaceImport" type="namespaceImportType" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element name="namespace" type="namespaceType" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:simpleType name="qualifierNameType">
+		<xs:annotation>
+			<xs:documentation>A period(.) delimited name used to qualify types or define a namespace. Each part of the name begins with a letter or underscore followed by letters, digits, and underscores.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<!-- Limit to name with no leading digits followed by one or more (. following by name with no leading digits). No spaces. -->
+			<!-- Note that this produces so many warnings in xsl when attribute value templates are used that we ignore any string with a { in it -->
+			<xs:pattern value="(.*\{.*)|(([_\p{L}][_\p{L}\p{Nd}]*(.[_\p{L}][_\p{L}\p{Nd}]*)*)?)"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="simpleNameType">
+		<xs:annotation>
+			<xs:documentation>A simple name. Begins with a letter or underscore followed by letters, digits, and underscores.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<!-- Limit to name with no leading digits. No spaces. -->
+			<!-- Note that this produces so many warnings in xsl when attribute value templates are used that we ignore any string with a { in it -->
+			<xs:pattern value="(.*\{.*)|([_\p{L}][_\p{L}\p{Nd}]*)"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="visibilityValues">
+		<xs:annotation>
+			<xs:documentation>An enumeration representing code visibility for any element</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="private">
+				<xs:annotation>
+					<xs:documentation>The code element can be used by the current parent element and any types it nests. Should not be used on top-level type elements.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="public">
+				<xs:annotation>
+					<xs:documentation>The code element can be used by any external caller that can see its parent element, plus all callers that have access to private elements.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="protected">
+				<xs:annotation>
+					<xs:documentation>The code element can be used by any caller that is derived from the parent element, plus all callers that have access to private elements. Should not be used on top-level type elements.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="internal">
+				<xs:annotation>
+					<xs:documentation>The code element can be used by another caller in the same project, plus all callers that have access to private elements.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="protectedOrInternal">
+				<xs:annotation>
+					<xs:documentation>A combination of Internal and Protected access. Either caller condition must apply. Should not be used on top-level type elements.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="protectedAndInternal">
+				<xs:annotation>
+					<xs:documentation>A combination of Internal and Protected access. Bother caller condition must apply. Note that this is stronger than ProtectedOrInternal, and is not supported in C# or VB. Should not be used on top-level type elements.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="namespaceImport" type="namespaceImportType"/>
+	<xs:complexType name="namespaceImportType">
+		<xs:annotation>
+			<xs:documentation>A namespace import into the file. (C#:using, VB:Imports)</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="name" type="qualifierNameType" use="required"/>
+		<xs:attribute name="alias" type="simpleNameType" use="optional"/>
+	</xs:complexType>
+	<xs:element name="namespace" type="namespaceType"/>
+	<xs:complexType name="namespaceType">
+		<xs:annotation>
+			<xs:documentation>A namespace definition. Contains other namespace definitions and type definitions. (C#:namespace, VB:Namespace)</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="leadingInfo" minOccurs="0"/>
+			<xs:element ref="trailingInfo" minOccurs="0"/>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element ref="namespace"/>
+				<xs:element ref="type"/>
+			</xs:choice>
+		</xs:sequence>
+		<xs:attribute name="name" type="qualifierNameType" use="required"/>
+	</xs:complexType>
+
+	<!-- Type definitions -->
+	<xs:attributeGroup name="universalMemberAttributes">
+		<xs:annotation>
+			<xs:documentation>Attributes shared by all member types. The name attribute is added to this group in memberAttributes</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="visibility" type="visibilityValues" use="required"/>
+		<xs:attribute name="replacesName" type="xs:boolean" default="false">
+			<xs:annotation>
+				<xs:documentation>This name repaces another name on a base class. Should not be used on top-level type elements. (C#: new, VB: Shadows)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="memberAttributes">
+		<xs:annotation>
+			<xs:documentation>Attributes shared across class, structure, interface, delegate, and enum elements</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="universalMemberAttributes"/>
+		<xs:attribute name="name" type="simpleNameType" use="required"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="typeAttributes">
+		<xs:annotation>
+			<xs:documentation>Attributes shared across class, structure, and interface elements</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="memberAttributes"/>
+		<xs:attribute name="partial" type="xs:boolean" default="false">
+			<xs:annotation>
+				<xs:documentation>The implementation of this type is split across multiple locations.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="defaultMember" type="xs:string" use="optional">
+			<xs:annotation>
+				<xs:documentation>The name of the default member for this type.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:attributeGroup>
+	<xs:simpleType name="classModifierValues">
+		<xs:annotation>
+			<xs:documentation>A list of mutually exclusive class modifiers.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="none">
+				<xs:annotation>
+					<xs:documentation>The default value. The class is not modified.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="sealed">
+				<xs:annotation>
+					<xs:documentation>The class may not be derived from.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="abstract">
+				<xs:annotation>
+					<xs:documentation>The class cannot be created directly and must be derived from.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="static">
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:attributeGroup name="classTypeAttributes">
+		<xs:annotation>
+			<xs:documentation>All attributes for the class element.</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="typeAttributes"/>
+		<xs:attribute name="modifier" type="classModifierValues" default="none"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="structureTypeAttributes">
+		<xs:annotation>
+			<xs:documentation>All attributes for the structure element.</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="typeAttributes"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="interfaceTypeAttributes">
+		<xs:annotation>
+			<xs:documentation>All attributes for the interface element.</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="typeAttributes"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="delegateTypeAttributes">
+		<xs:annotation>
+			<xs:documentation>All attributes for the delegate element.</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="memberAttributes"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="enumTypeAttributes">
+		<xs:annotation>
+			<xs:documentation>All attributes for the enum element.</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="memberAttributes"/>
+		<xs:attribute name="elementType" default="i4">
+			<xs:annotation>
+				<xs:documentation>The base type for this enumeration. Includes all integer types. Defaults to i4.</xs:documentation>
+			</xs:annotation>
+			<xs:simpleType>
+				<xs:restriction base="xs:string">
+					<xs:enumeration value="i1">
+						<xs:annotation>
+							<xs:documentation>Signed byte (System.SByte)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value="i2">
+						<xs:annotation>
+							<xs:documentation>Signed short integer (System.Int16)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value="i4">
+						<xs:annotation>
+							<xs:documentation>Signed integer (System.Int32). The default element type.</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value="i8">
+						<xs:annotation>
+							<xs:documentation>Signed long integer (System.Int64)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value="u1">
+						<xs:annotation>
+							<xs:documentation>Unsigned byte (System.Byte)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value="u2">
+						<xs:annotation>
+							<xs:documentation>Unsigned short integer (System.UInt16)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value="u4">
+						<xs:annotation>
+							<xs:documentation>Unsigned integer (System.UInt32).</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value="u8">
+						<xs:annotation>
+							<xs:documentation>Unsigned long integer (System.UInt64)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:attribute>
+	</xs:attributeGroup>
+	<xs:group name="memberElements">
+		<xs:sequence>
+			<xs:element ref="leadingInfo" minOccurs="0"/>
+			<xs:element ref="trailingInfo" minOccurs="0"/>
+			<xs:element ref="attribute" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:element name="member" type="memberType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>A placeholder element to use as a substitution group for all member elements (except fields).</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="memberType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>A base type for all member elements.</xs:documentation>
+		</xs:annotation>
+		<xs:choice minOccurs="0">
+			<xs:group ref="memberElements"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:element name="implementationMember" type="implementationMemberType" abstract="true" substitutionGroup="member">
+		<xs:annotation>
+			<xs:documentation>A placeholder element to use as a substitution group for all implementation member elements.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="implementationMemberType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>A base type for all implementation member elements.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="memberType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="type" type="typeType" abstract="true" substitutionGroup="member">
+		<xs:annotation>
+			<xs:documentation>A placeholder element to use as a substitution group for type elements.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="typeType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>A base type for all type elements.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="memberType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="derivesFromClass" type="derivesFromClassType"/>
+	<xs:complexType name="derivesFromClassType">
+		<xs:annotation>
+			<xs:documentation>Specifies a base class for another class. Used as a child of the Class element. The implementsInterface element should be used for the base of an interface element and to specify additional implemented interfaces on a class.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="parametrizedTypeRefType" />
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="implementsInterface" type="implementsInterfaceType"/>
+	<xs:complexType name="implementsInterfaceType">
+		<xs:annotation>
+			<xs:documentation>The class, structure, or interface implements the specified interface. The derivesFromClass element should be used to specify the primary non-interface base class of a class element.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="parametrizedTypeRefType">
+				<xs:attribute name="reimplement" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>Should be true if this is a reimplementation of the interface, meaning that the same interface is already implemented on a base class.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="class" type="classType" substitutionGroup="type"/>
+	<xs:complexType name="classType">
+		<xs:annotation>
+			<xs:documentation>A class definition. Contains nested type definitions, fields, and procedure definitions. (C#:class, VB:Class)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeType">
+				<xs:sequence>
+					<xs:element ref="typeParam" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="derivesFromClass" minOccurs="0"/>
+					<xs:element ref="implementsInterface" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:element ref="field"/>
+						<xs:element ref="member"/>
+					</xs:choice>
+				</xs:sequence>
+				<xs:attributeGroup ref="classTypeAttributes"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="structure" type="structureType" substitutionGroup="type"/>
+	<xs:complexType name="structureType">
+		<xs:annotation>
+			<xs:documentation>A structure definition. Contains nested type definitions, fields, and procedure definitions. (C#:struct, VB:Structure)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeType">
+				<xs:sequence>
+					<xs:element ref="typeParam" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="implementsInterface" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:element ref="field"/>
+						<xs:element ref="member"/>
+					</xs:choice>
+				</xs:sequence>
+				<xs:attributeGroup ref="structureTypeAttributes"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="interface" type="interfaceType" substitutionGroup="type"/>
+	<xs:complexType name="interfaceType">
+		<xs:annotation>
+			<xs:documentation>An interface definition. Contains procedure definitions. (C#:interface, VB:Interface)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeType">
+				<xs:sequence>
+					<xs:element ref="typeParam" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="implementsInterface" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:element ref="implementationMember"/>
+					</xs:choice>
+				</xs:sequence>
+				<xs:attributeGroup ref="interfaceTypeAttributes"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="delegate" type="delegateType" substitutionGroup="type"/>
+	<xs:complexType name="delegateType">
+		<xs:annotation>
+			<xs:documentation>A delegate definition. Contains parameter definitions. (C#:delegate, VB:Delegate)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeType">
+				<xs:sequence>
+					<xs:element ref="typeParam" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="param" minOccurs="0" maxOccurs="unbounded"/>
+				</xs:sequence>
+				<xs:attributeGroup ref="delegateTypeAttributes"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="enum" type="enumType" substitutionGroup="type"/>
+	<xs:complexType name="enumType">
+		<xs:annotation>
+			<xs:documentation>An enumeration definition. Contains enumItem definitions. (C#:enum, VB:Enum)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeType">
+				<xs:sequence>
+					<xs:element ref="enumItem" minOccurs="0" maxOccurs="unbounded"/>
+				</xs:sequence>
+				<xs:attributeGroup ref="enumTypeAttributes"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="enumItem" type="enumItemType"/>
+	<xs:complexType name="enumItemType">
+		<xs:annotation>
+			<xs:documentation>An item in an enumeration</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="memberType">
+				<xs:sequence>
+					<xs:element ref="initialize" minOccurs="0"/>
+				</xs:sequence>
+				<xs:attribute name="name" type="simpleNameType" use="required"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<!-- A base element and type to for a code body substitution group -->
+	<xs:element name="expressionElement" type="expressionElementType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>An element to form a substitution group for expressions.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="expressionElementType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>A base element to enable a substitution group for values, keywords, expression, etc.</xs:documentation>
+		</xs:annotation>
+	</xs:complexType>
+	<xs:element name="bodyStatement" type="bodyStatementType" abstract="true"/>
+	<xs:complexType name="bodyStatementType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>A base element to enable a substitution group for standalone statements that cannot also be expressions.</xs:documentation>
+		</xs:annotation>
+	</xs:complexType>
+	<xs:element name="initialize" type="expressionContainerType">
+		<xs:annotation>
+			<xs:documentation>An initializer for a local, field, iterator, autoDispose, constructor, or lock element.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="right" type="expressionContainerType">
+		<xs:annotation>
+			<xs:documentation>The right hand side of a binary operator.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="left" type="expressionContainerType">
+		<xs:annotation>
+			<xs:documentation>The left hand side of a binary operator.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="callObject" type="expressionContainerType">
+		<xs:annotation>
+			<xs:documentation>The calling object for a callInstance expression.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="expressionContainerType">
+		<!-- A named container element holding exactly one expression. -->
+		<xs:complexContent>
+			<xs:extension base="expressionElementType">
+				<xs:choice>
+					<xs:element ref="expressionElement"/>
+				</xs:choice>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="throw" type="optionalExpressionBodyStatementType" substitutionGroup="bodyStatement">
+		<xs:annotation>
+			<xs:documentation>Represents a throw statement.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="return" type="optionalExpressionBodyStatementType" substitutionGroup="bodyStatement">
+		<xs:annotation>
+			<xs:documentation>Represents a return statement.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="optionalExpressionBodyStatementType">
+		<!-- A named container holding zero or one expressions used as a statement in a code body. -->
+		<xs:complexContent>
+			<xs:extension base="bodyStatementType">
+				<xs:choice minOccurs="0">
+					<xs:element ref="expressionElement"/>
+				</xs:choice>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<!-- Data type definitions -->
+	<xs:simpleType name="intrinsicDataTypeValues">
+		<xs:annotation>
+			<xs:documentation>A list of intrinsic data types. Use as a dataTypeName to get an intrinsic type.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value=".boolean">
+				<xs:annotation>
+					<xs:documentation>A boolean value</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".char">
+				<xs:annotation>
+					<xs:documentation>A single character (char)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".date">
+				<xs:annotation>
+					<xs:documentation>A date value</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".decimal">
+				<xs:annotation>
+					<xs:documentation>A floating decimal point integer value</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".i1">
+				<xs:annotation>
+					<xs:documentation>A signed 8-bit integer value (signed byte)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".i2">
+				<xs:annotation>
+					<xs:documentation>A signed 16-bit integer value (short)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".i4">
+				<xs:annotation>
+					<xs:documentation>A signed 32-bit integer value (int)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".i8">
+				<xs:annotation>
+					<xs:documentation>A signed 64-bit integer value (long)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".object">
+				<xs:annotation>
+					<xs:documentation>An object type</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".r4">
+				<xs:annotation>
+					<xs:documentation>A 4-byte floating point number (float)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".r8">
+				<xs:annotation>
+					<xs:documentation>An 8-byte floating point number (double)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".string">
+				<xs:annotation>
+					<xs:documentation>A string value</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".u1">
+				<xs:annotation>
+					<xs:documentation>An unsigned 8-bit integer value (byte)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".u2">
+				<xs:annotation>
+					<xs:documentation>An unsigned 16-bit integer value (ushort)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".u4">
+				<xs:annotation>
+					<xs:documentation>An unsigned 32-bit integer value (uint)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".u8">
+				<xs:annotation>
+					<xs:documentation>An unsigned 64-bit integer value (ulong)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="simpleTypeRefType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>Represents a reference to a simple type (no type parameters, no arrays). Acts as a base for other types.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<!-- Use an expression type here so that typeRefType-derived elements can be used directly 
+				 as expressions. There are other uses as well (field, attribute), but these are less
+				 common than the expression uses and will be handled separately. -->
+			<xs:extension base="expressionElementType">
+				<xs:attribute name="dataTypeName" use="required">
+					<xs:simpleType>
+						<xs:annotation>
+							<xs:documentation>A simple name, or one of the intrinsic type values.</xs:documentation>
+						</xs:annotation>
+						<xs:union memberTypes="simpleNameType intrinsicDataTypeValues"/>
+					</xs:simpleType>
+				</xs:attribute>
+				<xs:attribute name="dataTypeQualifier" type="qualifierNameType" use="optional">
+					<xs:annotation>
+						<xs:documentation>Ignored if an intrinsic type is specified.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="parametrizedTypeRefType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>Extends a simple type reference by allowing parametrization of the type.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="simpleTypeRefType">
+				<xs:choice minOccurs="0" maxOccurs="unbounded">
+					<xs:element ref="passTypeParam"/>
+				</xs:choice>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="typeRefType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>Extends a parametrizedTypeRefType and adds array support.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="parametrizedTypeRefType">
+				<xs:choice minOccurs="0">
+					<xs:element ref="arrayDescriptor"/>
+				</xs:choice>
+				<xs:attribute name="dataTypeIsSimpleArray" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>The data type represents a one-dimensional array. Equivalent to an arrayDescriptor element with a rank of 1. Ignored if an explicit arrayDescriptor is provided.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="typeConstraint" type="typeParamConstraintType" />
+	<xs:complexType name="typeParamConstraintType">
+		<xs:annotation>
+			<xs:documentation>A type reference indicating required class and interface support for a typeParam. Note that TypeParam attributes are used to specify standard constraints (default constructor, reference type, value type)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="parametrizedTypeRefType" />
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="typeParam" type="typeParamType" />
+	<xs:complexType name="typeParamType">
+		<xs:annotation>
+			<xs:documentation>A type parameter definition on a type or member (also known as a formal parameter). Contained by class, interface, structure, delegate, function, property, and event definitions.</xs:documentation>
+		</xs:annotation>
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element ref="typeConstraint" />
+		</xs:choice>
+		<xs:attribute name="name" type="xs:string" use="required">
+			<xs:annotation>
+				<xs:documentation>The name of the type parameter. The value must be unique across all names in the type or member.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="requireDefaultConstructor" type="xs:boolean" default="false">
+			<xs:annotation>
+				<xs:documentation>Indicates if the type passed to this type parameter must have a public parameterless constructor. Defaults to false.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="requireReferenceType" type="xs:boolean" default="false">
+			<xs:annotation>
+				<xs:documentation>Indicates if the type passed to this type parameter must either an explicit reference type (not a value type) or an interface. Defaults to false.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="requireValueType" type="xs:boolean" default="false">
+			<xs:annotation>
+				<xs:documentation>Indicates if the type passed to this type parameter must be a value type. Defaults to false.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="arrayDescriptor" type="arrayDescriptorType"/>
+	<xs:complexType name="arrayDescriptorType">
+		<xs:annotation>
+			<xs:documentation>Define an array other than a simple array. Nested arrays are defined by nesting array descriptors.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence minOccurs="0">
+			<xs:element ref="arrayDescriptor" minOccurs="0"/>
+			<xs:element ref="arrayBound" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+		<xs:attribute name="rank" type="xs:positiveInteger" use="required">
+			<xs:annotation>
+				<xs:documentation>The number of dimensions in the array. An explicit arrayBound can also be declared to give size and lower bound information in addition to the number of dimensions.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="arrayBound" type="arrayBoundType"/>
+	<xs:complexType name="arrayBoundType">
+		<xs:annotation>
+			<xs:documentation>Bound information to specify something other than a 0-based unsized array.</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="position" type="xs:nonNegativeInteger" use="required">
+			<xs:annotation>
+				<xs:documentation>The 1-based position of the array bound.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="size" type="xs:nonNegativeInteger" use="optional">
+			<xs:annotation>
+				<xs:documentation>The optional size of the bound.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="lowerBound" type="xs:integer" default="0">
+			<xs:annotation>
+				<xs:documentation>An explicit lower bound value for the array bound.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="passTypeParam" type="passTypeParamType"/>
+	<xs:complexType name="passTypeParamType">
+		<xs:annotation>
+			<xs:documentation>Represents a type parameter passed to a type reference.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="passMemberTypeParam" type="passMemberTypeParamType"/>
+	<xs:complexType name="passMemberTypeParamType">
+		<xs:annotation>
+			<xs:documentation>Represents a type parameter passed to a function, property, or even.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="typeOf" type="typeOfType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="typeOfType">
+		<xs:annotation>
+			<xs:documentation>A direct type reference expression. (C#: typeof, VB: GetType)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="defaultValueOf" type="defaultValueOfType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="defaultValueOfType">
+		<xs:annotation>
+			<xs:documentation>The default value for a given type. (C#: default(), VB: Nothing)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="directTypeReference" type="directTypeReferenceType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="directTypeReferenceType">
+		<xs:annotation>
+			<xs:documentation>A direct use of a type in an expression. Used for typeEquality and typeInequality binary operators.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="attribute" type="attributeType"/>
+	<xs:complexType name="attributeType">
+		<xs:annotation>
+			<xs:documentation>An attribute declaration. Attached to members and types.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType">
+				<xs:choice minOccurs="0" maxOccurs="unbounded">
+					<xs:element ref="passParam"/>
+				</xs:choice>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:simpleType name="passParamTypeValues">
+		<xs:annotation>
+			<xs:documentation>Specifies how the parameter is passed. Defaults to in.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="in">
+				<xs:annotation>
+					<xs:documentation>Pass the parameter by value. Default.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="inOut">
+				<xs:annotation>
+					<xs:documentation>Pass the parameter by reference, requires caller initialization.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="out">
+				<xs:annotation>
+					<xs:documentation>Pass the parameter by reference, requires output from the callee.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="passParam" type="passParamType"/>
+	<xs:complexType name="passParamType">
+		<xs:annotation>
+			<xs:documentation>Pass data to a parameter. Contains an expression.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="expressionContainerType">
+				<xs:attribute name="type" type="passParamTypeValues" default="in"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:simpleType name="callTypeAllValues">
+		<xs:annotation>
+			<xs:documentation>The different types of elements that can be referenced through a callInstance element.</xs:documentation>
+		</xs:annotation>
+		<xs:union memberTypes="callTypeArrayValues callTypeNonArrayValues"/>
+	</xs:simpleType>
+	<xs:simpleType name="callTypeArrayValues">
+		<xs:annotation>
+			<xs:documentation>The different types of calls that can be made against an array.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="arrayIndexer">
+				<xs:annotation>
+					<xs:documentation>Index an array.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="callTypeNonArrayValues">
+		<xs:annotation>
+			<xs:documentation>The different types of elements that can be referenced through a callStatic or callThis element.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="methodCall">
+				<xs:annotation>
+					<xs:documentation>Call a method. The the default call type.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="methodReference">
+				<xs:annotation>
+					<xs:documentation>Reference a method without calling it.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="indexerCall">
+				<xs:annotation>
+					<xs:documentation>Call an indexer method.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="delegateCall">
+				<xs:annotation>
+					<xs:documentation>Call a delegate.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="property">
+				<xs:annotation>
+					<xs:documentation>Access a property. The property is used as a getter or setting, depending on the context.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="field">
+				<xs:annotation>
+					<xs:documentation>Access a field. The property is used as a getter or setting, depending on the context.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="event">
+				<xs:annotation>
+					<xs:documentation>Access an event. Used with the AttachEvent and DetachEvent operator types.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="fireStandardEvent">
+				<xs:annotation>
+					<xs:documentation>Raise a standard event.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="fireCustomEvent">
+				<xs:annotation>
+					<xs:documentation>Raise an event with a custom fire procedure.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="callNewTypeValues">
+		<xs:annotation>
+			<xs:documentation>The different types of elements that can be referenced through a callNew element.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="new">
+				<xs:annotation>
+					<xs:documentation>Create a new object of the specified type. The default call style.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="newDelegate">
+				<xs:annotation>
+					<xs:documentation>Create a new delegate of the specified type.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="callThisAccessorValues">
+		<xs:annotation>
+			<xs:documentation>The different types of qualifiers that can be used as the accessor of a thisCall element. Defaults to this.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="this">
+				<xs:annotation>
+					<xs:documentation>Call through the this value. Equivalent to callInstance with a callObject containing a thisKeyword element. The default call style.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="base">
+				<xs:annotation>
+					<xs:documentation>Call through the base element. Note that there is no baseKeyword as base cannot be used as a standalone expression, so there is no equivalent callInstance call.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="explicitThis">
+				<xs:annotation>
+					<xs:documentation>Call a virtual method as a non-virtual method on the current class. (C#: &lt;no keyword&gt;, VB: MyClass)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="static">
+				<xs:annotation>
+					<xs:documentation>Make an unqualified call to a static element on this class or one of its base or nesting classes. Equivalent to callStatic with the specified class name, but rendered without qualification. Allows static calls in transforms without knowing the name of the current or base class.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="specialCallNameValues">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value=".implied">
+				<xs:annotation>
+					<xs:documentation>The name of the call is implied by the call type. Used with indexer and arrayIndexer call types.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="callNameType">
+		<xs:annotation>
+			<xs:documentation>The name of the a call. Can be the special .implied value if the name is implied by the type of the call.</xs:documentation>
+		</xs:annotation>
+		<xs:union memberTypes="simpleNameType specialCallNameValues"/>
+	</xs:simpleType>
+	<xs:element name="callInstance" type="callInstanceType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="callInstanceType">
+		<xs:annotation>
+			<xs:documentation>A call to any instance element on a class with a specified type. Note that callThis should be used to access elements on the current class.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="expressionElementType">
+				<xs:sequence>
+					<xs:element ref="passMemberTypeParam" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="callObject"/>
+					<xs:element ref="passParam" minOccurs="0" maxOccurs="unbounded"/>
+				</xs:sequence>
+				<xs:attribute name="name" type="callNameType" use="required"/>
+				<xs:attribute name="type" type="callTypeAllValues" default="methodCall"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="callStatic" type="callStaticType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="callStaticType">
+		<xs:annotation>
+			<xs:documentation>A call to any static element on a class with a specified type. Note that callThis can be used to use an unqualified static member on a local class.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType">
+				<xs:sequence>
+					<xs:element ref="passMemberTypeParam" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="passParam" minOccurs="0" maxOccurs="unbounded"/>
+				</xs:sequence>
+				<xs:attribute name="name" type="callNameType" use="required"/>
+				<xs:attribute name="type" type="callTypeNonArrayValues" default="methodCall"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="arrayInitializer" type="arrayInitializerType"/>
+	<xs:complexType name="arrayInitializerType">
+		<xs:annotation>
+			<xs:documentation>Assign initial values to an array</xs:documentation>
+		</xs:annotation>
+		<xs:choice minOccurs="0">
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element ref="passParam"/>
+			</xs:choice>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element ref="arrayInitializer"/>
+			</xs:choice>
+		</xs:choice>
+	</xs:complexType>
+	<xs:element name="callNew" type="callNewType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="callNewType">
+		<xs:annotation>
+			<xs:documentation>Create a new element of the specified type. If the type is an array, then this will create an array.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType">
+				<xs:sequence>
+					<xs:element ref="passParam" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="arrayInitializer" minOccurs="0"/>
+				</xs:sequence> 
+				<xs:attribute name="type" type="callNewTypeValues" default="new"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="callThis" type="callThisType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="callThisType">
+		<xs:annotation>
+			<xs:documentation>A call to any instance or static element on this class or a base class.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="expressionElementType">
+				<xs:sequence>
+					<xs:element ref="passMemberTypeParam" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="passParam" minOccurs="0" maxOccurs="unbounded"/>
+				</xs:sequence>
+				<xs:attribute name="name" type="callNameType" use="required"/>
+				<xs:attribute name="accessor" type="callThisAccessorValues" default="this"/>
+				<xs:attribute name="type" type="callTypeNonArrayValues" default="methodCall"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<!-- Keywords -->
+	<xs:element name="keyword" type="keywordType" abstract="true" substitutionGroup="expressionElement">
+		<xs:annotation>
+			<xs:documentation>A placeholder element for all keywords, allowing use of a substitution group.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="keywordType">
+		<!-- A base type for all keywords -->
+		<xs:complexContent>
+			<xs:extension base="expressionElementType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="trueKeyword" type="keywordType" substitutionGroup="keyword">
+		<xs:annotation>
+			<xs:documentation>Keyword representing the boolean true value.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="falseKeyword" type="keywordType" substitutionGroup="keyword">
+		<xs:annotation>
+			<xs:documentation>Keyword representing the boolean false value.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="nullKeyword" type="keywordType" substitutionGroup="keyword">
+		<xs:annotation>
+			<xs:documentation>Keyword representing a null object value. (C#: null, VB: Nothing)</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="thisKeyword" type="keywordType" substitutionGroup="keyword">
+		<xs:annotation>
+			<xs:documentation>Keyword representing the this object. (C#: this, VB: Me)</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="valueKeyword" type="keywordType" substitutionGroup="keyword">
+		<xs:annotation>
+			<xs:documentation>Keyword representing the language-specific name used to reference a setter value. (C#: value, VB: not a keyword, but Value is the standard usage)</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:group name="variableElements">
+		<xs:annotation>
+			<xs:documentation>A single definition for variable elements. Shared by field and local.</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element ref="initialize" minOccurs="0"/>
+		</xs:choice>
+	</xs:group>
+	<xs:attributeGroup name="variableAttributes">
+		<xs:annotation>
+			<xs:documentation>A single definition for variable attributes. Shared by field and local.</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="name" type="simpleNameType" use="required"/>
+		<xs:attribute name="const" type="xs:boolean" default="false">
+			<xs:annotation>
+				<xs:documentation>Set to true if the field or local variable is a constant. Default is false.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:attributeGroup>
+	<xs:element name="field" type="fieldType"/>
+	<xs:complexType name="fieldType">
+		<xs:annotation>
+			<xs:documentation>An element representing a field</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<!-- A field is both a member and a typeRefType, but we don't have multiple inheritance.
+				 It is easiest to explicitly included it as a structure and class member than to
+				 mess with all of the typeRefType stuff. -->
+			<xs:extension base="typeRefType">
+				<xs:sequence>
+					<xs:choice minOccurs="0">
+						<xs:group ref="memberElements"/>
+					</xs:choice>
+					<xs:choice minOccurs="0">
+						<xs:group ref="variableElements"/>
+					</xs:choice>
+				</xs:sequence>
+				<xs:attributeGroup ref="universalMemberAttributes"/>
+				<xs:attributeGroup ref="variableAttributes"/>
+				<xs:attribute name="static" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>Set to true if the field is static. Default is false.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="readOnly" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>Set to true if the field is readonly. Default is false.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="local" type="localType"/>
+	<xs:complexType name="localType">
+		<xs:annotation>
+			<xs:documentation>An element representing a local variable</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<!-- A field is both a member and a typeRefType, but we don't have multiple inheritance.
+				 It is easiest to explicitly included it as a structure and class member than to
+				 mess with all of the typeRefType stuff. -->
+			<xs:extension base="typeRefType">
+				<xs:choice minOccurs="0">
+					<xs:group ref="variableElements"/>
+				</xs:choice>
+				<xs:attributeGroup ref="variableAttributes"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:group name="statementExpressions">
+		<xs:annotation>
+			<xs:documentation>Expressions that can also be top-level statements.</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element ref="callInstance"/>
+			<xs:element ref="callStatic"/>
+			<xs:element ref="callThis"/>
+			<xs:element ref="callNew"/>
+			<xs:element ref="binaryStatement"/>
+			<xs:element ref="unaryStatement"/>
+		</xs:choice>
+	</xs:group>
+	<xs:group name="blockContents">
+		<xs:annotation>
+			<xs:documentation>A list of elements that can be top-level statements.</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:group ref="statementExpressions"/>
+			<xs:element ref="bodyStatement"/>
+			<!-- The following elements were not easily placed in a substitutionGroup -->
+			<xs:element ref="iterator"/>
+			<xs:element ref="autoDispose"/>
+			<xs:element ref="local"/>
+		</xs:choice>
+	</xs:group>
+	<xs:simpleType name="vtableModifierValues">
+		<xs:annotation>
+			<xs:documentation>A list of mutually exclusive vtable modification settings for functions, properties, and events</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="none">
+				<xs:annotation>
+					<xs:documentation>The default vtable modifier (non-virtual instance member)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="static">
+				<xs:annotation>
+					<xs:documentation>The member is a static member. (C#: static, VB: Shared)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="virtual">
+				<xs:annotation>
+					<xs:documentation>The member is a virtual member. (C#: virtual, VB: Overridable)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="abstract">
+				<xs:annotation>
+					<xs:documentation>The member is a virtual member with no implementation. (C#: abstract, VB: MustOverride)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="override">
+				<xs:annotation>
+					<xs:documentation>The member is an override of another virtual or abstract member on a base class. (C#: override, VB: Overrides)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="sealedOverride">
+				<xs:annotation>
+					<xs:documentation>The member is an override of another virtual or abstract member on a base class, and derived classes cannot override this member. (C#: override sealed, VB: Overrides NotOverridable)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="interfaceMember" type="interfaceMemberType"/>
+	<xs:complexType name="interfaceMemberType">
+		<xs:annotation>
+			<xs:documentation>This procedures implements the specified member of the interface. The interface should correspond to an implementsInterface element on the containing type. Note that the PLiX formatters will automatically take care of the cases where the names are different, or the other member settings are no compatible with direct interface implementation (static, private, etc). This is a required element for all interface members, even if they have public visibility and the same name.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="parametrizedTypeRefType">
+				<xs:attribute name="memberName" type="simpleNameType" use="required">
+					<xs:annotation>
+						<xs:documentation>The name of the member to implement.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="defaultMember" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>Set to true if this is the default member for the specified interface.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:attributeGroup name="procedureAttributes">
+		<xs:annotation>
+			<xs:documentation>Procedure attributes. Use in addition to memberAttributes or universalMemberAttributes.</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="modifier" type="vtableModifierValues" default="none"/>
+	</xs:attributeGroup>
+	<xs:group name="procedureElements">
+		<xs:sequence>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element ref="interfaceMember"/>
+			</xs:choice>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element ref="typeParam"/>
+			</xs:choice>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element ref="param"/>
+			</xs:choice>
+		</xs:sequence>
+	</xs:group>
+	<xs:simpleType name="specialFunctionNameValues">
+		<xs:annotation>
+			<xs:documentation>Special names for functions.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value=".construct">
+				<xs:annotation>
+					<xs:documentation>The function acts as a constructor. The function name depends on the output language.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value=".finalize">
+				<xs:annotation>
+					<xs:documentation>The function acts as a finalizer. The function name depends on the output language.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="paramTypeDeclarationValues">
+		<xs:annotation>
+			<xs:documentation>Additional values used for parameter declaration that are not used for parameter passing.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="params">
+				<xs:annotation>
+					<xs:documentation>A parameter array. Use on the last param element only.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="paramTypeValues">
+		<xs:annotation>
+			<xs:documentation>Specifies how the parameter is defined. Defaults to in.</xs:documentation>
+		</xs:annotation>
+		<xs:union memberTypes="passParamTypeValues paramTypeDeclarationValues"/>
+	</xs:simpleType>
+	<xs:element name="param" type="paramType"/>
+	<xs:complexType name="paramType">
+		<xs:annotation>
+			<xs:documentation>A parameter definition. Use returns to define a return value.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType">
+				<xs:choice minOccurs="0">
+					<xs:element ref="attribute"/>
+				</xs:choice>
+				<xs:attribute name="name" type="simpleNameType" use="required"/>
+				<xs:attribute name="type" type="paramTypeValues" default="in"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="returns" type="returnsType"/>
+	<xs:complexType name="returnsType">
+		<xs:annotation>
+			<xs:documentation>The definition of a return value for a procedure.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType">
+				<xs:choice minOccurs="0">
+					<xs:element ref="attribute"/>
+				</xs:choice>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="function" type="functionType" substitutionGroup="implementationMember"/>
+	<xs:complexType name="functionType">
+		<xs:annotation>
+			<xs:documentation>Represents a function definition.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="implementationMemberType">
+				<xs:sequence>
+					<xs:group ref="procedureElements"/>
+					<xs:element ref="returns" minOccurs="0"/>
+					<xs:element ref="initialize" minOccurs="0"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:group ref="blockContents"/>
+					</xs:choice>
+				</xs:sequence>
+				<xs:attributeGroup ref="universalMemberAttributes"/>
+				<xs:attributeGroup ref="procedureAttributes"/>
+				<xs:attribute name="name" use="required">
+					<xs:annotation>
+						<xs:documentation>A simple name with no qualifiers, or the special names .construct and .finalize</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:union memberTypes="specialFunctionNameValues xs:string"/>
+					</xs:simpleType>
+				</xs:attribute>
+				<xs:attribute name="overload" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>The containing type has another function of the same name with a different signature.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="property" type="propertyType" substitutionGroup="implementationMember"/>
+	<xs:complexType name="propertyType">
+		<xs:annotation>
+			<xs:documentation>Represents a property definition.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="implementationMemberType">
+				<xs:sequence>
+					<xs:group ref="procedureElements"/>
+					<xs:element ref="returns"/>
+					<xs:element ref="get" minOccurs="0"/>
+					<xs:element ref="set" minOccurs="0"/>
+				</xs:sequence>
+				<xs:attributeGroup ref="memberAttributes"/>
+				<xs:attributeGroup ref="procedureAttributes"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="explicitDelegateType" type="explicitDelegateTypeType"/>
+	<xs:complexType name="explicitDelegateTypeType">
+		<xs:annotation>
+			<xs:documentation>An explicit delegate to use as the type for an event. If the delegate type is not provided, then some languages may generate an implicit delegate type based on the event's signature definition.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="simpleTypeRefType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="event" type="eventType" substitutionGroup="implementationMember"/>
+	<xs:complexType name="eventType">
+		<xs:annotation>
+			<xs:documentation>Represents an event definition.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="implementationMemberType">
+				<xs:sequence>
+					<xs:group ref="procedureElements"/>
+					<xs:element ref="explicitDelegateType" minOccurs="0"/>
+					<xs:element ref="passTypeParam" minOccurs="0">
+						<xs:annotation>
+							<xs:documentation>The type parameters passed to either the implicit or explicit delegate type.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:choice minOccurs="0">
+						<xs:sequence>
+							<xs:element ref="onAdd"/>
+							<xs:element ref="onRemove"/>
+							<xs:element ref="onFire" minOccurs="0"/>
+						</xs:sequence>
+					</xs:choice>
+				</xs:sequence>
+				<xs:attributeGroup ref="memberAttributes"/>
+				<xs:attributeGroup ref="procedureAttributes"/>
+				<xs:attribute name="implicitDelegateName" type="simpleNameType" use="optional">
+					<xs:annotation>
+						<xs:documentation>If an explicitDelegateType element is not provided, then automatically define a delegate with this name as a sibling member of the event (or as a sibling of the interface if the event is defined in an interface). If this attribute is not provided, then 'Handler' is appended to the event name.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="onAdd" type="accessorFunctionType">
+		<xs:annotation>
+			<xs:documentation>A custom function called when a listener is attached to an event.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="onRemove" type="accessorFunctionType">
+		<xs:annotation>
+			<xs:documentation>A custom function called when a listener is detached from an event.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="onFire" type="accessorFunctionType">
+		<xs:annotation>
+			<xs:documentation>A custom function called when an event is raised.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="accessorFunctionType">
+		<xs:annotation>
+			<xs:documentation>The body and attributes for accessor functions for properties and events.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:choice minOccurs="0">
+				<xs:group ref="memberElements"/>
+			</xs:choice>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:group ref="blockContents"/>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="get" type="accessorFunctionWithVisibilityType">
+		<xs:annotation>
+			<xs:documentation>A getter function, used with a property.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="set" type="accessorFunctionWithVisibilityType">
+		<xs:annotation>
+			<xs:documentation>A setter function, used with a property.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="accessorFunctionWithVisibilityType">
+		<xs:annotation>
+			<xs:documentation>An accessorFunctionType with a visibility attribute.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="accessorFunctionType">
+				<xs:attribute name="visibility" type="visibilityValues" use="optional"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<!-- Operator definitions -->
+	<xs:simpleType name="binaryOperatorTypeValues">
+		<xs:annotation>
+			<xs:documentation>Binary operator types.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="add">
+				<xs:annotation>
+					<xs:documentation>Addition operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="assignNamed">
+				<xs:annotation>
+					<xs:documentation>Assign to a named parameter. The left hand side should be a nameRef with type='namedParameter'. Used primarily for attribute construction.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="bitwiseAnd">
+				<xs:annotation>
+					<xs:documentation>Bitwise and operator. (C#: &amp;, VB: And)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="bitwiseExclusiveOr">
+				<xs:annotation>
+					<xs:documentation>Bitwise exlusive or operator. (C#: ^, VB: Xor)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="bitwiseOr">
+				<xs:annotation>
+					<xs:documentation>Bitwise inclusive or operator. (C#: |, VB: Or)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="booleanAnd">
+				<xs:annotation>
+					<xs:documentation>Boolean and operator. A short-circuiting operator is assumed. (C#: &amp;&amp;, VB: AndAlso)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="booleanExclusiveOr">
+				<xs:annotation>
+					<xs:documentation>Boolean exclusive or operator. (C#: ^, VB: Xor)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="booleanOr">
+				<xs:annotation>
+					<xs:documentation>Boolean or operator. A short-circuiting operator is assumed. (C#: ||, VB: OrElse)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="divide">
+				<xs:annotation>
+					<xs:documentation>Division operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="equality">
+				<xs:annotation>
+					<xs:documentation>Value equality comparison operator. Identity comparisons (such as comparing to nullObjectKeyword) should use identifyEquality.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="greaterThan">
+				<xs:annotation>
+					<xs:documentation>Greater than operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="greaterThanOrEqual">
+				<xs:annotation>
+					<xs:documentation>Greater than or equal to operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="identityEquality">
+				<xs:annotation>
+					<xs:documentation>Test if two expressions represent the same object. Use this operator instead of equality to compare to nullObjectKeyword. (C#: ==, VB: Is)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="identityInequality">
+				<xs:annotation>
+					<xs:documentation>Test if two expressions do not represent the same object. Use this operator instead of inequality to compare to nullObjectKeyword. (C#: !=, VB: IsNot)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="inequality">
+				<xs:annotation>
+					<xs:documentation>Value inequality comparison operator. Identity comparisons (such as comparing to nullObjectKeyword) should use identifyInequality.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="lessThan">
+				<xs:annotation>
+					<xs:documentation>Less than operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="lessThanOrEqual">
+				<xs:annotation>
+					<xs:documentation>Less than or equal to operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="modulus">
+				<xs:annotation>
+					<xs:documentation>Modulus (remainder) operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="multiply">
+				<xs:annotation>
+					<xs:documentation>Multiplication operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="shiftLeft">
+				<xs:annotation>
+					<xs:documentation>Shift the bits in the left expression left by the value specified in the right expression. Zero fill the exposed bits.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="shiftRight">
+				<xs:annotation>
+					<xs:documentation>Shift the bits in the left expression right by the value specified in the right expression. The decision to zero or not is left up to the compiler, which will usually base it on the data type of the left expression.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="shiftRightZero">
+				<xs:annotation>
+					<xs:documentation>Shift the bits in the left expression right by the value specified in the right expression. Always zero the exposed bits.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="shiftRightPreserve">
+				<xs:annotation>
+					<xs:documentation>Shift the bits in the left expression right by the value specified in the right expression. Fill exposed bits with the bit value from the high bit.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="subtract">
+				<xs:annotation>
+					<xs:documentation>Subtraction operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="typeEquality">
+				<xs:annotation>
+					<xs:documentation>See if an expression is of a given type. The right hand side will generally be a directTypeReference element. (C#: &lt;left&gt; is &lt;right&gt;, VB: TypeOf &lt;left&gt; Is &lt;right&gt;</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="typeInequality">
+				<xs:annotation>
+					<xs:documentation>See if an expression is not of a given type. The right hand side will generally be a directTypeReference element. (C#: !(&lt;left&gt; is &lt;right&gt;);, VB: TypeOf &lt;left&gt; IsNot &lt;right&gt;</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="unaryOperatorTypeValues">
+		<xs:annotation>
+			<xs:documentation>Unary operator types.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="bitwiseNot">
+				<xs:annotation>
+					<xs:documentation>Bitwise not operator (C#: ~, VB: Not)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="booleanNot">
+				<xs:annotation>
+					<xs:documentation>Boolean not operator (C#: !, VB: Not)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="negative">
+				<xs:annotation>
+					<xs:documentation>Standard negation operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="positive">
+				<xs:annotation>
+					<xs:documentation>Opposite of the standard negation operator. Included to complement the negative operator type.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="binaryOperator" type="binaryOperatorType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="binaryOperatorType">
+		<xs:annotation>
+			<xs:documentation>A binary operator with left and right elements.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="expressionElementType">
+				<xs:sequence>
+					<xs:element ref="left"/>
+					<xs:element ref="right"/>
+				</xs:sequence>
+				<xs:attribute name="type" type="binaryOperatorTypeValues" use="required"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="unaryOperator" type="unaryOperatorType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="unaryOperatorType">
+		<xs:annotation>
+			<xs:documentation>A unary operator.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="expressionElementType">
+				<xs:sequence>
+					<xs:element ref="expressionElement"/>
+				</xs:sequence>
+				<xs:attribute name="type" type="unaryOperatorTypeValues" use="required"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="binaryStatement" type="binaryStatementType" abstract="true" substitutionGroup="bodyStatement"/>
+	<xs:complexType name="binaryStatementType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>A base type for the binary statements. Binary statements are singled out from binary operators to distinguish them as standalone statements.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="bodyStatementType">
+				<xs:sequence>
+					<xs:element ref="left"/>
+					<xs:element ref="right"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="assign" type="assignType" substitutionGroup="binaryStatement"/>
+	<xs:complexType name="assignType">
+		<xs:annotation>
+			<xs:documentation>Assignment statement.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="binaryStatementType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="attachEvent" type="attachEventType" substitutionGroup="binaryStatement"/>
+	<xs:complexType name="attachEventType">
+		<xs:annotation>
+			<xs:documentation>Attach an event procedure to an event. The left hand side will generally be a callInstance, callThis, or callStatic with type='event', and the right hand size will generally be a callInstance, callThis, or callStatic with type='MethodReference'.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="binaryStatementType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="detachEvent" type="detachEventType" substitutionGroup="binaryStatement"/>
+	<xs:complexType name="detachEventType">
+		<xs:annotation>
+			<xs:documentation>Detach an event procedure from an event. The left hand side will generally be a callInstance, callThis, or callStatic with type='event', and the right hand size will generally be a callInstance, callThis, or callStatic with type='MethodReference'.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="binaryStatementType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="unaryStatement" type="unaryStatementType" abstract="true" substitutionGroup="bodyStatement"/>
+	<xs:complexType name="unaryStatementType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>A base type for unary statements. Unary statements are singled out from unary operators to distinguish them as standalone statements.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="bodyStatementType">
+				<xs:sequence>
+					<xs:element ref="expressionElement"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="increment" type="incrementType" substitutionGroup="unaryStatement"/>
+	<xs:complexType name="incrementType">
+		<xs:annotation>
+			<xs:documentation>Increment the expression by one. The expression will generally be a nameRef or a call* element with type='field'.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="unaryStatementType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="decrement" type="decrementType" substitutionGroup="unaryStatement"/>
+	<xs:complexType name="decrementType">
+		<xs:annotation>
+			<xs:documentation>Decrement the expression by one. The expression will generally be a nameRef or a call* element with type='field'.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="unaryStatementType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:simpleType name="valueTypeValues">
+		<xs:annotation>
+			<xs:documentation>The type of value. Specifies how the data attribute is interpreted.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="char">
+				<xs:annotation>
+					<xs:documentation>A single character. A full string should be specified as a string element, not with a value element.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="date">
+				<!-- UNDONE: Some sort of standard on date formatting -->
+				<xs:annotation>
+					<xs:documentation>A date value</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="decimal">
+				<xs:annotation>
+					<xs:documentation>A floating decimal point integer value</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="hex2">
+				<xs:annotation>
+					<xs:documentation>A 2-byte integer value entered in hexadecimal format. Language-specific leading characters should always be omitted.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="hex4">
+				<xs:annotation>
+					<xs:documentation>A 4-byte integer value entered in hexadecimal format. Language-specific leading characters should always be omitted.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="hex8">
+				<xs:annotation>
+					<xs:documentation>An 8-byte integer value entered in hexadecimal format. Language-specific leading characters should always be omitted.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="i1">
+				<xs:annotation>
+					<xs:documentation>A signed 8-bit integer value (signed byte)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="i2">
+				<xs:annotation>
+					<xs:documentation>A signed 16-bit integer value (short)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="i4">
+				<xs:annotation>
+					<xs:documentation>A signed 32-bit integer value (int)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="i8">
+				<xs:annotation>
+					<xs:documentation>A signed 64-bit integer value (long)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="r4">
+				<xs:annotation>
+					<xs:documentation>A 4-byte floating point number (float)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="r8">
+				<xs:annotation>
+					<xs:documentation>An 8-byte floating point number (double)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="u1">
+				<xs:annotation>
+					<xs:documentation>An unsigned 8-bit integer value (byte)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="u2">
+				<xs:annotation>
+					<xs:documentation>An unsigned 16-bit integer value (ushort)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="u4">
+				<xs:annotation>
+					<xs:documentation>An unsigned 32-bit integer value (uint)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="u8">
+				<xs:annotation>
+					<xs:documentation>An unsigned 64-bit integer value (ulong)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="value" type="valueType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="valueType">
+		<xs:annotation>
+			<xs:documentation>A primitive value. The type and data of the value must be specified.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="expressionElementType">
+				<xs:attribute name="type" type="valueTypeValues" use="required"/>
+				<xs:attribute name="data" use="required">
+					<xs:annotation>
+						<xs:documentation>The data for the value. The contents are interpreted based on the type attribute.</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:restriction base="xs:string">
+							<xs:minLength value="1"/>
+							<!-- Preserve is required to reliably enter char data -->
+							<xs:whiteSpace value="preserve"/>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="string" type="stringType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="stringType" mixed="true">
+		<xs:annotation>
+			<xs:documentation>A string literal. Nested string elements are automatically concatenated by plix formatters.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="expressionElementType">
+				<xs:choice minOccurs="0" maxOccurs="unbounded">
+					<xs:element ref="string"/>
+				</xs:choice>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:simpleType name="nameRefTypeValues">
+		<xs:annotation>
+			<xs:documentation>The type of a name being reference. Specifies the type of element the name is refering to.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="local">
+				<xs:annotation>
+					<xs:documentation>A local variable name. The default value.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="parameter">
+				<xs:annotation>
+					<xs:documentation>A parameter name declared in the current function.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="namedParameter">
+				<xs:annotation>
+					<xs:documentation>A named parameter, used with an assignNamed operator. Named parameters are used with attribute declarations.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="nameRef" type="nameRefType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="nameRefType">
+		<xs:annotation>
+			<xs:documentation>Use of a named local, parameter, or named parameter.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="expressionElementType">
+				<xs:attribute name="type" type="nameRefTypeValues" default="local"/>
+				<xs:attribute name="name" type="simpleNameType" use="required"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<!-- Cast elements -->
+	<xs:simpleType name="castTypeValues">
+		<xs:annotation>
+			<xs:documentation>Specifies the type of the cast to perform. Defaults to exceptionCast.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="primitiveChecked">
+				<xs:annotation>
+					<xs:documentation>A cast from one primitive type to another with overflow checks.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="primitiveUnchecked">
+				<xs:annotation>
+					<xs:documentation>A cast from one primitive type to another without overflow checks.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="exceptionCast">
+				<xs:annotation>
+					<xs:documentation>A cast to a type element that will throw on failure. Default.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="testCast">
+				<xs:annotation>
+					<xs:documentation>A cast to a type element that returns a null object on failure.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="unbox">
+				<xs:annotation>
+					<xs:documentation>Unbox a reference type and return the corresponding value type. Note that the opposite operation (boxing) is an expression modifier.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="cast" type="castType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="castType">
+		<xs:annotation>
+			<xs:documentation>Cast the expression to the specified type.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType">
+				<xs:sequence>
+					<xs:element ref="expressionElement"/>
+				</xs:sequence>
+				<xs:attribute name="type" type="castTypeValues" default="exceptionCast"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	
+	<!-- Expression modification types -->
+	<xs:simpleType name="expressionModifierValues">
+		<xs:annotation>
+			<xs:documentation></xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="none">
+				<xs:annotation>
+					<xs:documentation>Pass the expression without modification</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="addressOf">
+				<xs:annotation>
+					<xs:documentation>Pass the address of a variable, field, or array element is passed instead of its value.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="indirectRead">
+				<xs:annotation>
+					<xs:documentation>The expression is read indirectly (x = *arg1)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="indirectWrite">
+				<xs:annotation>
+					<xs:documentation>The expression is written indirectly (*arg1 = x)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="box">
+				<xs:annotation>
+					<xs:documentation>The expression is boxed as part of the evaluation. Note that the opposite operation (unboxing) is performed with a cast element.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="expression" type="expressionType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="expressionType">
+		<xs:annotation>
+			<xs:documentation>An explicit expression element to contain and modify any other expression elements.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="expressionElementType">
+				<xs:sequence>
+					<xs:element ref="expressionElement"/>
+				</xs:sequence>
+				<xs:attribute name="modifier" type="expressionModifierValues" default="none"/>
+				<xs:attribute name="parens" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>Set to true to explicitly place parenthese around the expression. Defaults to false.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	
+	<!-- Code block and control flow structures -->
+	<xs:element name="codeBlock" type="codeBlockType" abstract="true" substitutionGroup="bodyStatement"/>
+	<xs:complexType name="codeBlockType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>A type to form a substitution group for all code block elements (loops, branches, etc).</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="bodyStatementType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="body" type="codeBodyType">
+		<xs:annotation>
+			<xs:documentation>The body of any block element that needs to separate body code from other elements (branch, alternateBranch, try, catch, loop, iterate, lock, switch)</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="fallbackBranch" type="codeBodyType">
+		<xs:annotation>
+			<xs:documentation>The unconditional fallback portion of a branch construct (C# else, VB: Else)</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="fallbackCase" type="codeBodyType">
+		<xs:annotation>
+			<xs:documentation>The unconditional fallback case for a switch construct (C# default, VB: Case Else)</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="fallbackCatch" type="codeBodyType">
+		<xs:annotation>
+			<xs:documentation>The untyped fallback catch for a try construct (C# catch, VB: Catch)</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="finally" type="codeBodyType">
+		<xs:annotation>
+			<xs:documentation>Code that runs whenever try block is entered.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="codeBodyType">
+		<!-- Elements to allow in any code body -->
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:group ref="blockContents"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:element name="condition" type="expressionContainerType">
+		<xs:annotation>
+			<xs:documentation>The test expression for a branch, alternateBranch, loop, switch, or case.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="branch" type="branchType" substitutionGroup="codeBlock"/>
+	<xs:complexType name="branchType">
+		<xs:annotation>
+			<xs:documentation>A conditional branch block. (C#: if, VB: If)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="codeBlockType">
+				<xs:sequence>
+					<xs:element ref="condition"/>
+					<xs:element ref="body" minOccurs="0"/>
+					<xs:element ref="alternateBranch" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="fallbackBranch" minOccurs="0"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="alternateBranch" type="alternateBranchType"/>
+	<xs:complexType name="alternateBranchType">
+		<xs:annotation>
+			<xs:documentation>An alternate branch for a conditional branch block. (C#: else if, VB: ElseIf)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="codeBlockType">
+				<xs:sequence>
+					<xs:element ref="condition"/>
+					<xs:element ref="body" minOccurs="0"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:simpleType name="loopCheckConditionValues">
+		<xs:annotation>
+			<xs:documentation>Specify whether the loop's condition should be checked at the beginning or end of the loop. Default is before.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="before">
+				<xs:annotation>
+					<xs:documentation>Check the condition before the loop is entered. Default.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="after">
+				<xs:annotation>
+					<xs:documentation>Check the condition after the loop has run.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="initializeLoop" type="initializeLoopType"/>
+	<xs:complexType name="initializeLoopType">
+		<xs:annotation>
+			<xs:documentation>A statement, or a local to initialize before a loop is run for the first time.</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:group ref="statementExpressions"/>
+			<xs:element ref="local"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:element name="beforeLoop" type="beforeLoopType"/>
+	<xs:complexType name="beforeLoopType">
+		<xs:annotation>
+			<xs:documentation>A statement to execute after each pass through a loop.</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:group ref="statementExpressions"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:element name="loop" type="loopType" substitutionGroup="codeBlock"/>
+	<xs:complexType name="loopType">
+		<xs:annotation>
+			<xs:documentation>A looping construct. Use iterate for set iteration. (C#: for, do, while; VB: For, Do, While)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="codeBlockType">
+				<xs:sequence>
+					<xs:element ref="initializeLoop" minOccurs="0"/>
+					<xs:element ref="condition" minOccurs="0"/>
+					<xs:element ref="beforeLoop" minOccurs="0"/>
+					<xs:element ref="body" minOccurs="0"/>
+				</xs:sequence>
+				<xs:attribute name="checkCondition" type="loopCheckConditionValues" default="before"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="iterator" type="iteratorType"/>
+	<xs:complexType name="iteratorType">
+		<xs:complexContent>
+			<xs:extension base="parametrizedTypeRefType">
+				<xs:sequence>
+					<xs:element ref="initialize"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:group ref="blockContents"/>
+					</xs:choice>
+				</xs:sequence>
+				<xs:attribute name="localName" type="simpleNameType" use="required">
+					<xs:annotation>
+						<xs:documentation>The name of the iterator variable.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="lock" type="lockType" substitutionGroup="codeBlock"/>
+	<xs:complexType name="lockType">
+		<xs:annotation>
+			<xs:documentation>A lock construct for cross-thread synchronization.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="codeBlockType">
+				<xs:sequence>
+					<xs:element ref="initialize"/>
+					<xs:element ref="body" minOccurs="0"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="catch" type="catchType"/>
+	<xs:complexType name="catchType">
+		<xs:annotation>
+			<xs:documentation>The definition of a catch variable and its body code.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType">
+				<xs:choice minOccurs="0" maxOccurs="unbounded">
+					<xs:group ref="blockContents"/>
+				</xs:choice>
+				<xs:attribute name="localName" type="simpleNameType"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="try" type="tryType" substitutionGroup="codeBlock"/>
+	<xs:complexType name="tryType">
+		<xs:annotation>
+			<xs:documentation>A try construct. Contains body, catch, alternate, and finally blocks.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="codeBlockType">
+				<xs:sequence>
+					<xs:element ref="body"/>
+					<xs:element ref="catch" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="fallbackCatch" minOccurs="0"/>
+					<xs:element ref="finally" minOccurs="0"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="autoDispose" type="autoDisposeType"/>
+	<xs:complexType name="autoDisposeType">
+		<xs:annotation>
+			<xs:documentation>The definition of a disposable variable and the associated body code. (C#: using, VB: Using)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="parametrizedTypeRefType">
+				<xs:sequence>
+					<xs:element ref="initialize"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:group ref="blockContents"/>
+					</xs:choice>
+				</xs:sequence>
+				<xs:attribute name="localName" type="simpleNameType"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="case" type="caseType"/>
+	<xs:complexType name="caseType">
+		<xs:annotation>
+			<xs:documentation>One or more condition expressions to match against the condition element of the containing switch element. Note that multiple conditions are allowed. It is the responsibility of the individual plix language formatters to ensure that non-empty case statements do not fallthrough. Empty cases should be specified as multiple condition elements on a single case.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="condition" maxOccurs="unbounded"/>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:group ref="blockContents"/>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="switch" type="switchType" substitutionGroup="codeBlock"/>
+	<xs:complexType name="switchType">
+		<xs:annotation>
+			<xs:documentation>Represents a switch block. (C#: switch, VB: Select Case)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="codeBlockType">
+				<xs:sequence>
+					<xs:element ref="condition"/>
+					<xs:element ref="case" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="fallbackCase" minOccurs="0"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	
+	<!-- Unconditional jump elements -->
+	<xs:element name="label" type="labelType" substitutionGroup="bodyStatement"/>
+	<xs:complexType name="labelType">
+		<xs:annotation>
+			<xs:documentation>A named label. The name can be referenced from a goto element.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="bodyStatementType">
+				<xs:attribute name="name" type="simpleNameType"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="goto" type="gotoType" substitutionGroup="bodyStatement"/>
+	<xs:complexType name="gotoType">
+		<xs:annotation>
+			<xs:documentation>A goto to a named label.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="bodyStatementType">
+				<xs:attribute name="name" type="simpleNameType"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="gotoCase" type="gotoCaseType" substitutionGroup="bodyStatement"/>
+	<xs:complexType name="gotoCaseType">
+		<xs:annotation>
+			<xs:documentation>A goto to another case. Used inside switch statements.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="bodyStatementType">
+				<xs:sequence>
+					<xs:element ref="condition"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="break" type="breakType" substitutionGroup="bodyStatement"/>
+	<xs:complexType name="breakType">
+		<xs:annotation>
+			<xs:documentation>Break out of the enclosing construct.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="bodyStatementType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="continue" type="continueType" substitutionGroup="bodyStatement"/>
+	<xs:complexType name="continueType">
+		<xs:annotation>
+			<xs:documentation>Continue with the next element of the enclosing loop construct.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="bodyStatementType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	
+	<!-- Non-code elements -->
+	<xs:element name="comment" type="commentType" substitutionGroup="bodyStatement"/>
+	<xs:complexType name="commentType" mixed="true">
+		<xs:annotation>
+			<xs:documentation>A comment.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="bodyStatementType">
+				<xs:attribute name="blankLine" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>Set to true to insert a blank line in the code.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="docComment" type="docCommentType"/>
+	<xs:complexType name="docCommentType">
+		<xs:annotation>
+			<xs:documentation>Documentation comments, allowed on members</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<!-- UNDONE: Get schema information for doc comments -->
+			<xs:any maxOccurs="unbounded" namespace="##local" processContents="skip"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:simpleType name="pragmaTypeValues">
+		<xs:annotation>
+			<xs:documentation>Supported pragma types</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="alternateConditional">
+				<xs:annotation>
+					<xs:documentation>Begin an alternate conditional compilation block. (C#: #elif, VB: #ElseIf)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="alternateNotConditional">
+				<xs:annotation>
+					<xs:documentation>Begin an alternate conditional compilation block, negating the specified value. (C#: #elif !, VB: #ElseIf Not)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="closeConditional">
+				<xs:annotation>
+					<xs:documentation>Close a conditional compilation block. (C#: #endif, VB: #EndIf)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="closeRegion">
+				<xs:annotation>
+					<xs:documentation>Close a region block. (C#: #endregion, VB: #End Region)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="conditional">
+				<xs:annotation>
+					<xs:documentation>Begin a conditional compilation block. Should be balanced a closeConditional and one or more alternate and a fallback conditionals. (C#: #if, VB: #If)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="fallbackConditional">
+				<xs:annotation>
+					<xs:documentation>Begin a fallback conditional compilation block. (C#: #else, VB: #Else)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="notConditional">
+				<xs:annotation>
+					<xs:documentation>Begin a conditional compilation block, negating the specified value. Should be balanced a closeConditional and one or more fallback and alternate conditionals. (C#: #if !, VB: #If Not)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="region">
+				<xs:annotation>
+					<xs:documentation>Open a region block. (C#: #region, VB: #Region)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="pragma" type="pragmaType" substitutionGroup="bodyStatement"/>
+	<xs:complexType name="pragmaType">
+		<xs:annotation>
+			<xs:documentation>A code pragma element. Used for regioning, conditional compilation, and other pragma types.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="bodyStatementType">
+				<xs:attribute name="type" type="pragmaTypeValues"/>
+				<xs:attribute name="data" type="xs:string" use="optional">
+					<xs:annotation>
+						<xs:documentation>The data appropriate for the specified pragma type.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="leadingInfo" type="leadingInfoType"/>
+	<xs:complexType name="leadingInfoType">
+		<xs:annotation>
+			<xs:documentation>Non-code elements immediately preceding a member, type, or namespace. These are defined as child elements instead of siblings to enable reordering of member elements. Leading info is often accompanied by trailingInfo.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="pragma" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="comment" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="docComment" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="trailingInfo" type="trailingInfoType"/>
+	<xs:complexType name="trailingInfoType">
+		<xs:annotation>
+			<xs:documentation>Non-code elements immediately after a member, type, or namespace. These are defined as child elements instead of siblings to enable reordering of member elements. Trailing info is often accompanied by leadingInfo and should balance any open leading pragma elements.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="comment" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="pragma" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<!-- UNDONE: Consider adding a noncode element for linePragma as well -->
+</xs:schema>

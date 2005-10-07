@@ -1,0 +1,21 @@
+﻿<?xml version="1.0"?>
+<xs:schema id="PLiXRedirect"
+	elementFormDefault="qualified"
+	attributeFormDefault="unqualified"
+	targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiXRedirect"
+	xmlns="http://schemas.neumont.edu/CodeGeneration/PLiXRedirect"
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	>
+	<xs:element name="redirectSourceFile">
+		<xs:complexType>
+			<xs:annotation>
+				<xs:documentation>This file represents a redirection to a different source data file. Only the data is affected. The default transform name and all plix.xml settings are keyed off of this file name.</xs:documentation>
+			</xs:annotation>
+			<xs:attribute name="target" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>The name of the source file to load instead of this one. The specified path should be relative to the directory containing this file.</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

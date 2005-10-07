@@ -1,0 +1,51 @@
+﻿<?xml version="1.0"?>
+<xs:schema id="PLiXSettings"
+	elementFormDefault="qualified"
+	attributeFormDefault="unqualified"
+	targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiXSettings"
+	xmlns="http://schemas.neumont.edu/CodeGeneration/PLiXSettings"
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:plxs="http://schemas.neumont.edu/CodeGeneration/PLiXSettings"
+	>
+	<xs:element name="settings">
+		<xs:complexType>
+			<xs:all>
+				<xs:element name="formatters" type="formattersType">
+					<xs:key name="formatter_key">
+						<xs:selector xpath="plxs:formatter"/>
+						<xs:field xpath="@fileExtension"/>
+					</xs:key>
+				</xs:element>
+			</xs:all>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="formattersType">
+		<xs:annotation>
+			<xs:documentation>A list of formatter elements tying a file extension to a specific transform file.</xs:documentation>
+		</xs:annotation>
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="formatter" type="formatterType"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="formatterType">
+		<xs:annotation>
+			<xs:documentation>A formatter for a specific language type</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="fileExtension" use="required">
+			<xs:annotation>
+				<xs:documentation>A file extension corresponding to the language to generate. Consists of one or more lower case characters.</xs:documentation>
+			</xs:annotation>
+			<xs:simpleType>
+				<xs:restriction base="xs:string">
+					<!-- Allow one or more lower case characters-->
+					<xs:pattern value="\p{Ll}+"/>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:attribute>
+		<xs:attribute name="transform" type="xs:string" use="required">
+			<xs:annotation>
+				<xs:documentation>The transform file to run to generate this language. Transform files can be found in the Formatters directory.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+</xs:schema>
