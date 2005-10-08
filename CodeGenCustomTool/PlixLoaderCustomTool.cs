@@ -1048,8 +1048,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 									using (StreamReader reader = new StreamReader(transformStream))
 									{
 										retVal.Load(new XmlTextReader(reader), XsltSettings.TrustedXslt, new XmlFileResolver(transformFile));
-										// UNDONE: Temporary, use for editing transform
-										//myTransform = retVal;
+										myTransform = retVal;
 									}
 								}
 							}
