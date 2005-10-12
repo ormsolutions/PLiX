@@ -1591,7 +1591,7 @@
 							<xsl:when test="$rawTypeName='.string'">
 								<xsl:text>String</xsl:text>
 							</xsl:when>
-							<xsl:when test="$rawTypeName='DateTime'">
+							<xsl:when test="$rawTypeName='.date'">
 								<xsl:text>Date</xsl:text>
 							</xsl:when>
 						</xsl:choose>
