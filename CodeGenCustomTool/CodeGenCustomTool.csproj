@@ -74,6 +74,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="PLiXVB.xslt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSHARP.Targets" />
   <PropertyGroup Condition="">
     <PostBuildEvent>"$(ProjectDir)install.bat" "$(ProjectDir)" "$(OutDir)" "$(DevEnvDir)..\..\"</PostBuildEvent>

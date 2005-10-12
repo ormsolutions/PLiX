@@ -28,4 +28,5 @@ xcopy /Y /D /Q %rootPath%%outDir%"PlixSettings.xsd" %envPath%"Xml\Schemas\"
 xcopy /Y /D /Q %rootPath%%outDir%"PlixSettings.xml" %envPath%"Neumont\CodeGeneration\PLiX"
 xcopy /Y /D /Q %rootPath%%outDir%"PlixMain.xslt" %envPath%"Neumont\CodeGeneration\PLiX\Formatters"
 xcopy /Y /D /Q %rootPath%%outDir%"PlixCS.xslt" %envPath%"Neumont\CodeGeneration\PLiX\Formatters"
+xcopy /Y /D /Q %rootPath%%outDir%"PlixVB.xslt" %envPath%"Neumont\CodeGeneration\PLiX\Formatters"
 regedit /s %rootPath%PlixLoaderCustomTool.reg

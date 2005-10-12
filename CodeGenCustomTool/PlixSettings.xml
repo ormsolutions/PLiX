@@ -2,5 +2,6 @@
 <plxs:settings xmlns:plxs="http://schemas.neumont.edu/CodeGeneration/PLiXSettings">
 	<plxs:formatters>
 		<plxs:formatter fileExtension="cs" transform="PLiXCS.xslt"/>
+		<plxs:formatter fileExtension="vb" transform="PLiXVB.xslt"/>
 	</plxs:formatters>
 </plxs:settings>

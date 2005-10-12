@@ -101,7 +101,7 @@
 				</xs:attribute>
 				<xs:attribute name="blockOpen" type="xs:string">
 					<xs:annotation>
-						<xs:documentation>The block open for the language. Use blockOpenNewLinePosition for new line control, do not include it here.</xs:documentation>
+						<xs:documentation>The block open for the language. Use newLineBeforeBlockOpen for new line control, do not include it here.</xs:documentation>
 					</xs:annotation>
 				</xs:attribute>
 				<xs:attribute name="newLineBeforeBlockOpen">

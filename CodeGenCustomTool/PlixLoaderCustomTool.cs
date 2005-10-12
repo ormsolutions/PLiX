@@ -539,6 +539,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 			}
 
 			// Add standard defined attributes to the argument list
+			string projectNamespace = (string)project.Properties.Item("DefaultNamespace").Value;
 			if (null == arguments.GetParam("ProjectPath", ""))
 			{
 				arguments.AddParam("ProjectPath", "", projectLocation);
@@ -549,11 +550,15 @@ There is no way to both successfully trigger regeneration and avoid writing this
 			}
 			if (null == arguments.GetParam("CustomToolNamespace", ""))
 			{
+				if (defaultNamespace == null || defaultNamespace.Length == 0)
+				{
+					defaultNamespace = projectNamespace;
+				}
 				arguments.AddParam("CustomToolNamespace", "", defaultNamespace);
 			}
 			if (null == arguments.GetParam("ProjectNamespace", ""))
 			{
-				arguments.AddParam("ProjectNamespace", "", project.Properties.Item("DefaultNamespace").Value);
+				arguments.AddParam("ProjectNamespace", "", projectNamespace);
 			}
 
 			try
@@ -1121,10 +1126,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 											{
 												Debug.Assert(TestElementName(reader.LocalName, names.FormatterElement)); // Only value allowed by the validating reader
 												languageTransforms[reader.GetAttribute(PlixSettingsSchema.FileExtensionAttribute)] = new Formatter(formattersDir + reader.GetAttribute(PlixSettingsSchema.TransformAttribute));
-												if (reader.IsEmptyElement)
-												{
-													break;
-												}
+												PassEndElement(reader);
 											}
 											else if (nodeType2 == XmlNodeType.EndElement)
 											{
