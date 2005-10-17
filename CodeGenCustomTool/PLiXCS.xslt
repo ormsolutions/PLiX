@@ -432,7 +432,9 @@
 		<xsl:variable name="explicitDelegate" select="plx:explicitDelegateType"/>
 		<xsl:variable name="name" select="@name"/>
 		<xsl:variable name="implicitDelegateName" select="@implicitDelegateName"/>
-		<xsl:if test="not($explicitDelegate) and @modifier!='override'">
+		<xsl:variable name="isSimpleExplicitImplementation"
+			select="@modifier!='static' and @visibility='private' and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName and plx:onAdd and plx:onRemove"/>
+		<xsl:if test="not($isSimpleExplicitImplementation) and not($explicitDelegate) and @modifier!='override'">
 			<!-- Use the provided parameters to define an implicit event procedure -->
 			<!-- UNDONE: This won't work for interfaces, the handler will need to be
 				 a sibiling to the interface. -->
@@ -470,11 +472,13 @@
 		<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:call-template>
-		<xsl:if test="not(parent::plx:interface)">
-			<xsl:call-template name="RenderVisibility"/>
-			<xsl:call-template name="RenderProcedureModifier"/>
+		<xsl:if test="not($isSimpleExplicitImplementation)">
+			<xsl:if test="not(parent::plx:interface)">
+				<xsl:call-template name="RenderVisibility"/>
+				<xsl:call-template name="RenderProcedureModifier"/>
+			</xsl:if>
+			<xsl:call-template name="RenderReplacesName"/>
 		</xsl:if>
-		<xsl:call-template name="RenderReplacesName"/>
 		<xsl:text>event </xsl:text>
 		<xsl:variable name="delegateTypeFragment">
 			<xsl:variable name="passTypeParams" select="plx:passTypeParam"/>
@@ -503,11 +507,17 @@
 			<xsl:call-template name="RenderType"/>
 		</xsl:for-each>
 		<xsl:text> </xsl:text>
+		<xsl:if test="$isSimpleExplicitImplementation">
+			<xsl:for-each select="plx:interfaceMember">
+				<xsl:call-template name="RenderType"/>
+			</xsl:for-each>
+			<xsl:text>.</xsl:text>
+		</xsl:if>
 		<xsl:value-of select="$name"/>
 	</xsl:template>
 	<xsl:template match="plx:event" mode="IndentInfo">
 		<xsl:choose>
-			<xsl:when test="plx:interfaceMember">
+			<xsl:when test="plx:interfaceMember and not(@modifier!='static' and @visibility='private' and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName and plx:onAdd and plx:onRemove)">
 				<xsl:call-template name="CustomizeIndentInfo">
 					<xsl:with-param name="defaultInfo">
 						<xsl:apply-imports/>
@@ -699,11 +709,15 @@
 						</xsl:call-template>
 					</xsl:for-each>
 				</xsl:if>
-				<xsl:if test="not(parent::plx:interface)">
-					<xsl:call-template name="RenderVisibility"/>
-					<xsl:call-template name="RenderProcedureModifier"/>
+				<xsl:variable name="isSimpleExplicitImplementation"
+					select="@modifier!='static' and @visibility='private' and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName"/>
+				<xsl:if test="not($isSimpleExplicitImplementation)">
+					<xsl:if test="not(parent::plx:interface)">
+						<xsl:call-template name="RenderVisibility"/>
+						<xsl:call-template name="RenderProcedureModifier"/>
+					</xsl:if>
+					<xsl:call-template name="RenderReplacesName"/>
 				</xsl:if>
-				<xsl:call-template name="RenderReplacesName"/>
 				<xsl:choose>
 					<xsl:when test="$returns">
 						<xsl:for-each select="$returns">
@@ -715,6 +729,12 @@
 						<xsl:text>void </xsl:text>
 					</xsl:otherwise>
 				</xsl:choose>
+				<xsl:if test="$isSimpleExplicitImplementation">
+					<xsl:for-each select="plx:interfaceMember">
+						<xsl:call-template name="RenderType"/>
+					</xsl:for-each>
+					<xsl:text>.</xsl:text>
+				</xsl:if>
 				<xsl:value-of select="@name"/>
 				<xsl:variable name="typeParams" select="plx:typeParam"/>
 				<xsl:if test="$typeParams">
@@ -734,7 +754,7 @@
 	</xsl:template>
 	<xsl:template match="plx:function" mode="IndentInfo">
 		<xsl:choose>
-			<xsl:when test="plx:interfaceMember">
+			<xsl:when test="plx:interfaceMember and not(@modifier!='static' and @visibility='private' and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName)">
 				<xsl:call-template name="CustomizeIndentInfo">
 					<xsl:with-param name="defaultInfo">
 						<xsl:apply-imports/>
@@ -1031,6 +1051,14 @@
 				<xsl:text>#region </xsl:text>
 				<xsl:value-of select="$data"/>
 			</xsl:when>
+			<xsl:when test="$type='warningDisable'">
+				<xsl:text>#pragma warning disable </xsl:text>
+				<xsl:value-of select="$data"/>
+			</xsl:when>
+			<xsl:when test="$type='warningRestore'">
+				<xsl:text>#pragma warning restore </xsl:text>
+				<xsl:value-of select="$data"/>
+			</xsl:when>
 		</xsl:choose>
 	</xsl:template>
 	<xsl:template match="plx:property">
@@ -1045,11 +1073,15 @@
 				<xsl:with-param name="Prefix" select="'returns:'"/>
 			</xsl:call-template>
 		</xsl:for-each>
-		<xsl:if test="not(parent::plx:interface)">
-			<xsl:call-template name="RenderVisibility"/>
-			<xsl:call-template name="RenderProcedureModifier"/>
+		<xsl:variable name="isSimpleExplicitImplementation"
+			select="@modifier!='static' and @visibility='private' and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName"/>
+		<xsl:if test="not($isSimpleExplicitImplementation)">
+			<xsl:if test="not(parent::plx:interface)">
+				<xsl:call-template name="RenderVisibility"/>
+				<xsl:call-template name="RenderProcedureModifier"/>
+			</xsl:if>
+			<xsl:call-template name="RenderReplacesName"/>
 		</xsl:if>
-		<xsl:call-template name="RenderReplacesName"/>
 		<xsl:for-each select="$returns">
 			<xsl:call-template name="RenderType"/>
 		</xsl:for-each>
@@ -1061,6 +1093,12 @@
 				<xsl:text>this</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>
+				<xsl:if test="$isSimpleExplicitImplementation">
+					<xsl:for-each select="plx:interfaceMember">
+						<xsl:call-template name="RenderType"/>
+					</xsl:for-each>
+					<xsl:text>.</xsl:text>
+				</xsl:if>
 				<xsl:value-of select="$name"/>
 			</xsl:otherwise>
 		</xsl:choose>
@@ -1083,7 +1121,7 @@
 	</xsl:template>
 	<xsl:template match="plx:property" mode="IndentInfo">
 		<xsl:choose>
-			<xsl:when test="plx:interfaceMember">
+			<xsl:when test="plx:interfaceMember and not(@modifier!='static' and @visibility='private' and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName)">
 				<xsl:call-template name="CustomizeIndentInfo">
 					<xsl:with-param name="defaultInfo">
 						<xsl:apply-imports/>

@@ -1,6 +1,6 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <xs:schema
-	id="PLiX2" 
+	id="PLiX2"
 	targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiX"
 	elementFormDefault="qualified"
 	xmlns="http://schemas.neumont.edu/CodeGeneration/PLiX"
@@ -33,7 +33,7 @@
 		  5) Language formatters can also reduce core PLiX elements that they do not render natively in the
 			 given language. For example, a complex conditional statement in C# if (null != (x = y as SomeType))
 			 can be rendered in VB using multiple statements and formatter-generated local variables.
-		
+
 		The PLiX schema design has some specific goals.
 		  1) Any snippet should be generatable with no outside context. This means that all of the information
 			 require to generate the snippet must be kept to that element. It also means that any element must
@@ -435,6 +435,7 @@
 				<xs:sequence>
 					<xs:element ref="typeParam" minOccurs="0" maxOccurs="unbounded"/>
 					<xs:element ref="param" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="returns" minOccurs="0"/>
 				</xs:sequence>
 				<xs:attributeGroup ref="delegateTypeAttributes"/>
 			</xs:extension>
@@ -630,7 +631,7 @@
 			<xs:documentation>Represents a reference to a simple type (no type parameters, no arrays). Acts as a base for other types.</xs:documentation>
 		</xs:annotation>
 		<xs:complexContent>
-			<!-- Use an expression type here so that typeRefType-derived elements can be used directly 
+			<!-- Use an expression type here so that typeRefType-derived elements can be used directly
 				 as expressions. There are other uses as well (field, attribute), but these are less
 				 common than the expression uses and will be handled separately. -->
 			<xs:extension base="expressionElementType">
@@ -765,7 +766,7 @@
 	<xs:element name="passMemberTypeParam" type="passMemberTypeParamType"/>
 	<xs:complexType name="passMemberTypeParamType">
 		<xs:annotation>
-			<xs:documentation>Represents a type parameter passed to a function, property, or even.</xs:documentation>
+			<xs:documentation>Represents a type parameter passed to a function, property, or event.</xs:documentation>
 		</xs:annotation>
 		<xs:complexContent>
 			<xs:extension base="typeRefType"/>
@@ -1030,7 +1031,7 @@
 				<xs:sequence>
 					<xs:element ref="passParam" minOccurs="0" maxOccurs="unbounded"/>
 					<xs:element ref="arrayInitializer" minOccurs="0"/>
-				</xs:sequence> 
+				</xs:sequence>
 				<xs:attribute name="type" type="callNewTypeValues" default="new"/>
 			</xs:extension>
 		</xs:complexContent>
@@ -1938,7 +1939,7 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
-	
+
 	<!-- Expression modification types -->
 	<xs:simpleType name="expressionModifierValues">
 		<xs:annotation>
@@ -1991,7 +1992,7 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
-	
+
 	<!-- Code block and control flow structures -->
 	<xs:element name="codeBlock" type="codeBlockType" abstract="true" substitutionGroup="bodyStatement"/>
 	<xs:complexType name="codeBlockType" abstract="true">
@@ -2227,7 +2228,7 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
-	
+
 	<!-- Unconditional jump elements -->
 	<xs:element name="label" type="labelType" substitutionGroup="bodyStatement"/>
 	<xs:complexType name="labelType">
@@ -2282,7 +2283,7 @@
 			<xs:extension base="bodyStatementType"/>
 		</xs:complexContent>
 	</xs:complexType>
-	
+
 	<!-- Non-code elements -->
 	<xs:element name="comment" type="commentType" substitutionGroup="bodyStatement"/>
 	<xs:complexType name="commentType" mixed="true">
@@ -2352,6 +2353,16 @@
 			<xs:enumeration value="region">
 				<xs:annotation>
 					<xs:documentation>Open a region block. (C#: #region, VB: #Region)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="warningDisable">
+				<xs:annotation>
+					<xs:documentation>Disable a numbered compiler warning. (C#: #pragma warning disable, VB: &lt;no keyword&gt;)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="warningRestore">
+				<xs:annotation>
+					<xs:documentation>Restore a numbered compiler warning. (C#: #pragma warning restore, VB: &lt;no keyword&gt;)</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 		</xs:restriction>
