@@ -669,6 +669,10 @@ There is no way to both successfully trigger regeneration and avoid writing this
 								provider.GenerateCodeFromStatement(new CodeCommentStatement("Info from InnerException"), writer, null);
 							}
 						}
+						// This is only valid syntax for C# right now, but if another language does not
+						// recognize this syntax then it will also throw a compile error, which is the intent,
+						// so there is not much to lose here.
+						provider.GenerateCodeFromStatement(new CodeSnippetStatement("#error NUPlixLoader Exception"), writer, null);
 						return writer.ToString();
 					}
 				}

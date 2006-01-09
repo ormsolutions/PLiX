@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <xs:schema
-	id="PLiX2"
+	id="PLiX"
 	targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiX"
 	elementFormDefault="qualified"
 	xmlns="http://schemas.neumont.edu/CodeGeneration/PLiX"
@@ -85,7 +85,7 @@
 		<xs:restriction base="xs:string">
 			<!-- Limit to name with no leading digits followed by one or more (. following by name with no leading digits). No spaces. -->
 			<!-- Note that this produces so many warnings in xsl when attribute value templates are used that we ignore any string with a { in it -->
-			<xs:pattern value="(.*\{.*)|(([_\p{L}][_\p{L}\p{Nd}]*(.[_\p{L}][_\p{L}\p{Nd}]*)*)?)"/>
+			<xs:pattern value="(.*\{.*)|(([_\p{L}][_\p{L}\p{Nd}]*(\.[_\p{L}][_\p{L}\p{Nd}]*)*)?)"/>
 		</xs:restriction>
 	</xs:simpleType>
 	<xs:simpleType name="simpleNameType">
@@ -102,7 +102,7 @@
 		<xs:annotation>
 			<xs:documentation>An enumeration representing code visibility for any element</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="private">
 				<xs:annotation>
 					<xs:documentation>The code element can be used by the current parent element and any types it nests. Should not be used on top-level type elements.</xs:documentation>
@@ -131,6 +131,11 @@
 			<xs:enumeration value="protectedAndInternal">
 				<xs:annotation>
 					<xs:documentation>A combination of Internal and Protected access. Bother caller condition must apply. Note that this is stronger than ProtectedOrInternal, and is not supported in C# or VB. Should not be used on top-level type elements.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="privateInterfaceMember">
+				<xs:annotation>
+					<xs:documentation>The code element is used as a private interface implementation. If an interface member (function, property, or event) has a single interfaceMember and is private and has the same name as the interface member then it can always be rendered as a single function if it is not called directly by other member function. The formatter does not know if such a call exists, so it must always render the function as callable if the visibility is private. The privateInterfaceMember value can be used to explicitly block generation of the forwarding function. Otherwise, it is treated like private.</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 		</xs:restriction>
@@ -165,6 +170,9 @@
 			<xs:documentation>Attributes shared by all member types. The name attribute is added to this group in memberAttributes</xs:documentation>
 		</xs:annotation>
 		<xs:attribute name="visibility" type="visibilityValues" use="required"/>
+		<xs:attributeGroup ref="replacesNameAttributes"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="replacesNameAttributes">
 		<xs:attribute name="replacesName" type="xs:boolean" default="false">
 			<xs:annotation>
 				<xs:documentation>This name repaces another name on a base class. Should not be used on top-level type elements. (C#: new, VB: Shadows)</xs:documentation>
@@ -198,7 +206,7 @@
 		<xs:annotation>
 			<xs:documentation>A list of mutually exclusive class modifiers.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="none">
 				<xs:annotation>
 					<xs:documentation>The default value. The class is not modified.</xs:documentation>
@@ -215,6 +223,9 @@
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="static">
+				<xs:annotation>
+					<xs:documentation>The class cannot be created or derived from. Only static members are allowed.</xs:documentation>
+				</xs:annotation>
 			</xs:enumeration>
 		</xs:restriction>
 	</xs:simpleType>
@@ -253,7 +264,7 @@
 				<xs:documentation>The base type for this enumeration. Includes all integer types. Defaults to i4.</xs:documentation>
 			</xs:annotation>
 			<xs:simpleType>
-				<xs:restriction base="xs:string">
+				<xs:restriction base="xs:token">
 					<xs:enumeration value="i1">
 						<xs:annotation>
 							<xs:documentation>Signed byte (System.SByte)</xs:documentation>
@@ -543,7 +554,7 @@
 		<xs:annotation>
 			<xs:documentation>A list of intrinsic data types. Use as a dataTypeName to get an intrinsic type.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value=".boolean">
 				<xs:annotation>
 					<xs:documentation>A boolean value</xs:documentation>
@@ -816,7 +827,7 @@
 		<xs:annotation>
 			<xs:documentation>Specifies how the parameter is passed. Defaults to in.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="in">
 				<xs:annotation>
 					<xs:documentation>Pass the parameter by value. Default.</xs:documentation>
@@ -855,7 +866,7 @@
 		<xs:annotation>
 			<xs:documentation>The different types of calls that can be made against an array.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="arrayIndexer">
 				<xs:annotation>
 					<xs:documentation>Index an array.</xs:documentation>
@@ -867,7 +878,7 @@
 		<xs:annotation>
 			<xs:documentation>The different types of elements that can be referenced through a callStatic or callThis element.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="methodCall">
 				<xs:annotation>
 					<xs:documentation>Call a method. The the default call type.</xs:documentation>
@@ -919,7 +930,7 @@
 		<xs:annotation>
 			<xs:documentation>The different types of elements that can be referenced through a callNew element.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="new">
 				<xs:annotation>
 					<xs:documentation>Create a new object of the specified type. The default call style.</xs:documentation>
@@ -936,7 +947,7 @@
 		<xs:annotation>
 			<xs:documentation>The different types of qualifiers that can be used as the accessor of a thisCall element. Defaults to this.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="this">
 				<xs:annotation>
 					<xs:documentation>Call through the this value. Equivalent to callInstance with a callObject containing a thisKeyword element. The default call style.</xs:documentation>
@@ -960,7 +971,7 @@
 		</xs:restriction>
 	</xs:simpleType>
 	<xs:simpleType name="specialCallNameValues">
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value=".implied">
 				<xs:annotation>
 					<xs:documentation>The name of the call is implied by the call type. Used with indexer and arrayIndexer call types.</xs:documentation>
@@ -1181,6 +1192,11 @@
 			<xs:group ref="statementExpressions"/>
 			<xs:element ref="bodyStatement"/>
 			<!-- The following elements were not easily placed in a substitutionGroup -->
+			<xs:sequence>
+				<xs:element ref="branch"/>
+				<xs:element ref="alternateBranch" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="fallbackBranch" minOccurs="0"/>
+			</xs:sequence>
 			<xs:element ref="iterator"/>
 			<xs:element ref="autoDispose"/>
 			<xs:element ref="local"/>
@@ -1190,7 +1206,7 @@
 		<xs:annotation>
 			<xs:documentation>A list of mutually exclusive vtable modification settings for functions, properties, and events</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="none">
 				<xs:annotation>
 					<xs:documentation>The default vtable modifier (non-virtual instance member)</xs:documentation>
@@ -1266,7 +1282,7 @@
 		<xs:annotation>
 			<xs:documentation>Special names for functions.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value=".construct">
 				<xs:annotation>
 					<xs:documentation>The function acts as a constructor. The function name depends on the output language.</xs:documentation>
@@ -1283,7 +1299,7 @@
 		<xs:annotation>
 			<xs:documentation>Additional values used for parameter declaration that are not used for parameter passing.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="params">
 				<xs:annotation>
 					<xs:documentation>A parameter array. Use on the last param element only.</xs:documentation>
@@ -1347,7 +1363,7 @@
 						<xs:documentation>A simple name with no qualifiers, or the special names .construct and .finalize</xs:documentation>
 					</xs:annotation>
 					<xs:simpleType>
-						<xs:union memberTypes="specialFunctionNameValues xs:string"/>
+						<xs:union memberTypes="specialFunctionNameValues simpleNameType"/>
 					</xs:simpleType>
 				</xs:attribute>
 				<xs:attribute name="overload" type="xs:boolean" default="false">
@@ -1376,6 +1392,179 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
+	<xs:element name="operatorFunction" type="operatorFunctionType" substitutionGroup="implementationMember"/>
+	<xs:complexType name="operatorFunctionType">
+		<xs:annotation>
+			<xs:documentation>Represents an operator function definition.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="implementationMemberType">
+				<xs:sequence>
+					<xs:choice minOccurs="1" maxOccurs="2">
+						<xs:element ref="param"/>
+					</xs:choice>
+					<xs:element ref="returns"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:group ref="blockContents"/>
+					</xs:choice>
+				</xs:sequence>
+				<xs:attributeGroup ref="replacesNameAttributes"/>
+				<xs:attribute name="overload" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>The containing type has another operator function of the same type and different parameters.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="type" type="operatorFunctionTypeValues" use="required"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:simpleType name="operatorFunctionTypeValues">
+		<xs:annotation>
+			<xs:documentation>Operator function types.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="add">
+				<xs:annotation>
+					<xs:documentation>Addition operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="bitwiseAnd">
+				<xs:annotation>
+					<xs:documentation>Bitwise and operator. (C#: &amp;, VB: And)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="bitwiseExclusiveOr">
+				<xs:annotation>
+					<xs:documentation>Bitwise exlusive or operator. (C#: ^, VB: Xor)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="bitwiseNot">
+				<xs:annotation>
+					<xs:documentation>Unary bitwise not operator (C#: ~, VB: Not)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="bitwiseOr">
+				<xs:annotation>
+					<xs:documentation>Bitwise inclusive or operator. (C#: |, VB: Or)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="booleanNot">
+				<xs:annotation>
+					<xs:documentation>Unary boolean not operator (C#: !, VB: Not)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="castNarrow">
+				<xs:annotation>
+					<xs:documentation>Type cast operator that may throw (C#: explicit, VB: Narrowing).</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="castWiden">
+				<xs:annotation>
+					<xs:documentation>Type cast operator that does not throw (C#: implicit, VB: Widening).</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="decrement">
+				<xs:annotation>
+					<xs:documentation>Unary decrement operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="divide">
+				<xs:annotation>
+					<xs:documentation>Division operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="equality">
+				<xs:annotation>
+					<xs:documentation>Equality operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="greaterThan">
+				<xs:annotation>
+					<xs:documentation>Greater than operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="greaterThanOrEqual">
+				<xs:annotation>
+					<xs:documentation>Greater than or equal to operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="increment">
+				<xs:annotation>
+					<xs:documentation>Unary increment operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="inequality">
+				<xs:annotation>
+					<xs:documentation>Inequality operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="integerDivide">
+				<xs:annotation>
+					<xs:documentation>Integer division operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="isFalse">
+				<xs:annotation>
+					<xs:documentation>Unary operator to test if the operand is false when converted to a boolean.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="isTrue">
+				<xs:annotation>
+					<xs:documentation>Unary operator to test if the operand is true when converted to a boolean.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="lessThan">
+				<xs:annotation>
+					<xs:documentation>Less than operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="lessThanOrEqual">
+				<xs:annotation>
+					<xs:documentation>Less than or equal to operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="like">
+				<xs:annotation>
+					<xs:documentation>Like operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="modulus">
+				<xs:annotation>
+					<xs:documentation>Modulus (remainder) operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="multiply">
+				<xs:annotation>
+					<xs:documentation>Multiplication operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="negative">
+				<xs:annotation>
+					<xs:documentation>Unary negation operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="positive">
+				<xs:annotation>
+					<xs:documentation>Unary positive operator (opposite of unary negation operator).</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="shiftLeft">
+				<xs:annotation>
+					<xs:documentation>Shift the bits in the left expression left by the value specified in the right expression.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="shiftRight">
+				<xs:annotation>
+					<xs:documentation>Shift the bits in the left expression right by the value specified in the right expression.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="subtract">
+				<xs:annotation>
+					<xs:documentation>Subtraction operator.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
 	<xs:element name="explicitDelegateType" type="explicitDelegateTypeType"/>
 	<xs:complexType name="explicitDelegateTypeType">
 		<xs:annotation>
@@ -1472,7 +1661,7 @@
 		<xs:annotation>
 			<xs:documentation>Binary operator types.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="add">
 				<xs:annotation>
 					<xs:documentation>Addition operator.</xs:documentation>
@@ -1609,7 +1798,7 @@
 		<xs:annotation>
 			<xs:documentation>Unary operator types.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="bitwiseNot">
 				<xs:annotation>
 					<xs:documentation>Bitwise not operator (C#: ~, VB: Not)</xs:documentation>
@@ -1737,7 +1926,7 @@
 		<xs:annotation>
 			<xs:documentation>The type of value. Specifies how the data attribute is interpreted.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="char">
 				<xs:annotation>
 					<xs:documentation>A single character. A full string should be specified as a string element, not with a value element.</xs:documentation>
@@ -1861,7 +2050,7 @@
 		<xs:annotation>
 			<xs:documentation>The type of a name being reference. Specifies the type of element the name is refering to.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="local">
 				<xs:annotation>
 					<xs:documentation>A local variable name. The default value.</xs:documentation>
@@ -1897,7 +2086,7 @@
 		<xs:annotation>
 			<xs:documentation>Specifies the type of the cast to perform. Defaults to exceptionCast.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="primitiveChecked">
 				<xs:annotation>
 					<xs:documentation>A cast from one primitive type to another with overflow checks.</xs:documentation>
@@ -1945,7 +2134,7 @@
 		<xs:annotation>
 			<xs:documentation></xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="none">
 				<xs:annotation>
 					<xs:documentation>Pass the expression without modification</xs:documentation>
@@ -2003,43 +2192,41 @@
 			<xs:extension base="bodyStatementType"/>
 		</xs:complexContent>
 	</xs:complexType>
-	<xs:element name="body" type="codeBodyType">
-		<xs:annotation>
-			<xs:documentation>The body of any block element that needs to separate body code from other elements (branch, alternateBranch, try, catch, loop, iterate, lock, switch)</xs:documentation>
-		</xs:annotation>
-	</xs:element>
-	<xs:element name="fallbackBranch" type="codeBodyType">
+	<xs:element name="fallbackBranch" type="secondaryCodeBodyType">
 		<xs:annotation>
 			<xs:documentation>The unconditional fallback portion of a branch construct (C# else, VB: Else)</xs:documentation>
 		</xs:annotation>
 	</xs:element>
-	<xs:element name="fallbackCase" type="codeBodyType">
+	<xs:element name="fallbackCase" type="secondaryCodeBodyType">
 		<xs:annotation>
 			<xs:documentation>The unconditional fallback case for a switch construct (C# default, VB: Case Else)</xs:documentation>
 		</xs:annotation>
 	</xs:element>
-	<xs:element name="fallbackCatch" type="codeBodyType">
+	<xs:element name="fallbackCatch" type="secondaryCodeBodyType">
 		<xs:annotation>
 			<xs:documentation>The untyped fallback catch for a try construct (C# catch, VB: Catch)</xs:documentation>
 		</xs:annotation>
 	</xs:element>
-	<xs:element name="finally" type="codeBodyType">
+	<xs:element name="finally" type="secondaryCodeBodyType">
 		<xs:annotation>
 			<xs:documentation>Code that runs whenever try block is entered.</xs:documentation>
 		</xs:annotation>
 	</xs:element>
-	<xs:complexType name="codeBodyType">
-		<!-- Elements to allow in any code body -->
-		<xs:choice minOccurs="0" maxOccurs="unbounded">
-			<xs:group ref="blockContents"/>
-		</xs:choice>
+	<xs:complexType name="secondaryCodeBodyType">
+		<!-- Elements to allow in any code body with blockLeadingInfo/blockTrailingInfo -->
+		<xs:sequence>
+			<xs:group ref="secondaryCodeBlockElements"/>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:group ref="blockContents"/>
+			</xs:choice>
+		</xs:sequence>
 	</xs:complexType>
 	<xs:element name="condition" type="expressionContainerType">
 		<xs:annotation>
 			<xs:documentation>The test expression for a branch, alternateBranch, loop, switch, or case.</xs:documentation>
 		</xs:annotation>
 	</xs:element>
-	<xs:element name="branch" type="branchType" substitutionGroup="codeBlock"/>
+	<xs:element name="branch" type="branchType"/>
 	<xs:complexType name="branchType">
 		<xs:annotation>
 			<xs:documentation>A conditional branch block. (C#: if, VB: If)</xs:documentation>
@@ -2048,9 +2235,9 @@
 			<xs:extension base="codeBlockType">
 				<xs:sequence>
 					<xs:element ref="condition"/>
-					<xs:element ref="body" minOccurs="0"/>
-					<xs:element ref="alternateBranch" minOccurs="0" maxOccurs="unbounded"/>
-					<xs:element ref="fallbackBranch" minOccurs="0"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:group ref="blockContents"/>
+					</xs:choice>
 				</xs:sequence>
 			</xs:extension>
 		</xs:complexContent>
@@ -2063,8 +2250,11 @@
 		<xs:complexContent>
 			<xs:extension base="codeBlockType">
 				<xs:sequence>
+					<xs:group ref="secondaryCodeBlockElements"/>
 					<xs:element ref="condition"/>
-					<xs:element ref="body" minOccurs="0"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:group ref="blockContents"/>
+					</xs:choice>
 				</xs:sequence>
 			</xs:extension>
 		</xs:complexContent>
@@ -2073,7 +2263,7 @@
 		<xs:annotation>
 			<xs:documentation>Specify whether the loop's condition should be checked at the beginning or end of the loop. Default is before.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="before">
 				<xs:annotation>
 					<xs:documentation>Check the condition before the loop is entered. Default.</xs:documentation>
@@ -2108,7 +2298,7 @@
 	<xs:element name="loop" type="loopType" substitutionGroup="codeBlock"/>
 	<xs:complexType name="loopType">
 		<xs:annotation>
-			<xs:documentation>A looping construct. Use iterate for set iteration. (C#: for, do, while; VB: For, Do, While)</xs:documentation>
+			<xs:documentation>A looping construct. Use iterator for set iteration. (C#: for, do, while; VB: For, Do, While)</xs:documentation>
 		</xs:annotation>
 		<xs:complexContent>
 			<xs:extension base="codeBlockType">
@@ -2116,7 +2306,9 @@
 					<xs:element ref="initializeLoop" minOccurs="0"/>
 					<xs:element ref="condition" minOccurs="0"/>
 					<xs:element ref="beforeLoop" minOccurs="0"/>
-					<xs:element ref="body" minOccurs="0"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:group ref="blockContents"/>
+					</xs:choice>
 				</xs:sequence>
 				<xs:attribute name="checkCondition" type="loopCheckConditionValues" default="before"/>
 			</xs:extension>
@@ -2149,7 +2341,9 @@
 			<xs:extension base="codeBlockType">
 				<xs:sequence>
 					<xs:element ref="initialize"/>
-					<xs:element ref="body" minOccurs="0"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:group ref="blockContents"/>
+					</xs:choice>
 				</xs:sequence>
 			</xs:extension>
 		</xs:complexContent>
@@ -2161,9 +2355,12 @@
 		</xs:annotation>
 		<xs:complexContent>
 			<xs:extension base="typeRefType">
-				<xs:choice minOccurs="0" maxOccurs="unbounded">
-					<xs:group ref="blockContents"/>
-				</xs:choice>
+				<xs:sequence>
+					<xs:group ref="secondaryCodeBlockElements"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:group ref="blockContents"/>
+					</xs:choice>
+				</xs:sequence>
 				<xs:attribute name="localName" type="simpleNameType"/>
 			</xs:extension>
 		</xs:complexContent>
@@ -2176,7 +2373,9 @@
 		<xs:complexContent>
 			<xs:extension base="codeBlockType">
 				<xs:sequence>
-					<xs:element ref="body"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:group ref="blockContents"/>
+					</xs:choice>
 					<xs:element ref="catch" minOccurs="0" maxOccurs="unbounded"/>
 					<xs:element ref="fallbackCatch" minOccurs="0"/>
 					<xs:element ref="finally" minOccurs="0"/>
@@ -2207,11 +2406,26 @@
 			<xs:documentation>One or more condition expressions to match against the condition element of the containing switch element. Note that multiple conditions are allowed. It is the responsibility of the individual plix language formatters to ensure that non-empty case statements do not fallthrough. Empty cases should be specified as multiple condition elements on a single case.</xs:documentation>
 		</xs:annotation>
 		<xs:sequence>
+			<xs:group ref="secondaryCodeBlockElements"/>
 			<xs:element ref="condition" maxOccurs="unbounded"/>
 			<xs:choice minOccurs="0" maxOccurs="unbounded">
 				<xs:group ref="blockContents"/>
 			</xs:choice>
 		</xs:sequence>
+		<xs:attribute name="caseCompletes" type="xs:boolean" use="optional">
+			<xs:annotation>
+				<xs:documentation>Optional attribute to explicitly state if the body of the case statement
+				completes, meaning that the hypothetical line after the last line in the body of the case
+				statement is a reachable code path. Some languages (C#) need an explicit statement indicating that the case
+				statement has completed; others (VB) do not. Because of multi-language support it is not
+				appropriate to put an arbitrary	break statement inside each case body. PLiX formatters for languages
+				that require the explicit break can usually do path analysis to determine if the break is required.
+				However, PLiX is a formatting engine, not a compiler, so there are cases where path analysis
+				may return an incorrect result. As an example, PLiX cannot fully analyze goto jumps or conditional
+				compilation conditions. Providing and setting this attribute bypassing the normal formatting path
+				check for languages that care.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
 	</xs:complexType>
 	<xs:element name="switch" type="switchType" substitutionGroup="codeBlock"/>
 	<xs:complexType name="switchType">
@@ -2314,7 +2528,7 @@
 		<xs:annotation>
 			<xs:documentation>Supported pragma types</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:string">
+		<xs:restriction base="xs:token">
 			<xs:enumeration value="alternateConditional">
 				<xs:annotation>
 					<xs:documentation>Begin an alternate conditional compilation block. (C#: #elif, VB: #ElseIf)</xs:documentation>
@@ -2386,7 +2600,7 @@
 	<xs:element name="leadingInfo" type="leadingInfoType"/>
 	<xs:complexType name="leadingInfoType">
 		<xs:annotation>
-			<xs:documentation>Non-code elements immediately preceding a member, type, or namespace. These are defined as child elements instead of siblings to enable reordering of member elements. Leading info is often accompanied by trailingInfo.</xs:documentation>
+			<xs:documentation>Non-code elements immediately preceding a member, type, or namespace. These are defined as child elements so they are clearly associated. Leading info is often accompanied by trailingInfo.</xs:documentation>
 		</xs:annotation>
 		<xs:sequence>
 			<xs:element ref="pragma" minOccurs="0" maxOccurs="unbounded"/>
@@ -2404,5 +2618,31 @@
 			<xs:element ref="pragma" minOccurs="0" maxOccurs="unbounded"/>
 		</xs:sequence>
 	</xs:complexType>
+	<xs:element name="blockLeadingInfo" type="blockLeadingInfoType"/>
+	<xs:complexType name="blockLeadingInfoType">
+		<xs:annotation>
+			<xs:documentation>Non-code elements immediately preceding secondary code blocks (alternateBranch, fallbackBranch, catch, fallbackCatch, finally, case, fallbackCase). Comments and pragma conditions for primary code blocks (branch, lock, loop, switch, try) can be added to the container code body.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="pragma" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="comment" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="blockTrailingInfo" type="blockTrailingInfoType"/>
+	<xs:complexType name="blockTrailingInfoType">
+		<xs:annotation>
+			<xs:documentation>Non-code elements immediately after secondary code blocks (alternateBranch, fallbackBranch, catch, fallbackCatch, finally, case, fallbackCase). Comments and pragma conditions for primary code blocks (branch, lock, loop, switch, try) can be added to the container code body.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="comment" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="pragma" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:group name="secondaryCodeBlockElements">
+		<xs:sequence>
+			<xs:element ref="blockLeadingInfo" minOccurs="0"/>
+			<xs:element ref="blockTrailingInfo" minOccurs="0"/>
+		</xs:sequence>
+	</xs:group>
 	<!-- UNDONE: Consider adding a noncode element for linePragma as well -->
 </xs:schema>

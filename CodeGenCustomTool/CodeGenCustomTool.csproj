@@ -49,6 +49,7 @@
     </None>
     <EmbeddedResource Include="PlixSettings.xsd">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <None Include="PlixRedirect.xsd">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -58,12 +59,14 @@
   <ItemGroup>
     <EmbeddedResource Include="PLiX.xsd">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <None Include="PlixSettings.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <EmbeddedResource Include="PlixLoader.xsd">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
