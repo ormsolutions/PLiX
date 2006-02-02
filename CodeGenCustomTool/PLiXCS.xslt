@@ -493,6 +493,9 @@
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
 	</xsl:template>
+	<xsl:template match="plx:directTypeReference">
+		<xsl:call-template name="RenderType"/>
+	</xsl:template>
 	<xsl:template match="plx:enum">
 		<xsl:param name="Indent"/>
 		<xsl:call-template name="RenderTypeDefinition">
