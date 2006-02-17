@@ -788,6 +788,15 @@
 						</xsl:if>
 						<xsl:value-of select="$className"/>
 						<xsl:call-template name="RenderParams"/>
+						<xsl:for-each select="plx:initialize/child::plx:callThis">
+							<xsl:value-of select="$NewLine"/>
+							<xsl:value-of select="$Indent"/>
+							<xsl:value-of select="$SingleIndent"/>
+							<xsl:text>: </xsl:text>
+							<xsl:apply-templates select=".">
+								<xsl:with-param name="Indent" select="concat($Indent,$SingleIndent)"/>
+							</xsl:apply-templates>
+						</xsl:for-each>
 					</xsl:when>
 					<xsl:when test="$name='.finalize'">
 						<xsl:text>~</xsl:text>

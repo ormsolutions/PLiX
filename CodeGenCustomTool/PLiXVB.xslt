@@ -681,6 +681,30 @@
 						</xsl:if>
 						<xsl:text>Sub New</xsl:text>
 						<xsl:call-template name="RenderParams"/>
+						<xsl:for-each select="plx:initialize/child::plx:callThis">
+							<xsl:variable name="accessor" select="string(@accessor)"/>
+							<xsl:variable name="callNameFragment">
+								<xsl:choose>
+									<xsl:when test="string-length($accessor)=0 or $accessor='this'">
+										<xsl:text>Me.New</xsl:text>
+									</xsl:when>
+									<xsl:when test="$accessor='base'">
+										<xsl:text>MyBase.New</xsl:text>
+									</xsl:when>
+								</xsl:choose>
+							</xsl:variable>
+							<xsl:variable name="callName" select="string($callNameFragment)"/>
+							<xsl:if test="$callName">
+								<xsl:value-of select="$NewLine"/>
+								<xsl:value-of select="$Indent"/>
+								<xsl:value-of select="$SingleIndent"/>
+								<xsl:call-template name="RenderCallBody">
+									<xsl:with-param name="Indent" select="concat($Indent,$SingleIndent)"/>
+									<xsl:with-param name="Unqualified" select="true()"/>
+									<xsl:with-param name="Name" select="$callName"/>
+								</xsl:call-template>
+							</xsl:if>
+						</xsl:for-each>
 					</xsl:when>
 					<xsl:when test="$name='.finalize'">
 						<xsl:text>Protected Overrides Sub Finalize()</xsl:text>
@@ -1550,14 +1574,15 @@
 		<!-- Helper function to render most of a call. The caller has already
 			 been set before this call -->
 		<xsl:param name="Unqualified" select="false()"/>
+		<xsl:param name="Name" select="@name"/>
 		<!-- Render the name -->
 		<xsl:variable name="callType" select="string(@type)"/>
 		<xsl:variable name="isIndexer" select="$callType='indexerCall' or $callType='arrayIndexer'"/>
-		<xsl:if test="not(@name='.implied') and not($isIndexer)">
+		<xsl:if test="not($Name='.implied') and not($isIndexer)">
 			<xsl:if test="not($Unqualified)">
 				<xsl:text>.</xsl:text>
 			</xsl:if>
-			<xsl:value-of select="@name"/>
+			<xsl:value-of select="$Name"/>
 		</xsl:if>
 		<!-- Add member type params -->
 		<xsl:call-template name="RenderPassTypeParams">
