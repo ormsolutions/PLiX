@@ -582,7 +582,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 							}
 						}
 						MemoryStream plixStream = new MemoryStream();
-						using (XmlTextWriter xmlTextWriter = new XmlTextWriter(plixStream, Encoding.Default))
+						using (XmlWriter xmlTextWriter = XmlWriter.Create(plixStream, transform.OutputSettings))
 						{
 							// Variables that need to be disposed
 							TextReader reader = null;
@@ -631,7 +631,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 								transform.Transform(new XmlTextReader(reader), arguments, xmlTextWriter);
 								plixStream.Position = 0;
 
-								// From the xcode stream, generate the code
+								// From the plix stream, generate the code
 								using (StringWriter writer = new StringWriter(CultureInfo.InvariantCulture))
 								{
 									using (XmlReader plixReader = XmlReader.Create(plixStream, PlixReaderSettings))
