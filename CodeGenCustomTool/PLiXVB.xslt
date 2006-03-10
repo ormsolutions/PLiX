@@ -4,8 +4,8 @@
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 	xmlns:plx="http://schemas.neumont.edu/CodeGeneration/PLiX"
 	xmlns:plxGen="urn:local-plix-generator" 
-	xmlns:msxsl="urn:schemas-microsoft-com:xslt"
-	exclude-result-prefixes="#default msxsl plx plxGen">
+	xmlns:exslt="http://exslt.org/common"
+	exclude-result-prefixes="#default exslt plx plxGen">
 	<xsl:import href="PLiXMain.xslt"/>
 	<xsl:output method="text"/>
 	<!-- The prefix used for any automatically generated labels -->
@@ -1135,7 +1135,7 @@
 					<xsl:copy-of select="plx:attributes"/>
 					<plx:attribute dataTypeName="SpecialName" dataTypeQualifier="System.Runtime.CompilerServices"/>
 				</xsl:variable>
-				<xsl:for-each select="msxsl:node-set($modifiedAttributesFragment)">
+				<xsl:for-each select="exslt:node-set($modifiedAttributesFragment)">
 					<xsl:call-template name="RenderAttributes">
 						<xsl:with-param name="Indent" select="$Indent"/>
 					</xsl:call-template>
@@ -1586,7 +1586,7 @@
 		</xsl:if>
 		<!-- Add member type params -->
 		<xsl:call-template name="RenderPassTypeParams">
-			<xsl:with-param name="PassTypeParams" select="plx:passMemberTypeParams"/>
+			<xsl:with-param name="PassTypeParams" select="plx:passMemberTypeParam"/>
 		</xsl:call-template>
 
 		<xsl:variable name="passParams" select="plx:passParam"/>
@@ -1915,75 +1915,90 @@
 						</xsl:choose>
 					</xsl:when>
 					<xsl:otherwise>
-						<xsl:variable name="qualifier" select="@dataTypeQualifier"/>
+						<xsl:variable name="parametrizedQualifier" select="plx:parametrizedDataTypeQualifier"/>
 						<xsl:choose>
-							<xsl:when test="string-length($qualifier)">
+							<xsl:when test="$parametrizedQualifier">
+								<xsl:for-each select="$parametrizedQualifier">
+									<xsl:call-template name="RenderType">
+										<!-- No reason to check for an array here -->
+										<xsl:with-param name="RenderArray" select="false()"/>
+									</xsl:call-template>
+								</xsl:for-each>
+								<xsl:text>.</xsl:text>
+								<xsl:value-of select="$rawTypeName"/>
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:variable name="qualifier" select="@dataTypeQualifier"/>
 								<xsl:choose>
-									<xsl:when test="$qualifier='System'">
+									<xsl:when test="string-length($qualifier)">
 										<xsl:choose>
-											<xsl:when test="$rawTypeName='SByte'">
-												<xsl:text>SByte</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='Int16'">
-												<xsl:text>Short</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='Int32'">
-												<xsl:text>Integer</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='Int64'">
-												<xsl:text>Long</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='Byte'">
-												<xsl:text>Byte</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='UInt16'">
-												<xsl:text>UShort</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='UInt32'">
-												<xsl:text>UInteger</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='UInt64'">
-												<xsl:text>ULong</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='Single'">
-												<xsl:text>Single</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='Double'">
-												<xsl:text>Double</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='Char'">
-												<xsl:text>Char</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='Decimal'">
-												<xsl:text>Decimal</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='Object'">
-												<xsl:text>Object</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='Boolean'">
-												<xsl:text>Boolean</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='String'">
-												<xsl:text>String</xsl:text>
-											</xsl:when>
-											<xsl:when test="$rawTypeName='DateTime'">
-												<xsl:text>Date</xsl:text>
+											<xsl:when test="$qualifier='System'">
+												<xsl:choose>
+													<xsl:when test="$rawTypeName='SByte'">
+														<xsl:text>SByte</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='Int16'">
+														<xsl:text>Short</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='Int32'">
+														<xsl:text>Integer</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='Int64'">
+														<xsl:text>Long</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='Byte'">
+														<xsl:text>Byte</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='UInt16'">
+														<xsl:text>UShort</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='UInt32'">
+														<xsl:text>UInteger</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='UInt64'">
+														<xsl:text>ULong</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='Single'">
+														<xsl:text>Single</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='Double'">
+														<xsl:text>Double</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='Char'">
+														<xsl:text>Char</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='Decimal'">
+														<xsl:text>Decimal</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='Object'">
+														<xsl:text>Object</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='Boolean'">
+														<xsl:text>Boolean</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='String'">
+														<xsl:text>String</xsl:text>
+													</xsl:when>
+													<xsl:when test="$rawTypeName='DateTime'">
+														<xsl:text>Date</xsl:text>
+													</xsl:when>
+													<xsl:otherwise>
+														<xsl:text>System.</xsl:text>
+														<xsl:value-of select="$rawTypeName"/>
+													</xsl:otherwise>
+												</xsl:choose>
 											</xsl:when>
 											<xsl:otherwise>
-												<xsl:text>System.</xsl:text>
+												<xsl:value-of select="$qualifier"/>
+												<xsl:text>.</xsl:text>
 												<xsl:value-of select="$rawTypeName"/>
 											</xsl:otherwise>
 										</xsl:choose>
 									</xsl:when>
 									<xsl:otherwise>
-										<xsl:value-of select="$qualifier"/>
-										<xsl:text>.</xsl:text>
 										<xsl:value-of select="$rawTypeName"/>
 									</xsl:otherwise>
 								</xsl:choose>
-							</xsl:when>
-							<xsl:otherwise>
-								<xsl:value-of select="$rawTypeName"/>
 							</xsl:otherwise>
 						</xsl:choose>
 					</xsl:otherwise>

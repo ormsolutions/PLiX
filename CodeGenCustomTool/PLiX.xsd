@@ -656,7 +656,7 @@
 				</xs:attribute>
 				<xs:attribute name="dataTypeQualifier" type="qualifierNameType" use="optional">
 					<xs:annotation>
-						<xs:documentation>Ignored if an intrinsic type is specified.</xs:documentation>
+						<xs:documentation>Ignored if an intrinsic type or parametrizedDataTypeQualifier is specified.</xs:documentation>
 					</xs:annotation>
 				</xs:attribute>
 			</xs:extension>
@@ -668,10 +668,22 @@
 		</xs:annotation>
 		<xs:complexContent>
 			<xs:extension base="simpleTypeRefType">
-				<xs:choice minOccurs="0" maxOccurs="unbounded">
-					<xs:element ref="passTypeParam"/>
-				</xs:choice>
+				<xs:sequence minOccurs="0">
+					<xs:element ref="parametrizedDataTypeQualifier" minOccurs="0"/>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:element ref="passTypeParam"/>
+					</xs:choice>
+				</xs:sequence>
 			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="parametrizedDataTypeQualifier" type="parametrizedDataTypeQualifierType"/>
+	<xs:complexType name="parametrizedDataTypeQualifierType">
+		<xs:annotation>
+			<xs:documentation>Allows data type qualifiers to include parametrization. Used in place of @dataTypeQualifier. Ignored if an intrinsic type is specified.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="parametrizedTypeRefType"/>
 		</xs:complexContent>
 	</xs:complexType>
 	<xs:complexType name="typeRefType" abstract="true">
@@ -816,7 +828,7 @@
 			<xs:documentation>An attribute declaration. Attached to members and types.</xs:documentation>
 		</xs:annotation>
 		<xs:complexContent>
-			<xs:extension base="typeRefType">
+			<xs:extension base="simpleTypeRefType">
 				<xs:choice minOccurs="0" maxOccurs="unbounded">
 					<xs:element ref="passParam"/>
 				</xs:choice>

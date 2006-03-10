@@ -2,11 +2,11 @@
 <xsl:stylesheet
 	version="1.0"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
-	xmlns:msxsl="urn:schemas-microsoft-com:xslt"
+	xmlns:exslt="http://exslt.org/common"
 	xmlns:xs="http://www.w3.org/2001/XMLSchema"
 	xmlns:plx="http://schemas.neumont.edu/CodeGeneration/PLiX"
 	xmlns:plxGen="urn:local-plix-generator" 
-	exclude-result-prefixes="#default msxsl plx xs">
+	exclude-result-prefixes="#default exslt plx xs">
 	<!--
 	******************************************************************
 	An inline schema for all intermediate types used in the standard
@@ -210,7 +210,7 @@
 		<xsl:param name="closeWith"/>
 		<xsl:param name="closeBlockCallback"/>
 		<xsl:param name="statementClose"/>
-		<xsl:for-each select="msxsl:node-set($defaultInfo)/child::*">
+		<xsl:for-each select="exslt:node-set($defaultInfo)/child::*">
 			<xsl:copy>
 				<xsl:copy-of select="@*"/>
 				<xsl:if test="$style">
@@ -246,7 +246,7 @@
 	<xsl:variable name="LanguageInfoFragment">
 		<xsl:apply-templates select="." mode="LanguageInfo"/>
 	</xsl:variable>
-	<xsl:variable name="LanguageInfo" select="msxsl:node-set($LanguageInfoFragment)/child::*"/>
+	<xsl:variable name="LanguageInfo" select="exslt:node-set($LanguageInfoFragment)/child::*"/>
 	<xsl:variable name="DefaultBlockClose" select="$LanguageInfo/@defaultBlockClose"/>
 	<xsl:variable name="DefaultStatementClose" select="$LanguageInfo/@defaultStatementClose"/>
 	<xsl:variable name="Comment" select="$LanguageInfo/@comment"/>
@@ -450,7 +450,7 @@
 		<xsl:variable name="indentInfoFragment">
 			<xsl:apply-templates select="." mode="IndentInfo"/>
 		</xsl:variable>
-		<xsl:variable name="indentInfo" select="msxsl:node-set($indentInfoFragment)/child::*"/>
+		<xsl:variable name="indentInfo" select="exslt:node-set($indentInfoFragment)/child::*"/>
 		<xsl:call-template name="RenderElementWithIndentInfo">
 			<xsl:with-param name="Indent" select="$Indent"/>
 			<xsl:with-param name="Statement" select="$Statement"/>
@@ -489,7 +489,7 @@
 							<xsl:apply-templates select="child::*" mode="GotoCaseConditions"/>
 						</xsl:variable>
 						<!-- Note: This xpath is order n(n-1), but there should not be enough gotoCase conditions to matter -->
-						<xsl:variable name="requiredCaseConditions" select="msxsl:node-set($requiredCaseConditionsFragment)/child::*[not(following-sibling::*/@condition=@condition)]"/>
+						<xsl:variable name="requiredCaseConditions" select="exslt:node-set($requiredCaseConditionsFragment)/child::*[not(following-sibling::*/@condition=@condition)]"/>
 						<xsl:if test="$requiredCaseConditions">
 							<!-- UNDONE: PLiX is missing support for goto default, need a label for fallbackCase as well -->
 							<!-- for-each all children so we get consistent LocalItemKey values. Filtered with xsl:if instead of xpath -->
@@ -511,7 +511,7 @@
 						</xsl:if>
 					</xsl:if>
 				</xsl:variable>
-				<xsl:variable name="newCaseLabels" select="msxsl:node-set($caseLabelsFragment)/child::*[not(following-sibling::*/@condition=@condition)]"/>
+				<xsl:variable name="newCaseLabels" select="exslt:node-set($caseLabelsFragment)/child::*[not(following-sibling::*/@condition=@condition)]"/>
 				<xsl:variable name="hasInfo" select="not($leadBlock)"/>
 				<xsl:variable name="isNakedIndent" select="$IndentStyle='nakedIndentedBlock'"/>
 				<xsl:if test="$hasInfo">
@@ -779,7 +779,7 @@
 			<xsl:variable name="indentInfoFragment">
 				<xsl:apply-templates select="." mode="IndentInfo"/>
 			</xsl:variable>
-			<xsl:variable name="indentInfo" select="msxsl:node-set($indentInfoFragment)/child::*"/>
+			<xsl:variable name="indentInfo" select="exslt:node-set($indentInfoFragment)/child::*"/>
 			<xsl:variable name="indentStyle" select="string($indentInfo/@style)"/>
 			<xsl:if test="$indentStyle='secondaryBlock'">
 				<xsl:call-template name="RenderElementWithIndentInfo">
@@ -916,7 +916,7 @@
 	<xsl:template mode="IndentInfo" match="plx:case | plx:fallbackCase">
 		<plxGen:indentInfo style="nakedIndentedBlock"/>
 	</xsl:template>
-	<xsl:template mode="IndentInfo" match="plx:condition | plx:initialize | plx:attribute | plx:arrayDescriptor | plx:passTypeParam | plx:passMemberTypeParam | plx:typeParam | plx:derivesFromClass | plx:implementsInterface | plx:interfaceMember | plx:param | plx:returns | plx:beforeLoop | plx:initializeLoop | plx:leadingInfo | plx:trailingInfo | plx:blockLeadingInfo | plx:blockTrailingInfo | plx:explicitDelegateType">
+	<xsl:template mode="IndentInfo" match="plx:condition | plx:initialize | plx:attribute | plx:arrayDescriptor | plx:passTypeParam | plx:passMemberTypeParam | plx:typeParam | plx:derivesFromClass | plx:implementsInterface | plx:interfaceMember | plx:param | plx:returns | plx:beforeLoop | plx:initializeLoop | plx:leadingInfo | plx:trailingInfo | plx:blockLeadingInfo | plx:blockTrailingInfo | plx:explicitDelegateType | plx:parametrizedDataTypeQualifier">
 		<plxGen:indentInfo style="blockDecorator"/>
 	</xsl:template>
 	<xsl:template mode="IndentInfo" match="plx:comment">
