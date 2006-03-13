@@ -1161,7 +1161,7 @@
 		<xsl:choose>
 			<xsl:when test="starts-with($operatorName, 'CType.')">
 				<xsl:value-of select="substring($operatorName, 7)"/>
-				<xsl:text> CType</xsl:text>
+				<xsl:text> Operator CType</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:choose>
