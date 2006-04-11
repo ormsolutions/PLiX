@@ -542,8 +542,8 @@
 		<xsl:variable name="name" select="@name"/>
 		<xsl:variable name="implicitDelegateName" select="@implicitDelegateName"/>
 		<xsl:variable name="isSimpleExplicitImplementation"
-			select="@visibility='privateInterfaceMember' and @modifier!='static' and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName and plx:onAdd and plx:onRemove"/>
-		<xsl:if test="not($isSimpleExplicitImplementation) and not($explicitDelegate) and @modifier!='override'">
+			select="@visibility='privateInterfaceMember' and not(@modifier='static') and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName and plx:onAdd and plx:onRemove"/>
+		<xsl:if test="not($isSimpleExplicitImplementation) and not($explicitDelegate) and not(@modifier='override')">
 			<!-- Use the provided parameters to define an implicit event procedure -->
 			<!-- UNDONE: This won't work for interfaces, the handler will need to be
 				 a sibiling to the interface. -->
@@ -627,7 +627,7 @@
 	<xsl:template match="plx:event" mode="IndentInfo">
 		<xsl:variable name="interfaceMembers" select="plx:interfaceMember"/>
 		<xsl:choose>
-			<xsl:when test="$interfaceMembers and not(@visibility='privateInterfaceMember' and @modifier!='static' and count($interfaceMembers)=1 and @name=$interfaceMembers[1]/@memberName and plx:onAdd and plx:onRemove)">
+			<xsl:when test="$interfaceMembers and not(@visibility='privateInterfaceMember' and not(@modifier='static') and count($interfaceMembers)=1 and @name=$interfaceMembers[1]/@memberName and plx:onAdd and plx:onRemove)">
 				<xsl:call-template name="CustomizeIndentInfo">
 					<xsl:with-param name="defaultInfo">
 						<xsl:apply-imports/>
@@ -829,7 +829,7 @@
 					</xsl:for-each>
 				</xsl:if>
 				<xsl:variable name="isSimpleExplicitImplementation"
-					select="@visibility='privateInterfaceMember' and @modifier!='static' and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName"/>
+					select="@visibility='privateInterfaceMember' and not(@modifier='static') and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName"/>
 				<xsl:if test="not($isSimpleExplicitImplementation)">
 					<xsl:if test="not(parent::plx:interface)">
 						<xsl:call-template name="RenderVisibility"/>
@@ -874,7 +874,7 @@
 	<xsl:template match="plx:function" mode="IndentInfo">
 		<xsl:variable name="interfaceMembers" select="plx:interfaceMember"/>
 		<xsl:choose>
-			<xsl:when test="$interfaceMembers and not(@visibility='privateInterfaceMember' and @modifier!='static' and count($interfaceMembers)=1 and @name=$interfaceMembers[1]/@memberName)">
+			<xsl:when test="$interfaceMembers and not(@visibility='privateInterfaceMember' and not(@modifier='static') and count($interfaceMembers)=1 and @name=$interfaceMembers[1]/@memberName)">
 				<xsl:call-template name="CustomizeIndentInfo">
 					<xsl:with-param name="defaultInfo">
 						<xsl:apply-imports/>
@@ -1350,7 +1350,7 @@
 			</xsl:call-template>
 		</xsl:for-each>
 		<xsl:variable name="isSimpleExplicitImplementation"
-			select="@visibility='privateInterfaceMember' and @modifier!='static' and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName"/>
+			select="@visibility='privateInterfaceMember' and not(@modifier='static') and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName"/>
 		<xsl:if test="not($isSimpleExplicitImplementation)">
 			<xsl:if test="not(parent::plx:interface)">
 				<xsl:call-template name="RenderVisibility"/>
@@ -1398,7 +1398,7 @@
 	<xsl:template match="plx:property" mode="IndentInfo">
 		<xsl:variable name="interfaceMembers" select="plx:interfaceMember"/>
 		<xsl:choose>
-			<xsl:when test="$interfaceMembers and not(@visibility='privateInterfaceMember' and @modifier!='static' and count($interfaceMembers)=1 and @name=$interfaceMembers[1]/@memberName)">
+			<xsl:when test="$interfaceMembers and not(@visibility='privateInterfaceMember' and not(@modifier='static') and count($interfaceMembers)=1 and @name=$interfaceMembers[1]/@memberName)">
 				<xsl:call-template name="CustomizeIndentInfo">
 					<xsl:with-param name="defaultInfo">
 						<xsl:apply-imports/>
