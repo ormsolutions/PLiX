@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration>Setup</Configuration>
+    <Platform>AnyCPU</Platform>
+    <ProductVersion>8.0.50727</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{12F1FC1E-20A6-4286-9C43-FFFFFFFFFFFF}</ProjectGuid>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <SourceExt>.wxs</SourceExt>
+    <TargetExt>.msi</TargetExt>
+    <IntermediateExt>.wixobj</IntermediateExt>
+    <SetupIniFile>settings.ini</SetupIniFile>
+    <OutputName>PLiX for Visual Studio</OutputName>
+    <OutputPath>bin\</OutputPath>
+    <BaseOutputPath>obj\</BaseOutputPath>
+    <IntermediateOutputPath>$(BaseOutputPath)</IntermediateOutputPath>
+    <LocalizedStringFile>Strings.wxl</LocalizedStringFile>
+    <VerboseOutput>true</VerboseOutput>
+    <NoLogo>true</NoLogo>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\DSLTools\v2.0\wix.targets" />
+  <ItemGroup>
+    <SetupFiles Include="settings.ini" />
+    <SetupFiles Include="setup.exe.manifest" />
+    <Compile Include="Product.wxs" />
+    <Compile Include="Features.wxs" />
+    <Compile Include="Components.wxs" />
+    <Compile Include="ComponentGroups.wxs" />
+    <None Include="Config.wxi" />
+    <None Include="Strings.wxl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="PLiXSchemaCatalog.xml" />
+  </ItemGroup>
+</Project>

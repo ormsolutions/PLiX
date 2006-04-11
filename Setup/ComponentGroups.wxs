@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Neumont PLiX (Programming Language in XML) Code Generator for Visual Studio
+
+	Copyright © Neumont University and Matthew Curland. All rights reserved.
+
+	The use and distribution terms for this software are covered by the
+	Common Public License 1.0 (http://opensource.org/licenses/cpl) which
+	can be found in the file CPL.txt at the root of this distribution.
+	By using this software in any fashion, you are agreeing to be bound by
+	the terms of this license.
+
+	You must not remove this notice, or any other, from this software.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
+	<?include Config.wxi?>
+	<Fragment>
+		<ComponentGroup Id="MainFeatureComponents">
+			<ComponentRef Id="LicenseFilesComponent"/>
+		</ComponentGroup>
+		<ComponentGroup Id="FormattersComponents">
+			<!-- Formatters and schemas go here -->
+			<ComponentRef Id="PLIXFormatterSettings"/>
+			<ComponentRef Id="PLIXSchemasLocalCatalogComponent"/>
+			<ComponentRef Id="PLIXSchemasVSCatalogComponent"/>
+			<ComponentRef Id="PLIXSchemasComponent"/>
+			<ComponentRef Id="PLIXFormattersComponent"/>
+		</ComponentGroup>
+		<ComponentGroup Id="CustomToolComponents">
+			<!-- VS integration pieces go here -->
+			<ComponentRef Id="CustomToolComponent"/>
+			<ComponentRef Id="VBCustomToolComponent"/>
+			<ComponentRef Id="CSCustomToolComponent"/>
+			<ComponentRef Id="CustomToolComponentExp"/>
+			<ComponentRef Id="VBCustomToolComponentExp"/>
+			<ComponentRef Id="CSCustomToolComponentExp"/>
+		</ComponentGroup>
+	</Fragment>
+</Wix>

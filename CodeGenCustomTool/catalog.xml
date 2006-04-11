@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<SchemaCatalog xmlns="http://schemas.microsoft.com/xsd/catalog">
+	<Schema targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiX" href="Plix.xsd"/>
+	<Schema targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiXLoader" href="PlixLoader.xsd"/>
+	<Schema targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiXRedirect" href="PlixRedirect.xsd"/>
+	<Schema targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiXSettings" href="PlixSettings.xsd"/>
+</SchemaCatalog>

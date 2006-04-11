@@ -1,0 +1,72 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Neumont PLiX (Programming Language in XML) Code Generator for Visual Studio
+
+	Copyright © Neumont University and Matthew Curland. All rights reserved.
+
+	The use and distribution terms for this software are covered by the
+	Common Public License 1.0 (http://opensource.org/licenses/cpl) which
+	can be found in the file CPL.txt at the root of this distribution.
+	By using this software in any fashion, you are agreeing to be bound by
+	the terms of this license.
+
+	You must not remove this notice, or any other, from this software.
+-->
+<Include xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
+	<!-- NOTE: All comments and instructions in this file are specifically for NORMA setup, and do not necessarily apply to setup packages in general. -->
+	<!-- The processor architecture of the product. Possible values (without quotes) are '32' for the 32-bit x86 (IA-32) architecture. Support for '64' for the 64-bit x86-64 (x64, AMD64, EM64T) architecture may be added in the future. -->
+	<?define Architecture="32"?>
+	<!-- Possible values (without quotes) are '0' for Release build or '1' for Debug build. -->
+	<?define Debug="1"?>
+	<!-- Possible values (without quotes) are '0' for regular Visual Studio registry root or '1' for Exp ("Experimental") registry root. -->
+	<?define ExperimentalHive="0"?>
+	<!-- These are now pulled in via the include. The syntax and meaning remains the same.
+	<!- - MAJOR and MINOR portions of ProductVersion, for use in assembly strong names. - ->
+	<?define MajorMinorVersion="1.0"?>
+	<!- - Two hexits representing the MAJOR version. - ->
+	<?define MajorVersionHexits="01"?>
+	<!- - Overall NORMA version number. Format is MAJOR.MINOR.(((RELEASEYEAR - 2000) * 100) + RELEASEMONTH).BUILD. - ->
+	<?define ProductVersion="$(var.MajorMinorVersion).602.1"?>
+	<!- - VersionGuidSuffix should be distinct for every MSI. The last section of the GUID should match the product version (two hexits for MAJOR, two hexits for MINOR, two hexits for RELEASEYER, two hexits for RELEASEMONTH, four hexits for BUILD). The version number should NOT be translated into hexadecimal; that is, digits 10 should become hexits 10, not hexits 0A. - ->
+	<?define VersionGuidSuffix="$(var.Debug)$(var.ExperimentalHive)$(var.Architecture)-010006020130"?>
+	-->
+	<?include ../Version.wxi?>
+	<?define PackageCode="12F1FC1E-0000-4286-$(var.VersionGuidSuffix)"?>
+	<!-- ProductCode should be changed for each MAJOR version. Specifically, the first and second hexits of the last section of the GUID should match the two digits of the major version.-->
+	<?define ProductCode="12F1FC1E-0000-4286-$(var.Debug)$(var.ExperimentalHive)$(var.Architecture)-$(var.MajorVersionHexits)0000000000"?>
+	<!-- UpgradeCode should NOT be changed. -->
+	<?define UpgradeCode="12F1FC1E-0000-4286-0000-000000000000"?>
+	<!-- Public token for NORMA strong name key. -->
+	<?define PublicKeyToken="7a0c83ac6f8a469f"?>
+	<!-- GUID for NORMA Visual Studio Package (NOT MSI package!) -->
+	<?define PLIXCustomToolGuid="12F1FC1E-20A6-4286-9C43-25209BBA5997"?>
+	<?define PLIXCustomToolAssemblyName="Neumont.Tools.CodeGeneration.CustomTools, Version=$(var.MajorMinorVersion).0.0, Culture=neutral, PublicKeyToken=$(var.PublicKeyToken)"?>
+	<!-- The LCID of the MSI and the fallback resources. This should NOT be changed. -->
+	<?define DefaultLCID="1033"?>
+
+	<?if $(var.Architecture)=64?>
+		<?define Win64="yes"?>
+		<?define ProgramFilesFolder="ProgramFiles64Folder"?>
+		<?define SystemFolder="System64Folder"?>
+		<?define CommonFilesFolder="CommonFiles64Folder"?>
+	<?else?>
+		<?define Win64="no"?>
+		<?define ProgramFilesFolder="ProgramFilesFolder"?>
+		<?define SystemFolder="SystemFolder"?>
+		<?define CommonFilesFolder="CommonFilesFolder"?>
+	<?endif?>
+	<?if $(var.Debug)=1?>
+		<?define BuildConfiguration="Debug"?>
+	<?else?>
+		<?define BuildConfiguration="Release"?>
+	<?endif?>
+	<!-- The Visual Studio registry root used for installation. -->
+	<?define VSRegRoot="SOFTWARE\Microsoft\VisualStudio\8.0"?>
+	<?define VSRegExpRoot="SOFTWARE\Microsoft\VisualStudio\8.0Exp"?>
+	<?define PLIXRegRoot="SOFTWARE\Neumont\PLiX for Visual Studio"?>
+	<!-- The default target directory for installation (under ProgramFilesFolder). -->
+	<!-- NOTE: This is intentionally not being localized, so that the installation location is constant. -->
+	<?define DefaultCompanyDir="Neumont"?>
+	<?define DefaultShortProductDir="PLiXVS"?>
+	<?define DefaultProductDir="PLiX for Visual Studio"?>
+</Include>

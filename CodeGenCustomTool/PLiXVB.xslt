@@ -1,11 +1,24 @@
 <?xml version="1.0" encoding="UTF-8" ?>
+<!--
+	Neumont PLiX (Programming Language in XML) Code Generator
+
+	Copyright © Neumont University and Matthew Curland. All rights reserved.
+
+	The use and distribution terms for this software are covered by the
+	Common Public License 1.0 (http://opensource.org/licenses/cpl) which
+	can be found in the file CPL.txt at the root of this distribution.
+	By using this software in any fashion, you are agreeing to be bound by
+	the terms of this license.
+
+	You must not remove this notice, or any other, from this software.
+-->
 <xsl:stylesheet
 	version="1.0"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 	xmlns:plx="http://schemas.neumont.edu/CodeGeneration/PLiX"
 	xmlns:plxGen="urn:local-plix-generator" 
-	xmlns:exslt="http://exslt.org/common"
-	exclude-result-prefixes="#default exslt plx plxGen">
+	xmlns:exsl="http://exslt.org/common"
+	exclude-result-prefixes="#default exsl plx plxGen">
 	<xsl:import href="PLiXMain.xslt"/>
 	<xsl:output method="text"/>
 	<!-- The prefix used for any automatically generated labels -->
@@ -1135,7 +1148,7 @@
 					<xsl:copy-of select="plx:attributes"/>
 					<plx:attribute dataTypeName="SpecialName" dataTypeQualifier="System.Runtime.CompilerServices"/>
 				</xsl:variable>
-				<xsl:for-each select="exslt:node-set($modifiedAttributesFragment)">
+				<xsl:for-each select="exsl:node-set($modifiedAttributesFragment)">
 					<xsl:call-template name="RenderAttributes">
 						<xsl:with-param name="Indent" select="$Indent"/>
 					</xsl:call-template>

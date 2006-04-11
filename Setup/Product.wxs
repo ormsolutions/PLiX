@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Neumont PLiX (Programming Language in XML) Code Generator for Visual Studio
+
+	Copyright © Neumont University and Matthew Curland. All rights reserved.
+
+	The use and distribution terms for this software are covered by the
+	Common Public License 1.0 (http://opensource.org/licenses/cpl) which
+	can be found in the file CPL.txt at the root of this distribution.
+	By using this software in any fashion, you are agreeing to be bound by
+	the terms of this license.
+
+	You must not remove this notice, or any other, from this software.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
+	<!-- NOTE: All comments and instructions in this file are specifically for NORMA setup, and do not necessarily apply to setup packages in general. -->
+	<?include Config.wxi?>
+	
+	<Product
+		Name="$(loc.ProductName)"
+		Manufacturer="$(loc.Manufacturer)"
+		Language="$(var.DefaultLCID)"
+		Version="$(var.ProductVersion)"
+		Id="$(var.ProductCode)"
+		UpgradeCode="$(var.UpgradeCode)">
+
+		<Package
+			Id="$(var.PackageCode)"
+			Description="$(loc.ProductName) - $(loc.ReleaseVersion)"
+			Comments="$(loc.PackageCommentsPrefix)$(loc.ProductName)$(loc.PackageCommentsSuffix)"
+			Manufacturer="$(loc.Manufacturer)"
+			InstallerVersion="300"
+			Compressed="yes"
+			ShortNames="no"
+			InstallPrivileges="elevated"/>
+
+		<Upgrade Id="$(var.UpgradeCode)">
+			<UpgradeVersion Minimum="0.0.0" Maximum="$(var.ProductVersion)" IncludeMinimum="yes" MigrateFeatures="yes"/>
+		</Upgrade>
+
+		<Condition Message="$(loc.Windows2000OrHigherRequired)">VersionNT >= 500</Condition>
+
+		<Property Id="VSPRODUCTDIR">
+			<RegistrySearch Id="VSProductDirRegistrySearch" Root="HKLM" Key="$(var.VSRegRoot)\Setup\VS" Name="ProductDir" Type="directory" Win64="$(var.Win64)" />
+		</Property>
+		<Property Id="VSENVIRONMENTPATH">
+			<RegistrySearch Id="VSEnvironmentPathRegistrySearch" Root="HKLM" Key="$(var.VSRegRoot)\Setup\VS" Name="EnvironmentPath" Type="raw" Win64="$(var.Win64)" />
+		</Property>
+		<Property Id="VSEXPINSTALL">
+			<RegistrySearch Id="VSExperimentalRegistrySearch" Root="HKLM" Key="$(var.VSRegExpRoot)" Name="ApplicationID" Type="raw" Win64="$(var.Win64)" />
+		</Property>
+		<!-- Make sure Visual Studio 2005 is installed. Since VS requires .NET, we don't need to check for it separately. -->
+		<!-- Technically, since DSL Tools requires VS, we don't even need to do this check, but since we have to get the properties anyway, we might as well. It gives the user a more appropriate error message, anyway. -->
+		<Condition Message="$(loc.VisualStudio2005Required)">(VSPRODUCTDIR AND VSENVIRONMENTPATH) OR Installed</Condition>
+
+		<!-- Get the package GUIDs for the various VS packages. -->
+		<Property Id="VCSHARPPACKAGEGUID">
+			<RegistrySearch Id="VCSharpPackageGUIDRegistrySearch" Root="HKLM" Key="$(var.VSRegRoot)\InstalledProducts\Microsoft Visual C#" Name="Package" Type="raw" Win64="$(var.Win64)" />
+		</Property>
+		<Property Id="VBASICPACKAGEGUID">
+			<RegistrySearch Id="VBasicPackageGUIDRegistrySearch" Root="HKLM" Key="$(var.VSRegRoot)\InstalledProducts\Microsoft Visual Basic" Name="Package" Type="raw" Win64="$(var.Win64)" />
+		</Property>
+
+		<!-- Only support per-machine installation. -->
+		<Property Id="ALLUSERS">1</Property>
+		
+		<!-- Setup Add/Remove Programs functionality. -->
+		<Property Id="ARPCONTACT">$(loc.Manufacturer)</Property>
+		<Property Id="ARPPRODUCTICON">AboutBox.ico</Property>
+		
+		<Icon Id="AboutBox.ico" src="..\CodeGenCustomTool\AboutBox.ico" />
+		
+		<Media Id="1" Cabinet="PLIX_VS.cab" EmbedCab="yes" CompressionLevel="high" />
+
+		<FeatureRef Id="MainFeature" />
+		<DirectoryRef Id="TARGETDIR" />
+
+		<Property Id="ADMINORADVERTISED">$(loc.AdminOrAdvertised)</Property>
+		<CustomAction Id="AdminOrAdvertisedCustomAction" Return="check" Error="[ADMINORADVERTISED]"/>
+		<AdminExecuteSequence>
+			<Custom Before="CostInitialize" Action="AdminOrAdvertisedCustomAction"/>
+		</AdminExecuteSequence>
+		<AdvertiseExecuteSequence>
+			<Custom Before="CostInitialize" Action="AdminOrAdvertisedCustomAction"/>
+		</AdvertiseExecuteSequence>
+
+		<InstallExecuteSequence/>
+	</Product>
+</Wix>

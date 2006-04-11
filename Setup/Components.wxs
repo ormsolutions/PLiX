@@ -1,0 +1,148 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Neumont PLiX (Programming Language in XML) Code Generator for Visual Studio
+
+	Copyright © Neumont University and Matthew Curland. All rights reserved.
+
+	The use and distribution terms for this software are covered by the
+	Common Public License 1.0 (http://opensource.org/licenses/cpl) which
+	can be found in the file CPL.txt at the root of this distribution.
+	By using this software in any fashion, you are agreeing to be bound by
+	the terms of this license.
+
+	You must not remove this notice, or any other, from this software.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
+	<?include Config.wxi?>
+	<Fragment>
+		<Directory Id="TARGETDIR" Name="SourceDir">
+
+			<Directory Id="$(var.ProgramFilesFolder)">
+				<Directory Id="$(var.DefaultCompanyDir)" Name="$(var.DefaultCompanyDir)">
+					<Directory Id="$(var.DefaultShortProductDir)" Name="$(var.DefaultShortProductDir)" LongName="$(var.DefaultProductDir)">
+
+						<Component Id="LicenseFilesComponent" Guid="09282AC1-7437-43F5-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)" KeyPath="yes">
+							<File Id="CPL.txt" Name="CPL.txt" src="..\CPL.txt"
+								DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
+						</Component>
+
+						<Directory Id="BINDIR" Name="bin">
+
+							<!-- Executables and PDBs go here -->
+							<Component Id="CustomToolComponent" Guid="23DAD9F0-CEC3-432B-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<File Id="Neumont.Tools.CodeGeneration.CustomTools.dll" Name="PLiXTool.dll" LongName="Neumont.Tools.CodeGeneration.CustomTools.dll" src="..\CodeGenCustomTool\bin\$(var.BuildConfiguration)\Neumont.Tools.CodeGeneration.CustomTools.dll"
+									DefaultVersion="$(var.ProductVersion)" DefaultLanguage="0" KeyPath="yes" Vital="yes" Assembly=".net" AssemblyManifest="Neumont.Tools.CodeGeneration.CustomTools.dll" ProcessorArchitecture="msil" AssemblyApplication="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
+								<File Id="Neumont.Tools.CodeGeneration.CustomTools.pdb" Name="PLiX.pdb" LongName="Neumont.Tools.CodeGeneration.CustomTools.pdb" src="..\CodeGenCustomTool\bin\$(var.BuildConfiguration)\Neumont.Tools.CodeGeneration.CustomTools.pdb"
+									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.PLIXRegRoot)">
+									<Registry Type="string" Name="InstallDir" Value="[$(var.DefaultShortProductDir)]"/>
+									<Registry Type="string" Name="ProductVersion" Value="$(var.ProductVersion)"/>
+								</Registry>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot)\CLSID\{$(var.PLIXCustomToolGuid)}">
+									<Registry Type="string" Value="Neumont.Tools.CodeGeneration.PlixLoaderCustomTool"/>
+									<Registry Action="createKey" Key="InprocServer32">
+										<Registry Type="string" Value="[$(var.SystemFolder)]mscoree.dll"/>
+										<Registry Type="string" Name="ThreadingModel" Value="Both"/>
+										<Registry Type="string" Name="Class" Value="Neumont.Tools.CodeGeneration.PlixLoaderCustomTool"/>
+										<Registry Type="string" Name="Assembly" Value="$(var.PLIXCustomToolAssemblyName)"/>
+										<Registry Type="string" Name="CodeBase" Value="[#Neumont.Tools.CodeGeneration.CustomTools.dll]"/>
+									</Registry>
+								</Registry>
+							</Component>
+							<Component Id="CustomToolComponentExp" Guid="ED2AEF85-0EF9-4F88-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>VSEXPINSTALL OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegExpRoot)\CLSID\{$(var.PLIXCustomToolGuid)}">
+									<Registry Type="string" Value="Neumont.Tools.CodeGeneration.PlixLoaderCustomTool"/>
+									<Registry Action="createKey" Key="InprocServer32">
+										<Registry Type="string" Value="[$(var.SystemFolder)]mscoree.dll"/>
+										<Registry Type="string" Name="ThreadingModel" Value="Both"/>
+										<Registry Type="string" Name="Class" Value="Neumont.Tools.CodeGeneration.PlixLoaderCustomTool"/>
+										<Registry Type="string" Name="Assembly" Value="$(var.PLIXCustomToolAssemblyName)"/>
+										<Registry Type="string" Name="CodeBase" Value="[#Neumont.Tools.CodeGeneration.CustomTools.dll]"/>
+									</Registry>
+								</Registry>
+							</Component>
+							<Component Id="VBCustomToolComponent" Guid="6A5DB292-7051-447A-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>VBASICPACKAGEGUID OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot)\Generators\[VBASICPACKAGEGUID]\NUPlixLoader">
+									<Registry Type="string" Value="$(loc.ORMVBCustomToolDescription)"/>
+									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
+								</Registry>
+							</Component>
+							<Component Id="VBCustomToolComponentExp" Guid="8696A5BF-24D4-40E1-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>(VBASICPACKAGEGUID AND VSEXPINSTALL) OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegExpRoot)\Generators\[VBASICPACKAGEGUID]\NUPlixLoader">
+									<Registry Type="string" Value="$(loc.ORMVBCustomToolDescription)"/>
+									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
+								</Registry>
+							</Component>
+							<Component Id="CSCustomToolComponent" Guid="E88D1AAB-BB19-4E1E-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>VCSHARPPACKAGEGUID OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot)\Generators\[VCSHARPPACKAGEGUID]\NUPlixLoader">
+									<Registry Type="string" Value="$(loc.ORMCSCustomToolDescription)"/>
+									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
+								</Registry>
+							</Component>
+							<Component Id="CSCustomToolComponentExp" Guid="5EB321BC-CD4E-467A-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>(VCSHARPPACKAGEGUID AND VSEXPINSTALL) OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegExpRoot)\Generators\[VCSHARPPACKAGEGUID]\NUPlixLoader">
+									<Registry Type="string" Value="$(loc.ORMCSCustomToolDescription)"/>
+									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
+								</Registry>
+							</Component>
+						</Directory>
+					</Directory>
+				</Directory>
+			</Directory>
+			
+			<Directory Id="$(var.CommonFilesFolder)">
+				<Directory Id="NEUMONTCOMMONFILESDIR" Name="Neumont">
+					<Directory Id="PLIXCOMMONFILESDIR" Name="PLiX">
+						<Component Id="PLIXFormatterSettings" Guid="BA4A6AF1-F9B1-4EEA-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+							<File Id="PLIXSettings.xml" Name="PlxSetng.xml" LongName="PlixSettings.xml" src="..\CodeGenCustomTool\PLiXSettings.xml"
+								DefaultLanguage="0" KeyPath="yes"/>
+						</Component>
+						<Directory Id="PLIXSCHEMASDIR" Name="Schemas">
+							<Component Id="PLIXSchemasLocalCatalogComponent" Guid="27F676CA-B00E-42DD-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<File Id="PLIXcatalog.xml" Name="catalog.xml" src="..\CodeGenCustomTool\catalog.xml"
+									DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
+							</Component>
+							<Component Id="PLIXSchemasComponent" Guid="1FD5E187-1717-44AD-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<File Id="PLiX.xsd" Name="PLiX.xsd" src="..\CodeGenCustomTool\PLiX.xsd"
+									DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
+								<File Id="PLiXLoader.xsd" Name="PlxLoad.xsd" LongName="PLiXLoader.xsd" src="..\CodeGenCustomTool\PlixLoader.xsd"
+									DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
+								<File Id="PLiXRedirect.xsd" Name="PlxRedir.xsd" LongName="PLiXRedirect.xsd" src="..\CodeGenCustomTool\PlixRedirect.xsd"
+									DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
+								<File Id="PLiXSettings.xsd" Name="PlxSetng.xsd" LongName="PLiXSettings.xsd" src="..\CodeGenCustomTool\PlixSettings.xsd"
+									DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
+							</Component>
+						</Directory>
+						<Directory Id="PLIXFORMATTERSDIR" Name="Frmatrs" LongName="Formatters">
+							<Component Id="PLIXFormattersComponent" Guid="9621746E-DF23-49F5-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<File Id="PLiXMain.xslt" Name="PLiXMain.xsl" LongName="PLiXMain.xslt" src="..\CodeGenCustomTool\PLiXMain.xslt"
+									DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
+								<File Id="PLiXCS.xslt" Name="PLiXCS.xsl" LongName="PLiXCS.xslt" src="..\CodeGenCustomTool\PLiXCS.xslt"
+									DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
+								<File Id="PLiXVB.xslt" Name="PLiXVB.xsl" LongName="PLiXVB.xslt" src="..\CodeGenCustomTool\PLiXVB.xslt"
+									DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
+							</Component>
+						</Directory>
+					</Directory>
+				</Directory>
+			</Directory>
+
+			<Directory Id="VSPRODUCTDIR">
+				<Directory Id="VSXMLDIR" Name="Xml">
+					<Directory Id="VSXMLSCHEMASDIR" Name="Schemas">
+						<!-- Point Visual Studio to additional XML Schema Catalog directories. -->
+						<Component Id="PLIXSchemasVSCatalogComponent" Guid="3F1AA01B-07D2-4F07-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+							<File Id="PLIXSchemaCatalog.xml" Name="PLIXCat.xml" LongName="PLiXSchemaCatalog.xml" src="PLiXSchemaCatalog.xml"
+								DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
+						</Component>
+					</Directory>
+				</Directory>
+			</Directory>
+		</Directory>
+	</Fragment>
+</Wix>

@@ -1,4 +1,17 @@
-﻿using System;
+﻿/**************************************************************************\
+* Neumont PLiX (Programming Language in XML) Code Generator                *
+*                                                                          *
+* Copyright © Neumont University and Matthew Curland. All rights reserved. *
+*                                                                          *
+* The use and distribution terms for this software are covered by the      *
+* Common Public License 1.0 (http://opensource.org/licenses/cpl) which     *
+* can be found in the file CPL.txt at the root of this distribution.       *
+* By using this software in any fashion, you are agreeing to be bound by   *
+* the terms of this license.                                               *
+*                                                                          *
+* You must not remove this notice, or any other, from this software.       *
+\**************************************************************************/
+using System;
 using System.Collections.Generic;
 using Microsoft.VisualStudio.Shell.Interop;
 using MsOle = Microsoft.VisualStudio.OLE.Interop;
@@ -237,7 +250,7 @@ namespace Neumont.Tools.CodeGeneration
 		private const string RedirectNamespace = "http://schemas.neumont.edu/CodeGeneration/PLiXRedirect";
 		private const string RedirectElementName = "redirectSourceFile";
 		private const string RedirectTargetAttribute = "target";
-		private const string PlixRelativeDirectory = @"\..\..\Neumont\CodeGeneration\PLiX\";
+		private const string PlixInstallDirectory = @"\Neumont\PLiX\";
 		private const string FormattersDirectory = @"Formatters\";
 		private const string PlixGlobalSettingsFile = "PLiXSettings.xml";
 		#endregion // Member Variables
@@ -771,54 +784,9 @@ There is no way to both successfully trigger regeneration and avoid writing this
 					{
 						if (null == (retVal = myPlixDirectory))
 						{
-							// The service provider we were given does not
-							// give us the install directory information we
-							// need, so we have to dig down to the full service
-							// provider from the hierarchy.
-							Guid serviceGuid = typeof(IVsHierarchy).GUID;
-							IntPtr pvHierarchy = IntPtr.Zero;
-							ErrorHandler.ThrowOnFailure(myServiceProvider.QueryService(ref serviceGuid, ref serviceGuid, out pvHierarchy));
-							if (pvHierarchy != IntPtr.Zero)
-							{
-								try
-								{
-									IVsHierarchy hierarchy = Marshal.GetObjectForIUnknown(pvHierarchy) as IVsHierarchy;
-									if (hierarchy != null)
-									{
-										MsOle.IServiceProvider fullServiceProvider;
-										ErrorHandler.ThrowOnFailure(hierarchy.GetSite(out fullServiceProvider));
-										if (fullServiceProvider != null)
-										{
-											serviceGuid = typeof(IVsShell).GUID;
-											IntPtr pvShell;
-											ErrorHandler.ThrowOnFailure(fullServiceProvider.QueryService(ref serviceGuid, ref serviceGuid, out pvShell));
-											if (pvShell != null)
-											{
-												try
-												{
-													IVsShell shell = Marshal.GetObjectForIUnknown(pvShell) as IVsShell;
-													if (shell != null)
-													{
-														object vsInstallDir;
-														ErrorHandler.ThrowOnFailure(shell.GetProperty((int)__VSSPROPID.VSSPROPID_InstallDirectory, out vsInstallDir));
-														retVal = (new FileInfo(vsInstallDir + PlixRelativeDirectory)).FullName;
-														myPlixDirectory = retVal;
-													}
-												}
-												finally
-												{
-													Marshal.Release(pvShell);
-												}
-											}
-										}
-									}
-								}
-								finally
-								{
-									Marshal.Release(pvHierarchy);
-								}
-							}
-
+							string commonProgramFiles = Environment.GetEnvironmentVariable("CommonProgramFiles", EnvironmentVariableTarget.Process);
+							retVal = commonProgramFiles + PlixInstallDirectory;
+							myPlixDirectory = retVal;
 						}
 					}
 				}
