@@ -1316,6 +1316,9 @@
 				<xsl:when test="@modifier='abstract'">
 					<xsl:text>x</xsl:text>
 				</xsl:when>
+				<xsl:when test="@modifier='abstractOverride'">
+					<xsl:text>x</xsl:text>
+				</xsl:when>
 				<xsl:when test="parent::plx:interface">
 					<xsl:text>x</xsl:text>
 				</xsl:when>
