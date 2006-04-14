@@ -1255,7 +1255,12 @@
 			</xs:enumeration>
 			<xs:enumeration value="sealedOverride">
 				<xs:annotation>
-					<xs:documentation>The member is an override of another virtual or abstract member on a base class, and derived classes cannot override this member. (C#: override sealed, VB: Overrides NotOverridable)</xs:documentation>
+					<xs:documentation>The member is an override of another virtual or abstract member on a base class, and derived classes cannot override this member. (C#: sealed override, VB: NotOverridable Overrides)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="abstractOverride">
+				<xs:annotation>
+					<xs:documentation>The member is an override of another virtual or abstract member on a base class, and derived classes must override this member. (C#: abstract override, VB: MustOverride Overrides)</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 		</xs:restriction>

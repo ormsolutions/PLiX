@@ -1784,7 +1784,10 @@
 				<xsl:text>Overrides </xsl:text>
 			</xsl:when>
 			<xsl:when test="$modifier='sealedOverride'">
-				<xsl:text>Overrides NotOverridable </xsl:text>
+				<xsl:text>NotOverridable Overrides </xsl:text>
+			</xsl:when>
+			<xsl:when test="$modifier='abstractOverride'">
+				<xsl:text>MustOverride Overrides </xsl:text>
 			</xsl:when>
 		</xsl:choose>
 	</xsl:template>
