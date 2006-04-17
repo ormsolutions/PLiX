@@ -610,6 +610,7 @@
 				<xsl:for-each select="$explicitDelegate">
 					<xsl:call-template name="RenderType"/>
 				</xsl:for-each>
+				<xsl:call-template name="RenderPassTypeParams"/>
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:variable name="typeParams" select="plx:typeParam"/>
