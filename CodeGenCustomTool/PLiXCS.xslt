@@ -2200,9 +2200,6 @@
 		<xsl:for-each select="$TypeParams">
 			<xsl:variable name="typedConstraints" select="plx:typeConstraint"/>
 			<xsl:variable name="constraintsFragment">
-				<xsl:if test="$typedConstraints">
-					<xsl:text>t</xsl:text>
-				</xsl:if>
 				<xsl:choose>
 					<!-- class and struct are mutually exclusive -->
 					<xsl:when test="@requireReferenceType='true' or @requireReferenceType='1'">
@@ -2212,6 +2209,9 @@
 						<xsl:text>v</xsl:text>
 					</xsl:when>
 				</xsl:choose>
+				<xsl:if test="$typedConstraints">
+					<xsl:text>t</xsl:text>
+				</xsl:if>
 				<xsl:if test="@requireDefaultConstructor='true' or @requireDefaultConstructor='1'">
 					<xsl:text>n</xsl:text>
 				</xsl:if>
@@ -2224,12 +2224,6 @@
 				<xsl:text>where </xsl:text>
 				<xsl:value-of select="@name"/>
 				<xsl:text> : </xsl:text>
-				<xsl:for-each select="$typedConstraints">
-					<xsl:if test="position()!=1">
-						<xsl:text>, </xsl:text>
-					</xsl:if>
-					<xsl:call-template name="RenderType"/>
-				</xsl:for-each>
 				<xsl:choose>
 					<xsl:when test="contains($constraints,'c')">
 						<xsl:if test="not(starts-with($constraints,'c'))">
@@ -2244,6 +2238,12 @@
 						<xsl:text>struct</xsl:text>
 					</xsl:when>
 				</xsl:choose>
+				<xsl:for-each select="$typedConstraints">
+					<xsl:if test="position()!=1 or not(starts-with($constraints,'t'))">
+						<xsl:text>, </xsl:text>
+					</xsl:if>
+					<xsl:call-template name="RenderType"/>
+				</xsl:for-each>
 				<xsl:if test="contains($constraints,'n')">
 					<xsl:if test="not(starts-with($constraints,'n'))">
 						<xsl:text>, </xsl:text>
