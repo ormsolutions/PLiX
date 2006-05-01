@@ -2422,7 +2422,7 @@
 						<xs:group ref="blockContents"/>
 					</xs:choice>
 				</xs:sequence>
-				<xs:attribute name="localName" type="simpleNameType"/>
+				<xs:attribute name="localName" type="simpleNameType" use="required"/>
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>

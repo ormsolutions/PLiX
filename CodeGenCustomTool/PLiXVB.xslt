@@ -64,6 +64,27 @@
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
 	</xsl:template>
+	<xsl:template match="plx:autoDispose">
+		<xsl:param name="Indent"/>
+		<xsl:text>Using </xsl:text>
+		<xsl:value-of select="@localName"/>
+		<xsl:text> As </xsl:text>
+		<xsl:call-template name="RenderType"/>
+		<xsl:text> = </xsl:text>
+		<xsl:for-each select="plx:initialize">
+			<xsl:apply-templates select="child::*">
+				<xsl:with-param name="Indent" select="$Indent"/>
+			</xsl:apply-templates>
+		</xsl:for-each>
+	</xsl:template>
+	<xsl:template match="plx:autoDispose" mode="IndentInfo">
+		<xsl:call-template name="CustomizeIndentInfo">
+			<xsl:with-param name="defaultInfo">
+				<xsl:apply-imports/>
+			</xsl:with-param>
+			<xsl:with-param name="closeWith" select="'End Using'"/>
+		</xsl:call-template>
+	</xsl:template>
 	<xsl:template match="plx:binaryOperator">
 		<xsl:param name="Indent"/>
 		<xsl:variable name="type" select="string(@type)"/>
