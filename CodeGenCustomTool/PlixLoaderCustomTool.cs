@@ -641,7 +641,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 
 								// Use an XmlTextReader here instead of an XPathDocument
 								// so that our transforms support the xsl:preserve-space element
-								transform.Transform(new XmlTextReader(reader), arguments, xmlTextWriter);
+								transform.Transform(new XmlTextReader(reader), arguments, xmlTextWriter, new XmlFileResolver(sourceFile));
 								plixStream.Position = 0;
 
 								// From the plix stream, generate the code
