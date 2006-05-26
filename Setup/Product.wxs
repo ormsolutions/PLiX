@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
 	Neumont PLiX (Programming Language in XML) Code Generator for Visual Studio
 
@@ -84,6 +84,8 @@
 			<Custom Before="CostInitialize" Action="AdminOrAdvertisedCustomAction"/>
 		</AdvertiseExecuteSequence>
 
-		<InstallExecuteSequence/>
+		<InstallExecuteSequence>
+			<RemoveExistingProducts Before="InstallInitialize"/>
+		</InstallExecuteSequence>
 	</Product>
 </Wix>
