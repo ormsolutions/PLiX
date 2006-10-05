@@ -2010,7 +2010,7 @@
 							<xsl:when test="$rawTypeName='.i8'">
 								<xsl:text>long</xsl:text>
 							</xsl:when>
-							<xsl:when test="$rawTypeName='.ui'">
+							<xsl:when test="$rawTypeName='.u1'">
 								<xsl:text>byte</xsl:text>
 							</xsl:when>
 							<xsl:when test="$rawTypeName='.u2'">
