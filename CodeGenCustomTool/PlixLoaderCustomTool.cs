@@ -517,37 +517,44 @@ There is no way to both successfully trigger regeneration and avoid writing this
 			string alternateSourceFile = null;
 			using (StringReader stringReader = new StringReader(fileContents))
 			{
-				using (XmlTextReader reader = new XmlTextReader(stringReader))
+				try
 				{
-					if (XmlNodeType.Element == reader.MoveToContent())
+					using (XmlTextReader reader = new XmlTextReader(stringReader))
 					{
-						if (reader.NamespaceURI == RedirectNamespace &&
-							reader.LocalName == RedirectElementName)
+						if (XmlNodeType.Element == reader.MoveToContent())
 						{
-							string relativeTargetSourceFile = reader.GetAttribute(RedirectTargetAttribute);
-							FileInfo targetSourceFileInfo = new FileInfo(sourceFile.Substring(0, sourceFile.LastIndexOf('\\') + 1) + relativeTargetSourceFile);
-							if (targetSourceFileInfo.Exists)
+							if (reader.NamespaceURI == RedirectNamespace &&
+								reader.LocalName == RedirectElementName)
 							{
-								alternateSourceFile = targetSourceFileInfo.FullName;
-								sourceFile = alternateSourceFile;
-								try
+								string relativeTargetSourceFile = reader.GetAttribute(RedirectTargetAttribute);
+								FileInfo targetSourceFileInfo = new FileInfo(sourceFile.Substring(0, sourceFile.LastIndexOf('\\') + 1) + relativeTargetSourceFile);
+								if (targetSourceFileInfo.Exists)
 								{
-									itemDocument = null;
-									itemDocument = project.DTE.Documents.Item(alternateSourceFile);
+									alternateSourceFile = targetSourceFileInfo.FullName;
+									sourceFile = alternateSourceFile;
+									try
+									{
+										itemDocument = null;
+										itemDocument = project.DTE.Documents.Item(alternateSourceFile);
+									}
+									catch (ArgumentException)
+									{
+										// Swallow if the document is not open
+									}
 								}
-								catch (ArgumentException)
+								else
 								{
-									// Swallow if the document is not open
+									StringWriter writer = new StringWriter();
+									provider.GenerateCodeFromStatement(new CodeCommentStatement(string.Format(CultureInfo.InvariantCulture, "Redirection target file '{0}' not found", relativeTargetSourceFile)), writer, null);
+									return writer.ToString();
 								}
-							}
-							else
-							{
-								StringWriter writer = new StringWriter();
-								provider.GenerateCodeFromStatement(new CodeCommentStatement(string.Format(CultureInfo.InvariantCulture, "Redirection target file '{0}' not found", relativeTargetSourceFile)), writer, null);
-								return writer.ToString();
 							}
 						}
 					}
+				}
+				catch (XmlException ex)
+				{
+					return GenerateExceptionInformation(ex, provider);
 				}
 			}
 
@@ -576,119 +583,136 @@ There is no way to both successfully trigger regeneration and avoid writing this
 
 			try
 			{
-				if (transformFile == null)
+				XslCompiledTransform transform = null;
+				if (transformFile != null)
 				{
-					StringWriter writer = new StringWriter();
-					provider.GenerateCodeFromStatement(new CodeCommentStatement("Transform file not found"), writer, null);
-					return writer.ToString();
+					transform = new XslCompiledTransform();
+					using (FileStream transformStream = new FileStream(transformFile, FileMode.Open, FileAccess.Read))
+					{
+						using (StreamReader reader = new StreamReader(transformStream))
+						{
+							transform.Load(new XmlTextReader(reader), XsltSettings.TrustedXslt, new XmlFileResolver(transformFile));
+						}
+					}
 				}
-				else
+				MemoryStream plixStream = (transform != null) ? new MemoryStream() : null;
+				using (XmlWriter xmlTextWriter = (transform != null) ? XmlWriter.Create(plixStream, transform.OutputSettings) : null)
 				{
+					// Variables that need to be disposed
+					TextReader reader = null;
+					Stream docStream = null;
+
 					try
 					{
-						XslCompiledTransform transform = new XslCompiledTransform();
-						using (FileStream transformStream = new FileStream(transformFile, FileMode.Open, FileAccess.Read))
+						// First try to get data from the live object
+						string docText = null;
+						if (itemDocument != null)
 						{
-							using (StreamReader reader = new StreamReader(transformStream))
+							if (automationObjectName != null)
 							{
-								transform.Load(new XmlTextReader(reader), XsltSettings.TrustedXslt, new XmlFileResolver(transformFile));
-							}
-						}
-						MemoryStream plixStream = new MemoryStream();
-						using (XmlWriter xmlTextWriter = XmlWriter.Create(plixStream, transform.OutputSettings))
-						{
-							// Variables that need to be disposed
-							TextReader reader = null;
-							Stream docStream = null;
-
-							try
-							{
-								// First try to get data from the live object
-								if (itemDocument != null)
-								{
-									if (automationObjectName != null)
-									{
-										docStream = itemDocument.Object(automationObjectName) as Stream;
-										if (docStream != null)
-										{
-											reader = new StreamReader(docStream);
-										}
-									}
-
-									// Fall back on getting the contents of the text buffer from the live document
-									if (reader == null)
-									{
-										EnvDTE.TextDocument textDoc = itemDocument.Object("TextDocument") as EnvDTE.TextDocument;
-										if (textDoc != null)
-										{
-											string liveText = textDoc.StartPoint.CreateEditPoint().GetText(textDoc.EndPoint);
-											reader = new StringReader(liveText);
-										}
-									}
-								}
-
-								// If this is a redirection, then pull direction from the file
-								if (reader == null && alternateSourceFile != null)
-								{
-									reader = new StreamReader(alternateSourceFile);
-								}
-
-								// Fallback on the default reading mechanism
-								if (reader == null)
-								{
-									reader = new StringReader(fileContents);
-								}
-
-								// Use an XmlTextReader here instead of an XPathDocument
-								// so that our transforms support the xsl:preserve-space element
-								transform.Transform(new XmlTextReader(reader), arguments, xmlTextWriter, new XmlFileResolver(sourceFile));
-								plixStream.Position = 0;
-
-								// From the plix stream, generate the code
-								using (StringWriter writer = new StringWriter(CultureInfo.InvariantCulture))
-								{
-									using (XmlReader plixReader = XmlReader.Create(plixStream, PlixReaderSettings))
-									{
-										formatter.Transform(plixReader, new XsltArgumentList(), writer);
-									}
-									return writer.ToString();
-								}
-							}
-							finally
-							{
-								if (reader != null)
-								{
-									(reader as IDisposable).Dispose();
-								}
+								docStream = itemDocument.Object(automationObjectName) as Stream;
 								if (docStream != null)
 								{
-									(docStream as IDisposable).Dispose();
+									reader = new StreamReader(docStream);
+								}
+							}
+
+							// Fall back on getting the contents of the text buffer from the live document
+							if (reader == null)
+							{
+								EnvDTE.TextDocument textDoc = itemDocument.Object("TextDocument") as EnvDTE.TextDocument;
+								if (textDoc != null)
+								{
+									docText = textDoc.StartPoint.CreateEditPoint().GetText(textDoc.EndPoint);
+									reader = new StringReader(docText);
 								}
 							}
 						}
-					}
-					catch (Exception ex)
-					{
-						StringWriter writer = new StringWriter();
-						Exception currentException = ex;
-						provider.GenerateCodeFromStatement(new CodeCommentStatement("Generate threw an exception"), writer, null);
-						while (currentException != null)
+
+						// If this is a redirection, then pull direction from the file
+						if (reader == null && alternateSourceFile != null)
 						{
-							provider.GenerateCodeFromStatement(new CodeCommentStatement(ex.Message), writer, null);
-							provider.GenerateCodeFromStatement(new CodeCommentStatement(ex.StackTrace), writer, null);
-							currentException = currentException.InnerException;
-							if (currentException != null)
+							reader = new StreamReader(alternateSourceFile);
+						}
+
+						// Fallback on the default reading mechanism
+						if (reader == null)
+						{
+							docText = fileContents;
+							reader = new StringReader(fileContents);
+						}
+
+						if (transform == null)
+						{
+							XmlReaderSettings testPlixDocumentReaderSettings = new XmlReaderSettings();
+							testPlixDocumentReaderSettings.CloseInput = false;
+							bool plixDocument = false;
+							try
 							{
-								provider.GenerateCodeFromStatement(new CodeCommentStatement("Info from InnerException"), writer, null);
+								using (XmlReader testPlixDocumentReader = XmlReader.Create(reader, testPlixDocumentReaderSettings))
+								{
+									testPlixDocumentReader.MoveToContent();
+									if (testPlixDocumentReader.NodeType == XmlNodeType.Element && testPlixDocumentReader.NamespaceURI == PlixSchemaNamespace)
+									{
+										plixDocument = true;
+									}
+								}
+							}
+							catch (XmlException ex)
+							{
+								return GenerateExceptionInformation(ex, provider);
+							}
+							if (!plixDocument)
+							{
+								StringWriter writer = new StringWriter();
+								provider.GenerateCodeFromStatement(new CodeCommentStatement("Transform file not found"), writer, null);
+								GenerateNUPlixLoaderExceptionLine(writer, provider);
+								return writer.ToString();
+							}
+							if (docText != null)
+							{
+								reader.Dispose();
+								reader = new StringReader(docText);
+							}
+							else
+							{
+								StreamReader streamReader = (StreamReader)reader;
+								streamReader.BaseStream.Position = 0;
 							}
 						}
-						// This is only valid syntax for C# right now, but if another language does not
-						// recognize this syntax then it will also throw a compile error, which is the intent,
-						// so there is not much to lose here.
-						provider.GenerateCodeFromStatement(new CodeSnippetStatement("#error NUPlixLoader Exception"), writer, null);
-						return writer.ToString();
+						else
+						{
+							// Use an XmlTextReader here instead of an XPathDocument
+							// so that our transforms support the xsl:preserve-space element
+							transform.Transform(new XmlTextReader(reader), arguments, xmlTextWriter, new XmlFileResolver(sourceFile));
+							plixStream.Position = 0;
+						}
+						// From the plix stream, generate the code
+						using (StringWriter writer = new StringWriter(CultureInfo.InvariantCulture))
+						{
+							using (XmlReader plixReader = (plixStream != null) ? XmlReader.Create(plixStream, PlixReaderSettings) : XmlReader.Create(reader, PlixReaderSettings))
+							{
+								formatter.Transform(plixReader, new XsltArgumentList(), writer);
+							}
+							return writer.ToString();
+						}
+					}
+					finally
+					{
+						if (reader != null)
+						{
+							(reader as IDisposable).Dispose();
+						}
+						if (docStream != null)
+						{
+							(docStream as IDisposable).Dispose();
+						}
 					}
 				}
+			}
+			catch (Exception ex)
+			{
+				return GenerateExceptionInformation(ex, provider);
 			}
 			finally
 			{
@@ -743,6 +767,31 @@ There is no way to both successfully trigger regeneration and avoid writing this
 						});
 				}
 			}
+		}
+		private static string GenerateExceptionInformation(Exception ex, CodeDomProvider provider)
+		{
+			StringWriter writer = new StringWriter();
+			Exception currentException = ex;
+			provider.GenerateCodeFromStatement(new CodeCommentStatement("Generate threw an exception"), writer, null);
+			while (currentException != null)
+			{
+				provider.GenerateCodeFromStatement(new CodeCommentStatement(ex.Message), writer, null);
+				provider.GenerateCodeFromStatement(new CodeCommentStatement(ex.StackTrace), writer, null);
+				currentException = currentException.InnerException;
+				if (currentException != null)
+				{
+					provider.GenerateCodeFromStatement(new CodeCommentStatement("Info from InnerException"), writer, null);
+				}
+			}
+			GenerateNUPlixLoaderExceptionLine(writer, provider);
+			return writer.ToString();
+		}
+		private static void GenerateNUPlixLoaderExceptionLine(TextWriter writer, CodeDomProvider provider)
+		{
+			// This is only valid syntax for C# right now, but if another language does not
+			// recognize this syntax then it will also throw a compile error, which is the intent,
+			// so there is not much to lose here.
+			provider.GenerateCodeFromStatement(new CodeSnippetStatement("#error NUPlixLoader Exception"), writer, null);
 		}
 		private delegate void ProcessProjectItem(EnvDTE.ProjectItem projectItem);
 		/// <summary>
