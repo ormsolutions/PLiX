@@ -496,6 +496,11 @@
 			<xs:documentation>An element to form a substitution group for expressions.</xs:documentation>
 		</xs:annotation>
 	</xs:element>
+	<xs:element name="inlineExpressionElement" type="expressionElementType" abstract="true">
+		<xs:annotation>
+			<xs:documentation>An element to form a substitution group for complex expressions that may need to be expanded into statements by some language formatters. Used for inlineStatement child that are not valid as top-level statements.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
 	<xs:complexType name="expressionElementType" abstract="true">
 		<xs:annotation>
 			<xs:documentation>A base element to enable a substitution group for values, keywords, expression, etc.</xs:documentation>
@@ -514,12 +519,12 @@
 	</xs:element>
 	<xs:element name="right" type="expressionContainerType">
 		<xs:annotation>
-			<xs:documentation>The right hand side of a binary operator.</xs:documentation>
+			<xs:documentation>The right hand side of binaryOperator, conditionalOperator, nullFallbackOperator, or assign elements.</xs:documentation>
 		</xs:annotation>
 	</xs:element>
 	<xs:element name="left" type="expressionContainerType">
 		<xs:annotation>
-			<xs:documentation>The left hand side of a binary operator.</xs:documentation>
+			<xs:documentation>The left hand side of binaryOperator, conditionalOperator, nullFallbackOperator, or assign elements.</xs:documentation>
 		</xs:annotation>
 	</xs:element>
 	<xs:element name="callObject" type="expressionContainerType">
@@ -829,6 +834,22 @@
 		</xs:annotation>
 		<xs:complexContent>
 			<xs:extension base="typeRefType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="inlineStatement" type="inlineStatementType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="inlineStatementType">
+		<xs:annotation>
+			<xs:documentation>Statements and complex expressions that have return types. The data type is used for declaring formatter-generated local variables for languages that do not natively support these constructs.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="typeRefType">
+				<xs:choice>
+					<xs:element ref="assign"/>
+					<xs:element ref="increment"/>
+					<xs:element ref="decrement"/>
+					<xs:element ref="inlineExpressionElement"/>
+				</xs:choice>
+			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
 	<xs:element name="attribute" type="attributeType"/>
@@ -1192,15 +1213,23 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
-	<xs:group name="statementExpressions">
+	<xs:group name="callExpressions">
 		<xs:annotation>
-			<xs:documentation>Expressions that can also be top-level statements.</xs:documentation>
+			<xs:documentation>Call statements, can be used as top-level statements</xs:documentation>
 		</xs:annotation>
 		<xs:choice>
 			<xs:element ref="callInstance"/>
 			<xs:element ref="callStatic"/>
 			<xs:element ref="callThis"/>
 			<xs:element ref="callNew"/>
+		</xs:choice>
+	</xs:group>
+	<xs:group name="statementExpressions">
+		<xs:annotation>
+			<xs:documentation>Expressions that can also be top-level statements.</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:group ref="callExpressions"/>
 			<xs:element ref="binaryStatement"/>
 			<xs:element ref="unaryStatement"/>
 		</xs:choice>
@@ -1210,7 +1239,7 @@
 			<xs:documentation>A list of elements that can be top-level statements.</xs:documentation>
 		</xs:annotation>
 		<xs:choice>
-			<xs:group ref="statementExpressions"/>
+			<xs:group ref="callExpressions"/>
 			<xs:element ref="bodyStatement"/>
 			<!-- The following elements were not easily placed in a substitutionGroup -->
 			<xs:sequence>
@@ -1378,9 +1407,7 @@
 					<xs:group ref="procedureElements"/>
 					<xs:element ref="returns" minOccurs="0"/>
 					<xs:element ref="initialize" minOccurs="0"/>
-					<xs:choice minOccurs="0" maxOccurs="unbounded">
-						<xs:group ref="blockContents"/>
-					</xs:choice>
+					<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 				</xs:sequence>
 				<xs:attributeGroup ref="universalMemberAttributes"/>
 				<xs:attributeGroup ref="procedureAttributes"/>
@@ -1430,9 +1457,7 @@
 						<xs:element ref="param"/>
 					</xs:choice>
 					<xs:element ref="returns"/>
-					<xs:choice minOccurs="0" maxOccurs="unbounded">
-						<xs:group ref="blockContents"/>
-					</xs:choice>
+					<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 				</xs:sequence>
 				<xs:attributeGroup ref="replacesNameAttributes"/>
 				<xs:attribute name="overload" type="xs:boolean" default="false">
@@ -1597,7 +1622,11 @@
 			<xs:documentation>An explicit delegate to use as the type for an event. If the delegate type is not provided, then some languages may generate an implicit delegate type based on the event's signature definition.</xs:documentation>
 		</xs:annotation>
 		<xs:complexContent>
-			<xs:extension base="simpleTypeRefType"/>
+			<xs:extension base="simpleTypeRefType">
+				<xs:sequence minOccurs="0">
+					<xs:element ref="parametrizedDataTypeQualifier" minOccurs="0"/>
+				</xs:sequence>
+			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
 	<xs:element name="event" type="eventType" substitutionGroup="implementationMember"/>
@@ -1656,9 +1685,7 @@
 			<xs:choice minOccurs="0">
 				<xs:group ref="memberElements"/>
 			</xs:choice>
-			<xs:choice minOccurs="0" maxOccurs="unbounded">
-				<xs:group ref="blockContents"/>
-			</xs:choice>
+			<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 		</xs:sequence>
 	</xs:complexType>
 	<xs:element name="get" type="accessorFunctionWithVisibilityType">
@@ -1876,6 +1903,35 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
+	<xs:element name="conditionalOperator" type="conditionalOperatorType" substitutionGroup="inlineExpressionElement"/>
+	<xs:complexType name="conditionalOperatorType">
+		<xs:annotation>
+			<xs:documentation>A conditional operator with condition, left, and right elements. Only valid inside an inlineStatement element.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="expressionElementType">
+				<xs:sequence>
+					<xs:element ref="condition"/>
+					<xs:element ref="left"/>
+					<xs:element ref="right"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="nullFallbackOperator" type="nullFallbackOperatorType" substitutionGroup="inlineExpressionElement"/>
+	<xs:complexType name="nullFallbackOperatorType">
+		<xs:annotation>
+			<xs:documentation>A null fallback operator with left and right elements. If the left expression is null, then the right expression is used. Only valid inside an inlineStatement element.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="expressionElementType">
+				<xs:sequence>
+					<xs:element ref="left"/>
+					<xs:element ref="right"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
 	<xs:element name="binaryStatement" type="binaryStatementType" abstract="true" substitutionGroup="bodyStatement"/>
 	<xs:complexType name="binaryStatementType" abstract="true">
 		<xs:annotation>
@@ -1902,7 +1958,7 @@
 	<xs:element name="attachEvent" type="attachEventType" substitutionGroup="binaryStatement"/>
 	<xs:complexType name="attachEventType">
 		<xs:annotation>
-			<xs:documentation>Attach an event procedure to an event. The left hand side will generally be a callInstance, callThis, or callStatic with type='event', and the right hand size will generally be a callInstance, callThis, or callStatic with type='MethodReference'.</xs:documentation>
+			<xs:documentation>Attach an event procedure to an event. The left hand side will generally be a callInstance, callThis, or callStatic with type='event', and the right hand size will generally be a delegate instance; or a callInstance, callThis, or callStatic with type='MethodReference'.</xs:documentation>
 		</xs:annotation>
 		<xs:complexContent>
 			<xs:extension base="binaryStatementType"/>
@@ -1930,13 +1986,32 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
+	<xs:simpleType name="incrementDecrementTypeValues">
+		<xs:annotation>
+			<xs:documentation>Values for the type attribute on increment and decrement statements to decrement if the increment is a prefix (pre) or postfix (post) operation. Defaults to pre.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="pre">
+				<xs:annotation>
+					<xs:documentation>The increment/decrement operations should be performed before the starting expression value is captured. The default value.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="post">
+				<xs:annotation>
+					<xs:documentation>The increment/decrement operations should be performed after the starting expression value is capture.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
 	<xs:element name="increment" type="incrementType" substitutionGroup="unaryStatement"/>
 	<xs:complexType name="incrementType">
 		<xs:annotation>
 			<xs:documentation>Increment the expression by one. The expression will generally be a nameRef or a call* element with type='field'.</xs:documentation>
 		</xs:annotation>
 		<xs:complexContent>
-			<xs:extension base="unaryStatementType"/>
+			<xs:extension base="unaryStatementType">
+				<xs:attribute name="type" type="incrementDecrementTypeValues" default="pre"/>
+			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
 	<xs:element name="decrement" type="decrementType" substitutionGroup="unaryStatement"/>
@@ -1945,7 +2020,9 @@
 			<xs:documentation>Decrement the expression by one. The expression will generally be a nameRef or a call* element with type='field'.</xs:documentation>
 		</xs:annotation>
 		<xs:complexContent>
-			<xs:extension base="unaryStatementType"/>
+			<xs:extension base="unaryStatementType">
+				<xs:attribute name="type" type="incrementDecrementTypeValues" default="pre"/>
+			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
 	<xs:simpleType name="valueTypeValues">
@@ -2069,6 +2146,11 @@
 				<xs:choice minOccurs="0" maxOccurs="unbounded">
 					<xs:element ref="string"/>
 				</xs:choice>
+				<xs:attribute name="data" type="xs:string">
+					<xs:annotation>
+						<xs:documentation>The string data. If the data attribute is provided then the element text is ignore. Both the data attribute and text are ignored if nested string elements are provided.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
@@ -2242,14 +2324,12 @@
 		<!-- Elements to allow in any code body with blockLeadingInfo/blockTrailingInfo -->
 		<xs:sequence>
 			<xs:group ref="secondaryCodeBlockElements"/>
-			<xs:choice minOccurs="0" maxOccurs="unbounded">
-				<xs:group ref="blockContents"/>
-			</xs:choice>
+			<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 		</xs:sequence>
 	</xs:complexType>
 	<xs:element name="condition" type="expressionContainerType">
 		<xs:annotation>
-			<xs:documentation>The test expression for a branch, alternateBranch, loop, switch, or case.</xs:documentation>
+			<xs:documentation>The test expression for a branch, alternateBranch, loop, switch, case, or conditionalOperator.</xs:documentation>
 		</xs:annotation>
 	</xs:element>
 	<xs:element name="branch" type="branchType"/>
@@ -2261,9 +2341,7 @@
 			<xs:extension base="codeBlockType">
 				<xs:sequence>
 					<xs:element ref="condition"/>
-					<xs:choice minOccurs="0" maxOccurs="unbounded">
-						<xs:group ref="blockContents"/>
-					</xs:choice>
+					<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 				</xs:sequence>
 			</xs:extension>
 		</xs:complexContent>
@@ -2278,9 +2356,7 @@
 				<xs:sequence>
 					<xs:group ref="secondaryCodeBlockElements"/>
 					<xs:element ref="condition"/>
-					<xs:choice minOccurs="0" maxOccurs="unbounded">
-						<xs:group ref="blockContents"/>
-					</xs:choice>
+					<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 				</xs:sequence>
 			</xs:extension>
 		</xs:complexContent>
@@ -2308,6 +2384,7 @@
 			<xs:documentation>A statement, or a local to initialize before a loop is run for the first time.</xs:documentation>
 		</xs:annotation>
 		<xs:choice>
+			<xs:group ref="callExpressions"/>
 			<xs:group ref="statementExpressions"/>
 			<xs:element ref="local"/>
 		</xs:choice>
@@ -2332,9 +2409,7 @@
 					<xs:element ref="initializeLoop" minOccurs="0"/>
 					<xs:element ref="condition" minOccurs="0"/>
 					<xs:element ref="beforeLoop" minOccurs="0"/>
-					<xs:choice minOccurs="0" maxOccurs="unbounded">
-						<xs:group ref="blockContents"/>
-					</xs:choice>
+					<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 				</xs:sequence>
 				<xs:attribute name="checkCondition" type="loopCheckConditionValues" default="before"/>
 			</xs:extension>
@@ -2346,9 +2421,7 @@
 			<xs:extension base="parametrizedTypeRefType">
 				<xs:sequence>
 					<xs:element ref="initialize"/>
-					<xs:choice minOccurs="0" maxOccurs="unbounded">
-						<xs:group ref="blockContents"/>
-					</xs:choice>
+					<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 				</xs:sequence>
 				<xs:attribute name="localName" type="simpleNameType" use="required">
 					<xs:annotation>
@@ -2367,9 +2440,7 @@
 			<xs:extension base="codeBlockType">
 				<xs:sequence>
 					<xs:element ref="initialize"/>
-					<xs:choice minOccurs="0" maxOccurs="unbounded">
-						<xs:group ref="blockContents"/>
-					</xs:choice>
+					<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 				</xs:sequence>
 			</xs:extension>
 		</xs:complexContent>
@@ -2383,9 +2454,7 @@
 			<xs:extension base="typeRefType">
 				<xs:sequence>
 					<xs:group ref="secondaryCodeBlockElements"/>
-					<xs:choice minOccurs="0" maxOccurs="unbounded">
-						<xs:group ref="blockContents"/>
-					</xs:choice>
+					<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 				</xs:sequence>
 				<xs:attribute name="localName" type="simpleNameType"/>
 			</xs:extension>
@@ -2399,9 +2468,7 @@
 		<xs:complexContent>
 			<xs:extension base="codeBlockType">
 				<xs:sequence>
-					<xs:choice minOccurs="0" maxOccurs="unbounded">
-						<xs:group ref="blockContents"/>
-					</xs:choice>
+					<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 					<xs:element ref="catch" minOccurs="0" maxOccurs="unbounded"/>
 					<xs:element ref="fallbackCatch" minOccurs="0"/>
 					<xs:element ref="finally" minOccurs="0"/>
@@ -2418,9 +2485,7 @@
 			<xs:extension base="parametrizedTypeRefType">
 				<xs:sequence>
 					<xs:element ref="initialize"/>
-					<xs:choice minOccurs="0" maxOccurs="unbounded">
-						<xs:group ref="blockContents"/>
-					</xs:choice>
+					<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 				</xs:sequence>
 				<xs:attribute name="localName" type="simpleNameType" use="required"/>
 			</xs:extension>
@@ -2434,9 +2499,7 @@
 		<xs:sequence>
 			<xs:group ref="secondaryCodeBlockElements"/>
 			<xs:element ref="condition" maxOccurs="unbounded"/>
-			<xs:choice minOccurs="0" maxOccurs="unbounded">
-				<xs:group ref="blockContents"/>
-			</xs:choice>
+			<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 		</xs:sequence>
 		<xs:attribute name="caseCompletes" type="xs:boolean" use="optional">
 			<xs:annotation>
@@ -2448,7 +2511,7 @@
 				that require the explicit break can usually do path analysis to determine if the break is required.
 				However, PLiX is a formatting engine, not a compiler, so there are cases where path analysis
 				may return an incorrect result. As an example, PLiX cannot fully analyze goto jumps or conditional
-				compilation conditions. Providing and setting this attribute bypassing the normal formatting path
+				compilation conditions. Providing and setting this attribute bypasses the normal formatting path
 				check for languages that care.</xs:documentation>
 			</xs:annotation>
 		</xs:attribute>
@@ -2517,7 +2580,7 @@
 	<xs:element name="continue" type="continueType" substitutionGroup="bodyStatement"/>
 	<xs:complexType name="continueType">
 		<xs:annotation>
-			<xs:documentation>Continue with the next element of the enclosing loop construct.</xs:documentation>
+			<xs:documentation>Continue with the next element of the enclosing loop or iterator construct.</xs:documentation>
 		</xs:annotation>
 		<xs:complexContent>
 			<xs:extension base="bodyStatementType"/>

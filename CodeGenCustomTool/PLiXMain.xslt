@@ -159,6 +159,22 @@
 						</xs:restriction>
 					</xs:simpleType>
 				</xs:attribute>
+				<xs:attribute name="expandInlineStatements">
+					<xs:annotation>
+						<xs:documentation>Are one or more inline statement types not natively support by the language?</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:restriction base="xs:token">
+							<xs:enumeration value="yes"/>
+							<xs:enumeration value="no"/>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:attribute>
+				<xs:attribute name="autoVariablePrefix" type="xs:string">
+					<xs:annotation>
+						<xs:documentation>The prefix used for the name of fields and locals auto-generated to handled inline expansions. Required if expandInlineStatements is set.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
 				<xs:attribute name="comment" type="xs:string">
 					<xs:annotation>
 						<xs:documentation>The character sequence for a line comment</xs:documentation>
@@ -184,6 +200,50 @@
 				<xs:attribute name="key" type="xs:string">
 					<xs:annotation>
 						<xs:documentation>The key for the matching case. Corresponds to the LocalItemKey param passed to the language-specific formatter.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:complexType>
+		</xs:element>
+		<xs:element name="inlineExpansion">
+			<xs:annotation>
+				<xs:documentation>Used if languageInfo/@expandInlineStatements is yes. Contains the expansion of an inlineStatement and the surrogate expression that replaces it inline.</xs:documentation>
+			</xs:annotation>
+			<xs:complexType>
+				<xs:all>
+					<xs:element name="expansion">
+						<xs:annotation>
+							<xs:documentation>The expansion of the inline contents</xs:documentation>
+						</xs:annotation>
+						<xs:complexType>
+							<xs:choice minOccurs="1" maxOccurs="unbounded">
+								<xs:any namespace="##any" processContents="skip"/>
+							</xs:choice>
+						</xs:complexType>
+					</xs:element>
+					<xs:element name="surrogate">
+						<xs:annotation>
+							<xs:documentation>The expression to replace the inline statement</xs:documentation>
+						</xs:annotation>
+						<xs:complexType>
+							<xs:sequence>
+								<xs:any namespace="##any" processContents="skip"/>
+							</xs:sequence>
+						</xs:complexType>
+					</xs:element>
+				</xs:all>
+				<xs:attribute name="key" type="xs:string" use="required">
+					<xs:annotation>
+						<xs:documentation>A unique key used to decorate generated variables.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="childrenModified" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>By default, the assumption is made that child elements of an inline-expanded element are unchanged, and the surrogate does not need to copy the child elements that are not block decorators (used for render). If other children are modified, then set this to true to render all of the provided children instead of the children of the unmodified element.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="surrogatePreExpanded" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>By default, the expanded item is processed using the ReplaceInline mode to replace expanded constructs with their surrogates. Alternately, the surrogate can be used as the expansion if this option is set. Ignored if more than one inlineExpansion is returned during CollectInline mode.</xs:documentation>
 					</xs:annotation>
 				</xs:attribute>
 			</xs:complexType>
@@ -267,6 +327,8 @@
 	<xsl:variable name="BlockOpen" select="$LanguageInfo/@blockOpen"/>
 	<xsl:variable name="NewLineBeforeBlockOpen" select="'yes'=$LanguageInfo/@newLineBeforeBlockOpen"/>
 	<xsl:variable name="RequireCaseLabels" select="'yes'=$LanguageInfo/@requireCaseLabels"/>
+	<xsl:variable name="ExpandInlineStatements" select="'yes'=$LanguageInfo/@expandInlineStatements"/>
+	<xsl:variable name="GeneratedVariablePrefix" select="$LanguageInfo/@autoVariablePrefix"/>
 	<xsl:template match="/">
 		<xsl:variable name="baseIndent">
 			<xsl:call-template name="GetBaseIndent"/>
@@ -304,6 +366,16 @@
 		<xsl:call-template name="RenderElement">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="plx:inlineStatement">
+		<xsl:param name="Indent"/>
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="CaseLabels"/>
+		<xsl:apply-templates select="*">
+			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+			<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+		</xsl:apply-templates>
 	</xsl:template>
 	<xsl:template match="*">
 		<xsl:text>UNRENDERED-</xsl:text>
@@ -355,6 +427,28 @@
 			<xsl:value-of select="local-name()"/>
 			<xsl:text>&gt;</xsl:text>
 		</xsl:for-each>
+	</xsl:template>
+	<xsl:template name="RenderRawString">
+		<!-- Get the raw, unescaped contents of a string element-->
+		<xsl:variable name="childStrings" select="plx:string"/>
+		<xsl:choose>
+			<xsl:when test="$childStrings">
+				<xsl:for-each select="$childStrings">
+					<xsl:call-template name="RenderRawString"/>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:variable name="data" select="@data"/>
+				<xsl:choose>
+					<xsl:when test="$data">
+						<xsl:value-of select="$data"/>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:value-of select="."/>
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:otherwise>
+		</xsl:choose>
 	</xsl:template>
 	<xsl:template name="RenderDocCommentString">
 		<xsl:param name="NextLine"/>
@@ -464,19 +558,128 @@
 			<xsl:apply-templates select="." mode="IndentInfo"/>
 		</xsl:variable>
 		<xsl:variable name="indentInfo" select="exsl:node-set($indentInfoFragment)/child::*"/>
-		<xsl:call-template name="RenderElementWithIndentInfo">
-			<xsl:with-param name="Indent" select="$Indent"/>
-			<xsl:with-param name="Statement" select="$Statement"/>
-			<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
-			<xsl:with-param name="IndentInfo" select="$indentInfo"/>
-			<xsl:with-param name="IndentStyle" select="string($indentInfo/@style)"/>
-			<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
-		</xsl:call-template>
+		<xsl:variable name="indentStyle" select="string($indentInfo/@style)"/>
+		<xsl:choose>
+			<xsl:when test="$ExpandInlineStatements and not($indentStyle='secondaryBlock')">
+				<xsl:variable name="inlineLocalItemKey" select="concat($LocalItemKey,'_',position(),'ex')"/>
+				<xsl:variable name="inlineExpansionsFragment">
+					<xsl:apply-templates select="." mode="CollectInline">
+						<xsl:with-param name="LocalItemKey" select="$inlineLocalItemKey"/>
+					</xsl:apply-templates>
+				</xsl:variable>
+				<xsl:variable name="inlineExpansions" select="exsl:node-set($inlineExpansionsFragment)/child::*"/>
+				<xsl:choose>
+					<xsl:when test="$inlineExpansions">
+						<xsl:for-each select="$inlineExpansions">
+							<xsl:variable name="inlineExpansionKey" select="@key"/>
+							<xsl:for-each select="plxGen:expansion/child::*">
+								<!-- Recurse to RenderElement to pick up nested inline statements -->
+								<xsl:call-template name="RenderElement">
+									<xsl:with-param name="Indent" select="$Indent"/>
+									<xsl:with-param name="LocalItemKey" select="$inlineExpansionKey"/>
+									<xsl:with-param name="Statement" select="$Statement"/>
+									<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+								</xsl:call-template>
+							</xsl:for-each>
+						</xsl:for-each>
+						<xsl:variable name="preExpandedSurrogate" select="count($inlineExpansions)=1 and $inlineExpansions/@surrogatePreExpanded='true'"/>
+						<xsl:variable name="modifiedFragment">
+							<xsl:if test="not($preExpandedSurrogate)">
+								<xsl:apply-templates select="." mode="ReplaceInline">
+									<xsl:with-param name="LocalItemKey" select="$inlineLocalItemKey"/>
+									<xsl:with-param name="Expansions" select="$inlineExpansions"/>
+								</xsl:apply-templates>
+							</xsl:if>
+						</xsl:variable>
+						<xsl:choose>
+							<xsl:when test="count($inlineExpansions)=1 and $inlineExpansions/@childrenModified='true'">
+								<xsl:variable name="currentPosition" select="position()"/>
+								<xsl:choose>
+									<xsl:when test="$preExpandedSurrogate">
+										<xsl:for-each select="$inlineExpansions/plxGen:surrogate/child::*">
+											<xsl:call-template name="RenderElementWithIndentInfo">
+												<xsl:with-param name="Indent" select="$Indent"/>
+												<xsl:with-param name="Statement" select="$Statement"/>
+												<xsl:with-param name="CurrentPosition" select="$currentPosition"/>
+												<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+												<xsl:with-param name="IndentInfo" select="$indentInfo"/>
+												<xsl:with-param name="IndentStyle" select="$indentStyle"/>
+												<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+											</xsl:call-template>
+										</xsl:for-each>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:for-each select="exsl:node-set($modifiedFragment)/child::*">
+											<xsl:call-template name="RenderElementWithIndentInfo">
+												<xsl:with-param name="Indent" select="$Indent"/>
+												<xsl:with-param name="Statement" select="$Statement"/>
+												<xsl:with-param name="CurrentPosition" select="$currentPosition"/>
+												<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+												<xsl:with-param name="IndentInfo" select="$indentInfo"/>
+												<xsl:with-param name="IndentStyle" select="$indentStyle"/>
+												<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+											</xsl:call-template>
+										</xsl:for-each>
+									</xsl:otherwise>
+								</xsl:choose>
+							</xsl:when>
+							<xsl:when test="$preExpandedSurrogate">
+								<!-- Same as otherwise except ModifiedElement doesn't require another node-set -->
+								<xsl:call-template name="RenderElementWithIndentInfo">
+									<xsl:with-param name="Indent" select="$Indent"/>
+									<xsl:with-param name="Statement" select="$Statement"/>
+									<xsl:with-param name="ModifiedElement" select="$inlineExpansions/plxGen:surrogate/child::*"/>
+									<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+									<xsl:with-param name="IndentInfo" select="$indentInfo"/>
+									<xsl:with-param name="IndentStyle" select="$indentStyle"/>
+									<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+								</xsl:call-template>
+							</xsl:when>
+							<xsl:otherwise>
+								<!-- Same as later otherwise clauses except for passing ModifiedElement -->
+								<xsl:call-template name="RenderElementWithIndentInfo">
+									<xsl:with-param name="Indent" select="$Indent"/>
+									<xsl:with-param name="Statement" select="$Statement"/>
+									<xsl:with-param name="ModifiedElement" select="exsl:node-set($modifiedFragment)/child::*"/>
+									<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+									<xsl:with-param name="IndentInfo" select="$indentInfo"/>
+									<xsl:with-param name="IndentStyle" select="$indentStyle"/>
+									<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+								</xsl:call-template>
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:when>
+					<xsl:otherwise>
+						<!-- Same as later otherwise -->
+						<xsl:call-template name="RenderElementWithIndentInfo">
+							<xsl:with-param name="Indent" select="$Indent"/>
+							<xsl:with-param name="Statement" select="$Statement"/>
+							<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+							<xsl:with-param name="IndentInfo" select="$indentInfo"/>
+							<xsl:with-param name="IndentStyle" select="$indentStyle"/>
+							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+						</xsl:call-template>
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:when>
+			<xsl:otherwise>
+				<!-- Same as earlier otherwise -->
+				<xsl:call-template name="RenderElementWithIndentInfo">
+					<xsl:with-param name="Indent" select="$Indent"/>
+					<xsl:with-param name="Statement" select="$Statement"/>
+					<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+					<xsl:with-param name="IndentInfo" select="$indentInfo"/>
+					<xsl:with-param name="IndentStyle" select="$indentStyle"/>
+					<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+				</xsl:call-template>
+			</xsl:otherwise>
+		</xsl:choose>
 	</xsl:template>
 	<xsl:template name="RenderElementWithIndentInfo">
 		<xsl:param name="Indent"/>
 		<xsl:param name="LocalItemKey" select="''"/>
 		<xsl:param name="Statement" select="false()"/>
+		<xsl:param name="ModifiedElement"/>
 		<xsl:param name="ProcessSecondaryBlock" select="false()"/>
 		<xsl:param name="CurrentPosition" select="position()"/>
 		<xsl:param name="IndentInfo"/>
@@ -536,13 +739,26 @@
 					</xsl:for-each>
 				</xsl:if>
 				<xsl:value-of select="$Indent"/>
-				<xsl:apply-templates select=".">
-					<xsl:with-param name="Indent" select="$Indent"/>
-					<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
-					<!-- The next case labels don't apply until we're inside the switch scope, so always
+				<xsl:choose>
+					<xsl:when test="$ModifiedElement">
+						<xsl:apply-templates select="$ModifiedElement">
+							<xsl:with-param name="Indent" select="$Indent"/>
+							<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+							<!-- The next case labels don't apply until we're inside the switch scope, so always
 						 use the original case labels here. -->
-					<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
-				</xsl:apply-templates>
+							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+						</xsl:apply-templates>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:apply-templates select=".">
+							<xsl:with-param name="Indent" select="$Indent"/>
+							<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+							<!-- The next case labels don't apply until we're inside the switch scope, so always
+						 use the original case labels here. -->
+							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+						</xsl:apply-templates>
+					</xsl:otherwise>
+				</xsl:choose>
 				<xsl:choose>
 					<xsl:when test="$isNakedIndent">
 						<xsl:value-of select="$NewLine"/>
@@ -677,11 +893,22 @@
 					</xsl:for-each>
 				</xsl:if>
 				<xsl:value-of select="$Indent"/>
-				<xsl:apply-templates select=".">
-					<xsl:with-param name="Indent" select="$Indent"/>
-					<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
-					<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
-				</xsl:apply-templates>
+				<xsl:choose>
+					<xsl:when test="$ModifiedElement">
+						<xsl:apply-templates select="$ModifiedElement">
+							<xsl:with-param name="Indent" select="$Indent"/>
+							<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+						</xsl:apply-templates>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:apply-templates select=".">
+							<xsl:with-param name="Indent" select="$Indent"/>
+							<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+						</xsl:apply-templates>
+					</xsl:otherwise>
+				</xsl:choose>
 				<xsl:if test="$Statement">
 					<xsl:variable name="standardCloseWith">
 						<xsl:variable name="customStatementClose" select="$IndentInfo/@statementClose"/>
@@ -719,7 +946,7 @@
 			</xsl:when>
 			<xsl:when test="$IndentStyle='blockSibling' or $IndentStyle='secondaryBlock'">
 				<xsl:variable name="previousIndent" select="substring($Indent,1,string-length($Indent)-string-length($SingleIndent))"/>
-				<xsl:for-each select="preceding-sibling::*/plx:blockTrailingInfo/child::plx:*">
+				<xsl:for-each select="preceding-sibling::*[1]/plx:blockTrailingInfo/child::plx:*">
 					<xsl:call-template name="RenderElement">
 						<xsl:with-param name="Indent" select="$previousIndent"/>
 						<xsl:with-param name="Statement" select="true()"/>
@@ -739,11 +966,22 @@
 					<xsl:value-of select="$NewLine"/>
 				</xsl:if>
 				<xsl:value-of select="$previousIndent"/>
-				<xsl:apply-templates select=".">
-					<xsl:with-param name="Indent" select="$previousIndent"/>
-					<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
-					<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
-				</xsl:apply-templates>
+				<xsl:choose>
+					<xsl:when test="$ModifiedElement">
+						<xsl:apply-templates select="$ModifiedElement">
+							<xsl:with-param name="Indent" select="$previousIndent"/>
+							<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+						</xsl:apply-templates>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:apply-templates select=".">
+							<xsl:with-param name="Indent" select="$previousIndent"/>
+							<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+						</xsl:apply-templates>
+					</xsl:otherwise>
+				</xsl:choose>
 				<xsl:choose>
 					<xsl:when test="string-length($BlockOpen)">
 						<xsl:if test="$NewLineBeforeBlockOpen">
@@ -795,26 +1033,193 @@
 			<xsl:variable name="indentInfo" select="exsl:node-set($indentInfoFragment)/child::*"/>
 			<xsl:variable name="indentStyle" select="string($indentInfo/@style)"/>
 			<xsl:if test="$indentStyle='secondaryBlock'">
-				<xsl:call-template name="RenderElementWithIndentInfo">
-					<xsl:with-param name="Indent" select="$Indent"/>
-					<xsl:with-param name="Statement" select="true()"/>
-					<xsl:with-param name="ProcessSecondaryBlock" select="true()"/>
-					<xsl:with-param name="CurrentPosition" select="$LeadBlockPosition + $SiblingIndex"/>
-					<xsl:with-param name="LocalItemKey" select="$ParentLocalItemKey"/>
-					<xsl:with-param name="IndentInfo" select="$indentInfo"/>
-					<xsl:with-param name="IndentStyle" select="$indentStyle"/>
-					<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
-				</xsl:call-template>
-				<xsl:call-template name="RenderSecondaryBlocks">
-					<xsl:with-param name="Indent" select="$Indent"/>
-					<xsl:with-param name="Siblings" select="$Siblings"/>
-					<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
-					<xsl:with-param name="ParentLocalItemKey" select="$ParentLocalItemKey"/>
-					<xsl:with-param name="LeadBlockPosition" select="$LeadBlockPosition"/>
-					<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
-				</xsl:call-template>
+				<xsl:choose>
+					<xsl:when test="$ExpandInlineStatements">
+						<xsl:variable name="inlineLocalItemKey" select="concat($ParentLocalItemKey,'_',position(),'ex')"/>
+						<xsl:variable name="inlineExpansionsFragment">
+							<xsl:apply-templates select="." mode="CollectInline">
+								<xsl:with-param name="LocalItemKey" select="$inlineLocalItemKey"/>
+							</xsl:apply-templates>
+						</xsl:variable>
+						<xsl:variable name="inlineExpansions" select="exsl:node-set($inlineExpansionsFragment)/child::*"/>
+						<xsl:choose>
+							<xsl:when test="$inlineExpansions">
+								<xsl:variable name="replacementBlockFragment">
+									<xsl:apply-templates select="." mode="BuildInlineSecondaryBlock">
+										<xsl:with-param name="InlineExpansions" select="$inlineExpansions"/>
+										<xsl:with-param name="InlineLocalItemKey" select="$inlineLocalItemKey"/>
+										<xsl:with-param name="Siblings" select="$Siblings"/>
+										<xsl:with-param name="SiblingIndex" select="$SiblingIndex"/>
+									</xsl:apply-templates>
+								</xsl:variable>
+								<xsl:for-each select="exsl:node-set($replacementBlockFragment)/child::*">
+									<xsl:variable name="indentInfoModifiedFragment">
+										<xsl:apply-templates select="." mode="IndentInfo"/>
+									</xsl:variable>
+									<xsl:variable name="indentInfoModified" select="exsl:node-set($indentInfoModifiedFragment)/child::*"/>
+									<xsl:variable name="indentStyleModified" select="string($indentInfoModified/@style)"/>
+									<xsl:call-template name="RenderElementWithIndentInfo">
+										<xsl:with-param name="Indent" select="$Indent"/>
+										<xsl:with-param name="Statement" select="true()"/>
+										<xsl:with-param name="ProcessSecondaryBlock" select="true()"/>
+										<xsl:with-param name="CurrentPosition" select="$LeadBlockPosition + $SiblingIndex"/>
+										<xsl:with-param name="LocalItemKey" select="$ParentLocalItemKey"/>
+										<xsl:with-param name="IndentInfo" select="$indentInfoModified"/>
+										<xsl:with-param name="IndentStyle" select="$indentStyleModified"/>
+										<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+									</xsl:call-template>
+								</xsl:for-each>
+							</xsl:when>
+							<xsl:otherwise>
+								<!-- Same as later otherwise -->
+								<xsl:call-template name="RenderElementWithIndentInfo">
+									<xsl:with-param name="Indent" select="$Indent"/>
+									<xsl:with-param name="Statement" select="true()"/>
+									<xsl:with-param name="ProcessSecondaryBlock" select="true()"/>
+									<xsl:with-param name="CurrentPosition" select="$LeadBlockPosition + $SiblingIndex"/>
+									<xsl:with-param name="LocalItemKey" select="$ParentLocalItemKey"/>
+									<xsl:with-param name="IndentInfo" select="$indentInfo"/>
+									<xsl:with-param name="IndentStyle" select="$indentStyle"/>
+									<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+								</xsl:call-template>
+								<xsl:call-template name="RenderSecondaryBlocks">
+									<xsl:with-param name="Indent" select="$Indent"/>
+									<xsl:with-param name="Siblings" select="$Siblings"/>
+									<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
+									<xsl:with-param name="ParentLocalItemKey" select="$ParentLocalItemKey"/>
+									<xsl:with-param name="LeadBlockPosition" select="$LeadBlockPosition"/>
+									<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+								</xsl:call-template>
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:when>
+					<xsl:otherwise>
+						<!-- Same as previous otherwise -->
+						<xsl:call-template name="RenderElementWithIndentInfo">
+							<xsl:with-param name="Indent" select="$Indent"/>
+							<xsl:with-param name="Statement" select="true()"/>
+							<xsl:with-param name="ProcessSecondaryBlock" select="true()"/>
+							<xsl:with-param name="CurrentPosition" select="$LeadBlockPosition + $SiblingIndex"/>
+							<xsl:with-param name="LocalItemKey" select="$ParentLocalItemKey"/>
+							<xsl:with-param name="IndentInfo" select="$indentInfo"/>
+							<xsl:with-param name="IndentStyle" select="$indentStyle"/>
+							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+						</xsl:call-template>
+						<xsl:call-template name="RenderSecondaryBlocks">
+							<xsl:with-param name="Indent" select="$Indent"/>
+							<xsl:with-param name="Siblings" select="$Siblings"/>
+							<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
+							<xsl:with-param name="ParentLocalItemKey" select="$ParentLocalItemKey"/>
+							<xsl:with-param name="LeadBlockPosition" select="$LeadBlockPosition"/>
+							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+						</xsl:call-template>
+					</xsl:otherwise>
+				</xsl:choose>
 			</xsl:if>
 		</xsl:for-each>
+	</xsl:template>
+	<xsl:template match="plx:alternateBranch" mode="BuildInlineSecondaryBlock">
+		<xsl:param name="InlineExpansions"/>
+		<xsl:param name="InlineLocalItemKey"/>
+		<xsl:param name="Siblings"/>
+		<xsl:param  name="SiblingIndex"/>
+		<plx:fallbackBranch>
+			<xsl:copy-of select="plx:blockLeadingInfo/child::*"/>
+			<xsl:copy-of select="$InlineExpansions/plxGen:expansion/child::*"/>
+			<xsl:variable name="modifiedElementFragment">
+				<xsl:apply-templates select="." mode="ReplaceInline">
+					<xsl:with-param name="LocalItemKey" select="$InlineLocalItemKey"/>
+					<xsl:with-param name="Expansions" select="$InlineExpansions"/>
+				</xsl:apply-templates>
+			</xsl:variable>
+			<xsl:for-each select="exsl:node-set($modifiedElementFragment)/child::*">
+				<plx:branch>
+					<xsl:copy-of select="@*|child::*|text()"/>
+				</plx:branch>
+			</xsl:for-each>
+			<xsl:call-template name="CopySecondaryBlocks">
+				<xsl:with-param name="Siblings" select="$Siblings"/>
+				<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
+				<xsl:with-param name="PreviousTrailingInfo" select="plx:blockTrailingInfo/child::*"/>
+			</xsl:call-template>
+		</plx:fallbackBranch>
+		<!-- UNDONE: Getting leading/trailing info correct will require examination of the
+		     pragma types in the leading/trailing info. For example, currently a conditional/closeConditional
+		     in the leading/trailing info will leave a hanging End If -->
+	</xsl:template>
+	<xsl:template name="CopySecondaryBlocks">
+		<xsl:param name="Siblings" select="following-sibling::*"/>
+		<xsl:param name="SiblingIndex" select="1"/>
+		<xsl:param name="PreviousTrailingInfo"/>
+		<xsl:variable name="nextSibling" select="$Siblings[$SiblingIndex]"/>
+		<xsl:choose>
+			<xsl:when test="$nextSibling">
+				<xsl:for-each select="$nextSibling">
+					<xsl:variable name="indentInfoFragment">
+						<xsl:apply-templates select="." mode="IndentInfo"/>
+					</xsl:variable>
+					<xsl:variable name="indentInfo" select="exsl:node-set($indentInfoFragment)/child::*"/>
+					<xsl:variable name="indentStyle" select="string($indentInfo/@style)"/>
+					<xsl:choose>
+						<xsl:when test="$indentStyle='secondaryBlock'">
+							<xsl:choose>
+								<xsl:when test="$PreviousTrailingInfo">
+									<xsl:copy>
+										<xsl:copy-of select="@*"/>
+										<xsl:choose>
+											<xsl:when test="plx:blockLeadingInfo | plx:blockTrailingInfo">
+												<xsl:for-each select="child::*">
+													<xsl:choose>
+														<xsl:when test="self::plx:blockLeadingInfo">
+															<xsl:copy>
+																<xsl:copy-of select="$PreviousTrailingInfo[self::plx:pragma]"/>
+																<xsl:copy-of select="plx:pragma"/>
+																<xsl:copy-of select="$PreviousTrailingInfo[self::plx:comment]"/>
+																<xsl:copy-of select="plx:comment"/>
+															</xsl:copy>
+														</xsl:when>
+														<xsl:when test="self::plx:blockTrailingInfo">
+															<xsl:if test="not(preceding-sibling::plx:blockLeadingInfo[1])">
+																<plx:blockLeadingInfo>
+																	<xsl:copy-of select="$PreviousTrailingInfo"/>
+																</plx:blockLeadingInfo>
+															</xsl:if>
+															<xsl:copy-of select="."/>
+														</xsl:when>
+														<xsl:otherwise>
+															<xsl:copy-of select="."/>
+														</xsl:otherwise>
+													</xsl:choose>
+												</xsl:for-each>
+											</xsl:when>
+											<xsl:otherwise>
+												<plx:blockLeadingInfo>
+													<xsl:copy-of select="$PreviousTrailingInfo"/>
+												</plx:blockLeadingInfo>
+												<xsl:copy-of select="*"/>
+											</xsl:otherwise>
+										</xsl:choose>
+									</xsl:copy>
+								</xsl:when>
+								<xsl:otherwise>
+									<xsl:copy-of select="."/>
+								</xsl:otherwise>
+							</xsl:choose>
+							<xsl:call-template name="CopySecondaryBlocks">
+								<xsl:with-param name="Siblings" select="$Siblings"/>
+								<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
+							</xsl:call-template>
+						</xsl:when>
+						<xsl:when test="$PreviousTrailingInfo">
+							<xsl:copy-of select="$PreviousTrailingInfo"/>
+						</xsl:when>
+					</xsl:choose>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:copy-of select="$PreviousTrailingInfo"/>
+			</xsl:otherwise>
+		</xsl:choose>
 	</xsl:template>
 	<!--
 	*********************************************************
@@ -954,5 +1359,865 @@
 	</xsl:template>
 	<xsl:template mode="IndentInfo" match="plx:pragma | plx:docComment">
 		<plxGen:indentInfo style="simple" statementClose=""/>
+	</xsl:template>
+	<!-- 
+	*********************************************************
+	Default inline statement expansion for native plix elements
+	*********************************************************
+	-->
+	<xsl:template match="plx:inlineStatement" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="ContextField"/>
+		<xsl:variable name="expansionFragment">
+			<xsl:apply-templates select="child::*[last()]" mode="ExpandInline">
+				<xsl:with-param name="TypeAttributes" select="@*"/>
+				<xsl:with-param name="TypeElements" select="child::*[position()!=last()]"/>
+				<xsl:with-param name="Key" select="$LocalItemKey"/>
+				<xsl:with-param name="Prefix" select="$GeneratedVariablePrefix"/>
+				<xsl:with-param name="ContextField" select="$ContextField"/>
+			</xsl:apply-templates>
+		</xsl:variable>
+		<xsl:variable name="expansion" select="exsl:node-set($expansionFragment)/child::*"/>
+		<xsl:choose>
+			<xsl:when test="$expansion">
+				<xsl:copy-of select="$expansion"/>
+			</xsl:when>
+			<xsl:otherwise>
+				<!-- If an empty set is returned then recurse to continue to look
+				     for inline statements farther down. If inline items are expanded,
+						 then nested inline expansions are handled by recurse RenderElement
+						 calls on the expansions returned from this template. -->
+				<xsl:apply-templates select="child::*[last()]" mode="CollectInline">
+					<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_1')"/>
+					<xsl:with-param name="ContextField" select="$ContextField"/>
+				</xsl:apply-templates>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+	<xsl:template match="*" mode="CollectInline">
+		<!-- Nothing to do, just block the automatic xsl recursive handling -->
+	</xsl:template>
+	<xsl:template match="*" mode="ReplaceInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="Expansions"/>
+		<xsl:copy>
+			<xsl:copy-of select="@*"/>
+			<xsl:apply-templates select="child::*|text()" mode="ReplaceInline">
+				<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+				<xsl:with-param name="Expansions" select="$Expansions"/>
+			</xsl:apply-templates>
+		</xsl:copy>
+	</xsl:template>
+	<xsl:template match="plx:inlineStatement" mode="ReplaceInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="Expansions"/>
+		<xsl:variable name="inlineExpansion" select="$Expansions[@key=$LocalItemKey]"/>
+		<xsl:choose>
+			<xsl:when test="$inlineExpansion">
+				<xsl:copy-of select="$inlineExpansion/plxGen:surrogate/child::*"/>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:copy>
+					<xsl:copy-of select="@*"/>
+					<xsl:copy-of select="child::*[position()&lt;last()]"/>
+					<xsl:apply-templates select="child::*[last()]" mode="ReplaceInline">
+						<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_1')"/>
+						<xsl:with-param name="Expansions" select="$Expansions"/>
+					</xsl:apply-templates>
+				</xsl:copy>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+	<!-- 
+	*********************************************************
+	CollectInline and ReplaceInline templates for specific elements.
+	Note that any 'CollectInline' template that adjusts the forwarded
+	LocalItemKey should have corresponding 'ReplaceInline' templates
+	for all child elements that were forwarded the adjusted item key.
+	*********************************************************
+	-->
+	<!-- UNDONE: enumItem/initialize?, caseType/condition? -->
+	<xsl:template match="plx:field" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:apply-templates select="plx:initialize/child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'f')"/>
+			<xsl:with-param name="ContextField" select="."/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="plx:field" mode="ReplaceInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="Expansions"/>
+		<xsl:copy>
+			<xsl:copy-of select="@*"/>
+			<xsl:apply-templates select="child::*|text()" mode="ReplaceInline">
+				<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'f')"/>
+				<xsl:with-param name="Expansions" select="$Expansions"/>
+			</xsl:apply-templates>
+		</xsl:copy>
+	</xsl:template>
+	<xsl:template match="plx:local | plx:autoDispose | plx:lock | plx:iterator" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:apply-templates select="plx:initialize/child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="plx:assign | plx:binaryOperator | plx:nullFallbackOperator | plx:attachEvent | plx:detachEvent" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="ContextField"/>
+		<xsl:apply-templates select="plx:left/child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'l')"/>
+			<xsl:with-param name="ContextField" select="$ContextField"/>
+		</xsl:apply-templates>
+		<xsl:apply-templates select="plx:right/child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'r')"/>
+			<xsl:with-param name="ContextField" select="$ContextField"/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="plx:conditionalOperator" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="ContextField"/>
+		<xsl:apply-templates select="plx:condition/child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'c')"/>
+			<xsl:with-param name="ContextField" select="$ContextField"/>
+		</xsl:apply-templates>
+		<xsl:apply-templates select="plx:left/child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'l')"/>
+			<xsl:with-param name="ContextField" select="$ContextField"/>
+		</xsl:apply-templates>
+		<xsl:apply-templates select="plx:right/child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'r')"/>
+			<xsl:with-param name="ContextField" select="$ContextField"/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="plx:assign/child::*[self::plx:left or self::plx:right] | plx:binaryOperator/child::*[self::plx:left or self::plx:right] | plx:conditionalOperator/child::*[self::plx:left or self::plx:right or self::plx:condition] | plx:nullFallbackOperator/child::*[self::plx:left or self::plx:right] | plx:attachEvent/child::*[self::plx:left or self::plx:right] | plx:detachEvent/child::*[self::plx:left or self::plx:right]" mode="ReplaceInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="Expansions"/>
+		<xsl:copy>
+			<xsl:copy-of select="@*"/>
+			<xsl:apply-templates select="child::*|text()" mode="ReplaceInline">
+				<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,substring(local-name(),1,1))"/>
+				<xsl:with-param name="Expansions" select="$Expansions"/>
+			</xsl:apply-templates>
+		</xsl:copy>
+	</xsl:template>
+	<xsl:template match="plx:cast" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="ContextField"/>
+		<xsl:apply-templates select="child::*[last()]" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+			<xsl:with-param name="ContextField" select="$ContextField"/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="plx:unaryOperator | plx:increment | plx:decrement | plx:throw | plx:return | plx:expression" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="ContextField"/>
+		<xsl:apply-templates select="child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+			<xsl:with-param name="ContextField" select="$ContextField"/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="plx:branch | plx:alternateBranch" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:apply-templates select="plx:condition/child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="plx:callStatic | plx:callThis | plx:callNew" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="ContextField"/>
+		<xsl:for-each select="plx:passParam | plx:arrayInitializer">
+			<xsl:apply-templates select="child::*" mode="CollectInline">
+				<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_',position())"/>
+				<xsl:with-param name="ContextField" select="$ContextField"/>
+			</xsl:apply-templates>
+		</xsl:for-each>
+	</xsl:template>
+	<xsl:template match="plx:callInstance" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="ContextField"/>
+		<xsl:apply-templates select="plx:callObject/child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_0')"/>
+		</xsl:apply-templates>
+		<xsl:for-each select="plx:passParam">
+			<xsl:apply-templates select="child::*" mode="CollectInline">
+				<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_',position())"/>
+				<xsl:with-param name="ContextField" select="$ContextField"/>
+			</xsl:apply-templates>
+		</xsl:for-each>
+	</xsl:template>
+	<xsl:template match="plx:callInstance | plx:callStatic | plx:callThis | plx:callNew" mode="ReplaceInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="Expansions"/>
+		<xsl:copy>
+			<xsl:copy-of select="@*"/>
+			<xsl:copy-of select="plx:passTypeParam | plx:passMemberTypeParam | plx:arrayDescriptor | plx:parametrizedDataTypeQualifier"/>
+			<xsl:if test="self::plx:callInstance">
+				<xsl:apply-templates select="plx:callObject" mode="ReplaceInline">
+					<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_0')"/>
+					<xsl:with-param name="Expansions" select="$Expansions"/>
+				</xsl:apply-templates>
+			</xsl:if>
+			<xsl:for-each select="plx:passParam | plx:arrayInitializer">
+				<xsl:apply-templates select="." mode="ReplaceInline">
+					<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_', position())"/>
+					<xsl:with-param name="Expansions" select="$Expansions"/>
+				</xsl:apply-templates>
+			</xsl:for-each>
+		</xsl:copy>
+	</xsl:template>
+	<xsl:template match="plx:arrayInitializer" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="ContextField"/>
+		<xsl:for-each select="child::*">
+			<xsl:apply-templates select="child::*" mode="CollectInline">
+				<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_',position())"/>
+				<xsl:with-param name="ContextField" select="$ContextField"/>
+			</xsl:apply-templates>
+		</xsl:for-each>
+	</xsl:template>
+	<xsl:template match="plx:arrayInitializer" mode="ReplaceInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="Expansions"/>
+		<xsl:copy>
+			<xsl:copy-of select="@*"/>
+			<xsl:for-each select="child::*">
+				<xsl:copy>
+					<xsl:copy-of select="@*"/>
+					<xsl:apply-templates select="child::*" mode="ReplaceInline">
+						<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_', position())"/>
+						<xsl:with-param name="Expansions" select="$Expansions"/>
+					</xsl:apply-templates>
+				</xsl:copy>
+			</xsl:for-each>
+		</xsl:copy>
+	</xsl:template>
+	<xsl:template match="plx:loop" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:variable name="loopDecorators" select="plx:initializeLoop | plx:condition | plx:beforeLoop"/>
+		<xsl:if test="$loopDecorators//plx:inlineStatement">
+
+			<!-- Cache the contents of all three block decorators -->
+			<xsl:variable name="init" select="$loopDecorators/self::plx:initializeLoop/child::*"/>
+			<xsl:variable name="check" select="$loopDecorators/self::plx:condition/child::*"/>
+			<xsl:variable name="incr" select="$loopDecorators/self::plx:beforeLoop/child::*"/>
+
+			<!-- Create local item keys for all three block decorators -->
+			<xsl:variable name="initKey" select="concat($LocalItemKey,'i')"/>
+			<xsl:variable name="checkKey" select="concat($LocalItemKey,'c')"/>
+			<xsl:variable name="incrKey" select="concat($LocalItemKey,'b')"/>
+
+			<xsl:variable name="body" select="child::*[not(self::plx:initializeLoop | self::plx:condition | self::plx:beforeLoop)]"/>
+			<xsl:variable name="bodyHasContinueFragment">
+				<xsl:apply-templates select="$body" mode="LoopBodyHasContinue"/>
+			</xsl:variable>
+			<!-- If the body has one or more continue statements, then we need to do extra check and increment work -->
+			<xsl:variable name="bodyHasContinue" select="boolean(string($bodyHasContinueFragment))"/>
+
+			<xsl:variable name="checkAfter" select="@checkCondition='after'"/>
+
+			<xsl:variable name="initInlineExpansionsFragment">
+				<xsl:apply-templates select="$init" mode="CollectInline">
+					<xsl:with-param name="LocalItemKey" select="$initKey"/>
+				</xsl:apply-templates>
+			</xsl:variable>
+			<xsl:variable name="initInlineExpansions" select="exsl:node-set($initInlineExpansionsFragment)/child::*"/>
+
+			<xsl:variable name="checkInlineExpansionsFragment">
+				<xsl:apply-templates select="$check" mode="CollectInline">
+					<xsl:with-param name="LocalItemKey" select="$checkKey"/>
+				</xsl:apply-templates>
+			</xsl:variable>
+			<xsl:variable name="checkInlineExpansions" select="exsl:node-set($checkInlineExpansionsFragment)/child::*"/>
+			<xsl:variable name="resolvedCheckInlineExpansionsFragment">
+				<xsl:if test="$checkAfter and $checkInlineExpansions">
+					<xsl:call-template name="SeparateLocalInitialize">
+						<xsl:with-param name="CodeFragment">
+							<xsl:for-each select="$checkInlineExpansions">
+								<xsl:variable name="key" select="@key"/>
+								<xsl:for-each select="plxGen:expansion/child::*">
+									<xsl:call-template name="FullyResolveInlineExpansions">
+										<xsl:with-param name="LocalItemKey" select="concat($key,'_',position())"/>
+										<xsl:with-param name="TopLevel" select="false()"/>
+									</xsl:call-template>
+								</xsl:for-each>
+							</xsl:for-each>
+						</xsl:with-param>
+					</xsl:call-template>
+				</xsl:if>
+			</xsl:variable>
+			<xsl:variable name="resolvedCheckInlineExpansions" select="exsl:node-set($resolvedCheckInlineExpansionsFragment)/child::*"/>
+
+			<xsl:variable name="incrInlineExpansionsFragment">
+				<xsl:choose>
+					<xsl:when test="$bodyHasContinue">
+						<!-- Fully expand inline so we can extract all locals and declare them once -->
+						<xsl:call-template name="SeparateLocalInitialize">
+							<xsl:with-param name="CodeFragment">
+								<xsl:for-each select="$incr">
+									<xsl:call-template name="FullyResolveInlineExpansions">
+										<xsl:with-param name="LocalItemKey" select="$incrKey"/>
+									</xsl:call-template>
+								</xsl:for-each>
+							</xsl:with-param>
+						</xsl:call-template>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:apply-templates select="$incr" mode="CollectInline">
+							<xsl:with-param name="LocalItemKey" select="$incrKey"/>
+						</xsl:apply-templates>
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:variable>
+			<xsl:variable name="incrInlineExpansions" select="exsl:node-set($incrInlineExpansionsFragment)/child::*"/>
+
+			<xsl:if test="$initInlineExpansions or $checkInlineExpansions or $incrInlineExpansions">
+				<xsl:variable name="modifiedBody" select="$checkInlineExpansions or $incrInlineExpansions"/>
+				<plxGen:inlineExpansion key="{$LocalItemKey}" surrogatePreExpanded="true">
+					<xsl:if test="$modifiedBody">
+						<xsl:attribute name="childrenModified">
+							<xsl:text>true</xsl:text>
+						</xsl:attribute>
+					</xsl:if>
+					<plxGen:expansion>
+						<xsl:if test="$initInlineExpansions">
+							<xsl:copy-of select="$initInlineExpansions/plxGen:expansion/child::*"/>
+							<xsl:apply-templates select="$init" mode="ReplaceInline">
+								<xsl:with-param name="LocalItemKey" select="$initKey"/>
+								<xsl:with-param name="Expansions" select="$initInlineExpansions"/>
+							</xsl:apply-templates>
+						</xsl:if>
+						<xsl:if test="$checkAfter and $resolvedCheckInlineExpansions">
+							<xsl:copy-of select="$resolvedCheckInlineExpansions/self::plx:local"/>
+						</xsl:if>
+					</plxGen:expansion>
+					<plxGen:surrogate>
+						<plx:loop>
+							<xsl:copy-of select="@checkCondition"/>
+							<xsl:if test="not($checkInlineExpansions)">
+								<xsl:copy-of select="$init"/>
+							</xsl:if>
+							<xsl:copy-of select="@checkCondition"/>
+							<xsl:if test="$init and not($initInlineExpansions)">
+								<xsl:copy-of select="$init"/>
+							</xsl:if>
+							<xsl:if test="$check">
+								<xsl:choose>
+									<xsl:when test="not($checkInlineExpansions)">
+										<xsl:copy-of select="$check"/>
+									</xsl:when>
+									<xsl:when test="$checkAfter">
+										<plx:condition>
+											<xsl:apply-templates select="$check" mode="ReplaceInline">
+												<xsl:with-param name="LocalItemKey" select="$checkKey"/>
+												<xsl:with-param name="Expansions" select="$checkInlineExpansions"/>
+											</xsl:apply-templates>
+										</plx:condition>
+									</xsl:when>
+								</xsl:choose>
+							</xsl:if>
+							<xsl:if test="$check and not($checkInlineExpansions)">
+								<xsl:copy-of select="$check"/>
+							</xsl:if>
+							<xsl:if test="$incr and not($incrInlineExpansions)">
+								<xsl:copy-of select="$check"/>
+							</xsl:if>
+							<xsl:if test="$modifiedBody">
+								<xsl:if test="not($checkAfter) and $checkInlineExpansions">
+									<xsl:copy-of select="$checkInlineExpansions/plxGen:expansion/child::*"/>
+									<plx:branch>
+										<plx:condition>
+											<plx:unaryOperator type="booleanNot">
+												<xsl:apply-templates select="$check" mode="ReplaceInline">
+													<xsl:with-param name="LocalItemKey" select="$checkKey"/>
+													<xsl:with-param name="Expansions" select="$checkInlineExpansions"/>
+												</xsl:apply-templates>
+											</plx:unaryOperator>
+										</plx:condition>
+										<plx:break/>
+									</plx:branch>
+								</xsl:if>
+								<xsl:choose>
+									<xsl:when test="$bodyHasContinue">
+										<xsl:if test="$incrInlineExpansions">
+											<xsl:copy-of select="$incrInlineExpansions/self::plx:local"/>
+										</xsl:if>
+										<xsl:if test="$checkAfter and $checkInlineExpansions">
+											<xsl:copy-of select="$checkInlineExpansions/self::plx:local"/>
+										</xsl:if>
+										<xsl:variable name="endCodeFragment">
+											<xsl:if test="$incrInlineExpansions">
+												<xsl:copy-of select="$incrInlineExpansions[not(self::plx:local)]"/>
+											</xsl:if>
+											<xsl:if test="$checkAfter and $resolvedCheckInlineExpansions">
+												<xsl:copy-of select="$resolvedCheckInlineExpansions[not(self::plx:local)]"/>
+											</xsl:if>
+										</xsl:variable>
+										<xsl:apply-templates select="$body" mode="LoopBodyAddBeforeContinue">
+											<xsl:with-param name="NewCode" select="$endCodeFragment"/>
+										</xsl:apply-templates>
+										<xsl:copy-of select="$endCodeFragment"/>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:copy-of select="$body"/>
+										<xsl:if test="$incrInlineExpansions">
+											<xsl:copy-of select="$incrInlineExpansions/plxGen:expansion/child::*"/>
+											<xsl:apply-templates select="$incr" mode="ReplaceInline">
+												<xsl:with-param name="LocalItemKey" select="$incrKey"/>
+												<xsl:with-param name="Expansions" select="$incrInlineExpansions"/>
+											</xsl:apply-templates>
+										</xsl:if>
+										<xsl:if test="$checkAfter and $resolvedCheckInlineExpansions">
+											<xsl:copy-of select="$resolvedCheckInlineExpansions[not(self::plx:local)]"/>
+										</xsl:if>
+									</xsl:otherwise>
+								</xsl:choose>
+							</xsl:if>
+						</plx:loop>
+					</plxGen:surrogate>
+				</plxGen:inlineExpansion>
+			</xsl:if>
+		</xsl:if>
+	</xsl:template>
+	<xsl:template match="plx:loop" mode="ReplaceInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="Expansions"/>
+		<!-- This is a backup in case the main loop decides it cannot use the surrogate directly -->
+		<xsl:copy-of select="$Expansions/plxGen:surrogate/child::*"/>
+	</xsl:template>
+	<xsl:template match="*" mode="LoopBodyHasContinue">
+		<xsl:apply-templates select="child::*" mode="LoopBodyHasContinue"/>
+	</xsl:template>
+	<xsl:template match="plx:loop|plx:iterator" mode="LoopBodyHasContinue">
+		<!-- We don't care about continues inside nested loops -->
+	</xsl:template>
+	<xsl:template match="plx:continue" mode="LoopBodyHasContinue">
+		<xsl:text>x</xsl:text>
+	</xsl:template>
+	<xsl:template match="*" mode="LoopBodyAddBeforeContinue">
+		<xsl:param name="NewCode"/>
+		<xsl:copy>
+			<xsl:copy-of select="@*"/>
+			<xsl:apply-templates select="child::node()" mode="LoopBodyAddBeforeContinue">
+				<xsl:with-param name="NewCode" select="$NewCode"/>
+			</xsl:apply-templates>
+		</xsl:copy>
+	</xsl:template>
+	<xsl:template match="plx:loop|plx:iterator" mode="LoopBodyAddBeforeContinue">
+		<xsl:copy-of select="."/>
+	</xsl:template>
+	<xsl:template match="plx:continue" mode="LoopBodyAddBeforeContinue">
+		<xsl:param name="NewCode"/>
+		<xsl:copy-of select="$NewCode"/>
+		<xsl:copy-of select="."/>
+	</xsl:template>
+	<!-- Helper function to fully resolve inline expansions. Normally, nested
+	     inlineStatement elements are rendered naturally on the next pass. However,
+			 some situations require all inline statements to be fully resolved before
+			 proceeding with additional processing. If TopLevel is true() (the default),
+			 then an empty fragment is returned if there are no inline expansions. -->
+	<xsl:template name="FullyResolveInlineExpansions">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="TopLevel" select="true()"/>
+		<xsl:variable name="expansionsFragment">
+			<xsl:apply-templates select="." mode="CollectInline">
+				<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+			</xsl:apply-templates>
+		</xsl:variable>
+		<xsl:variable name="expansions" select="exsl:node-set($expansionsFragment)/child::*"/>
+		<xsl:choose>
+			<xsl:when test="$expansions">
+				<xsl:for-each select="$expansions">
+					<xsl:variable name="key" select="@key"/>
+					<xsl:for-each select="plxGen:expansion/child::*">
+						<xsl:call-template name="FullyResolveInlineExpansions">
+							<xsl:with-param name="LocalItemKey" select="concat($key,'_',position())"/>
+							<xsl:with-param name="TopLevel" select="false()"/>
+						</xsl:call-template>
+					</xsl:for-each>
+				</xsl:for-each>
+				<xsl:apply-templates select="." mode="ReplaceInline">
+					<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+					<xsl:with-param name="Expansions" select="$expansions"/>
+				</xsl:apply-templates>
+			</xsl:when>
+			<xsl:when test="not($TopLevel)">
+				<xsl:copy-of select="."/>
+			</xsl:when>
+		</xsl:choose>
+	</xsl:template>
+	<!-- Helper function to turn a local construct with an initialize block into a local followed
+	     by an assign construct.-->
+	<xsl:template name="SeparateLocalInitialize">
+		<xsl:param name="CodeFragment"/>
+		<xsl:for-each select="exsl:node-set($CodeFragment)/child::*">
+			<xsl:choose>
+				<xsl:when test="self::plx:local">
+					<xsl:variable name="initContents" select="plx:initialize/child::*"/>
+					<xsl:choose>
+						<xsl:when test="$initContents">
+							<xsl:copy>
+								<xsl:copy-of select="@*"/>
+								<xsl:copy-of select="child::*[not(self::plx:initialize)]"/>
+							</xsl:copy>
+							<plx:assign>
+								<plx:left>
+									<plx:nameRef name="{@name}"/>
+								</plx:left>
+								<plx:right>
+									<xsl:copy-of select="$initContents"/>
+								</plx:right>
+							</plx:assign>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:copy-of select="."/>
+						</xsl:otherwise>
+					</xsl:choose>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:copy-of select="."/>
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:for-each>
+	</xsl:template>
+	<!--
+	*********************************************************
+	ExpandInline templates. These templates should return an
+	plxGen:inlineExpansion structure if the inlineStatement
+	needs to be replaced, and an empty set otherwise. The following
+	passed in param values are provided:
+	TypeAttributes: attributes needed to render auto-generated type elements
+	TypeElements: elements needed to render auto-generated type elements
+	Key: The key used to identify the expansion and surrogate
+	VariablePrefix: The language-specified prefix for auto-generated variables
+	*********************************************************
+	-->
+	<xsl:template match="plx:assign" mode="ExpandInline">
+		<xsl:param name="TypeAttributes"/>
+		<xsl:param name="TypeElements"/>
+		<xsl:param name="Key"/>
+		<xsl:param name="Prefix"/>
+		<xsl:param name="ContextField"/>
+		<xsl:variable name="variableName" select="concat($Prefix,$Key)"/>
+		<xsl:variable name="leftLocalNameRef" select="plx:left/plx:nameRef[not(@type) or (@type='local')]"/>
+		<plxGen:inlineExpansion key="{$Key}">
+			<plxGen:expansion>
+				<xsl:choose>
+					<xsl:when test="$ContextField">
+						<plx:property name="{$variableName}" visibility="private">
+							<xsl:if test="$ContextField/@static='true'">
+								<xsl:attribute name="modifier">
+									<xsl:text>static</xsl:text>
+								</xsl:attribute>
+							</xsl:if>
+							<plx:returns>
+								<xsl:copy-of select="$TypeAttributes"/>
+								<xsl:copy-of select="$TypeElements"/>
+							</plx:returns>
+							<plx:get>
+								<xsl:copy-of select="."/>
+								<plx:return>
+									<xsl:copy-of select="plx:left/child::*"/>
+								</plx:return>
+							</plx:get>
+						</plx:property>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:copy-of select="."/>
+						<xsl:if test="not($leftLocalNameRef)">
+							<plx:local name="{$variableName}">
+								<xsl:copy-of select="$TypeAttributes"/>
+								<xsl:copy-of select="$TypeElements"/>
+								<plx:initialize>
+									<xsl:copy-of select="plx:left/child::*"/>
+								</plx:initialize>
+							</plx:local>
+						</xsl:if>
+					</xsl:otherwise>
+				</xsl:choose>
+			</plxGen:expansion>
+			<plxGen:surrogate>
+				<xsl:choose>
+					<xsl:when test="$ContextField">
+						<plx:callThis name="{$variableName}" type="property">
+							<xsl:if test="$ContextField/@static='true'">
+								<xsl:attribute name="accessor">
+									<xsl:text>static</xsl:text>
+								</xsl:attribute>
+							</xsl:if>
+						</plx:callThis>
+					</xsl:when>
+					<xsl:when test="$leftLocalNameRef">
+						<xsl:copy-of select="$leftLocalNameRef"/>
+					</xsl:when>
+					<xsl:otherwise>
+						<plx:nameRef name="{$variableName}"/>
+					</xsl:otherwise>
+				</xsl:choose>
+			</plxGen:surrogate>
+		</plxGen:inlineExpansion>
+	</xsl:template>
+	<xsl:template match="plx:increment | plx:decrement" mode="ExpandInline">
+		<xsl:param name="TypeAttributes"/>
+		<xsl:param name="TypeElements"/>
+		<xsl:param name="Key"/>
+		<xsl:param name="Prefix"/>
+		<xsl:param name="ContextField"/>
+		<plxGen:inlineExpansion key="{$Key}">
+			<plxGen:expansion>
+				<xsl:choose>
+					<xsl:when test="$ContextField">
+						<plx:property name="{$Prefix}{$Key}" visibility="private">
+							<xsl:if test="$ContextField/@static='true'">
+								<xsl:attribute name="modifier">
+									<xsl:text>static</xsl:text>
+								</xsl:attribute>
+							</xsl:if>
+							<plx:returns>
+								<xsl:copy-of select="$TypeAttributes"/>
+								<xsl:copy-of select="$TypeElements"/>
+							</plx:returns>
+							<plx:get>
+								<xsl:choose>
+									<xsl:when test="@type='post'">
+										<plx:local name="retVal">
+											<xsl:copy-of select="$TypeAttributes"/>
+											<xsl:copy-of select="$TypeElements"/>
+											<plx:initialize>
+												<xsl:copy-of select="child::*"/>
+											</plx:initialize>
+										</plx:local>
+										<xsl:copy-of select="."/>
+										<plx:return>
+											<plx:nameRef name="retVal"/>
+										</plx:return>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:copy-of select="."/>
+										<plx:return>
+											<xsl:copy-of select="child::*"/>
+										</plx:return>
+									</xsl:otherwise>
+								</xsl:choose>
+							</plx:get>
+						</plx:property>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:if test="@type='post'">
+							<plx:local name="{$Prefix}{$Key}">
+								<xsl:copy-of select="$TypeAttributes"/>
+								<xsl:copy-of select="$TypeElements"/>
+								<plx:initialize>
+									<xsl:copy-of select="child::*"/>
+								</plx:initialize>
+							</plx:local>
+						</xsl:if>
+						<xsl:copy-of select="."/>
+					</xsl:otherwise>
+				</xsl:choose>
+			</plxGen:expansion>
+			<plxGen:surrogate>
+				<xsl:choose>
+					<xsl:when test="$ContextField">
+						<plx:callThis name="{$Prefix}{$Key}" type="property">
+							<xsl:if test="$ContextField/@static='true'">
+								<xsl:attribute name="accessor">
+									<xsl:text>static</xsl:text>
+								</xsl:attribute>
+							</xsl:if>
+						</plx:callThis>
+					</xsl:when>
+					<xsl:when test="@type='post'">
+						<plx:nameRef name="{$Prefix}{$Key}"/>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:copy-of select="child::*"/>
+					</xsl:otherwise>
+				</xsl:choose>
+			</plxGen:surrogate>
+		</plxGen:inlineExpansion>
+	</xsl:template>
+	<xsl:template match="plx:conditionalOperator" mode="ExpandInline">
+		<xsl:param name="TypeAttributes"/>
+		<xsl:param name="TypeElements"/>
+		<xsl:param name="Key"/>
+		<xsl:param name="Prefix"/>
+		<xsl:param name="ContextField"/>
+		<xsl:variable name="variableNameFragment">
+			<xsl:choose>
+				<xsl:when test="$ContextField">
+					<xsl:text>retVal</xsl:text>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:value-of select="$Prefix"/>
+					<xsl:value-of select="$Key"/>
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:variable>
+		<xsl:variable name="variableName" select="string($variableNameFragment)"/>
+		<xsl:variable name="expansion">
+			<plx:local name="{$variableName}">
+				<xsl:copy-of select="$TypeAttributes"/>
+				<xsl:copy-of select="$TypeElements"/>
+			</plx:local>
+			<plx:branch>
+				<plx:condition>
+					<xsl:copy-of select="plx:condition/child::*"/>
+				</plx:condition>
+				<plx:assign>
+					<plx:left>
+						<plx:nameRef name="{$variableName}"/>
+					</plx:left>
+					<plx:right>
+						<xsl:copy-of select="plx:left/child::*"/>
+					</plx:right>
+				</plx:assign>
+			</plx:branch>
+			<plx:fallbackBranch>
+				<plx:assign>
+					<plx:left>
+						<plx:nameRef name="{$variableName}"/>
+					</plx:left>
+					<plx:right>
+						<xsl:copy-of select="plx:right/child::*"/>
+					</plx:right>
+				</plx:assign>
+			</plx:fallbackBranch>
+		</xsl:variable>
+		<plxGen:inlineExpansion key="{$Key}">
+			<plxGen:expansion>
+				<xsl:choose>
+					<xsl:when test="$ContextField">
+						<plx:property name="{$Prefix}{$Key}" visibility="private">
+							<xsl:if test="$ContextField/@static='true'">
+								<xsl:attribute name="modifier">
+									<xsl:text>static</xsl:text>
+								</xsl:attribute>
+							</xsl:if>
+							<plx:returns>
+								<xsl:copy-of select="$TypeAttributes"/>
+								<xsl:copy-of select="$TypeElements"/>
+							</plx:returns>
+							<plx:get>
+								<xsl:copy-of select="$expansion"/>
+								<plx:return>
+									<plx:nameRef name="{$variableName}"/>
+								</plx:return>
+							</plx:get>
+						</plx:property>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:copy-of select="$expansion"/>
+					</xsl:otherwise>
+				</xsl:choose>
+			</plxGen:expansion>
+			<plxGen:surrogate>
+				<xsl:choose>
+					<xsl:when test="$ContextField">
+						<plx:callThis name="{$Prefix}{$Key}" type="property">
+							<xsl:if test="$ContextField/@static='true'">
+								<xsl:attribute name="accessor">
+									<xsl:text>static</xsl:text>
+								</xsl:attribute>
+							</xsl:if>
+						</plx:callThis>
+					</xsl:when>
+					<xsl:otherwise>
+						<plx:nameRef name="{$variableName}"/>
+					</xsl:otherwise>
+				</xsl:choose>
+			</plxGen:surrogate>
+		</plxGen:inlineExpansion>
+	</xsl:template>
+	<xsl:template match="plx:nullFallbackOperator" mode="ExpandInline">
+		<xsl:param name="TypeAttributes"/>
+		<xsl:param name="TypeElements"/>
+		<xsl:param name="Key"/>
+		<xsl:param name="Prefix"/>
+		<xsl:param name="ContextField"/>
+		<xsl:variable name="variableNameFragment">
+			<xsl:choose>
+				<xsl:when test="$ContextField">
+					<xsl:text>retVal</xsl:text>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:value-of select="$Prefix"/>
+					<xsl:value-of select="$Key"/>
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:variable>
+		<xsl:variable name="variableName" select="string($variableNameFragment)"/>
+		<xsl:variable name="expansion">
+			<plx:local name="{$variableName}">
+				<xsl:copy-of select="$TypeAttributes"/>
+				<xsl:copy-of select="$TypeElements"/>
+				<plx:initialize>
+					<xsl:copy-of select="plx:left/child::*"/>
+				</plx:initialize>
+			</plx:local>
+			<plx:branch>
+				<plx:condition>
+					<plx:binaryOperator type="identityEquality">
+						<plx:left>
+							<plx:nameRef name="{$variableName}"/>
+						</plx:left>
+						<plx:right>
+							<plx:nullKeyword/>
+						</plx:right>
+					</plx:binaryOperator>
+				</plx:condition>
+				<plx:assign>
+					<plx:left>
+						<plx:nameRef name="{$variableName}"/>
+					</plx:left>
+					<plx:right>
+						<xsl:copy-of select="plx:right/child::*"/>
+					</plx:right>
+				</plx:assign>
+			</plx:branch>
+		</xsl:variable>
+		<plxGen:inlineExpansion key="{$Key}">
+			<plxGen:expansion>
+				<xsl:choose>
+					<xsl:when test="$ContextField">
+						<plx:property name="{$Prefix}{$Key}" visibility="private">
+							<xsl:if test="$ContextField/@static='true'">
+								<xsl:attribute name="modifier">
+									<xsl:text>static</xsl:text>
+								</xsl:attribute>
+							</xsl:if>
+							<plx:returns>
+								<xsl:copy-of select="$TypeAttributes"/>
+								<xsl:copy-of select="$TypeElements"/>
+							</plx:returns>
+							<plx:get>
+								<xsl:copy-of select="$expansion"/>
+								<plx:return>
+									<plx:nameRef name="{$variableName}"/>
+								</plx:return>
+							</plx:get>
+						</plx:property>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:copy-of select="$expansion"/>
+					</xsl:otherwise>
+				</xsl:choose>
+			</plxGen:expansion>
+			<plxGen:surrogate>
+				<xsl:choose>
+					<xsl:when test="$ContextField">
+						<plx:callThis name="{$Prefix}{$Key}" type="property">
+							<xsl:if test="$ContextField/@static='true'">
+								<xsl:attribute name="accessor">
+									<xsl:text>static</xsl:text>
+								</xsl:attribute>
+							</xsl:if>
+						</plx:callThis>
+					</xsl:when>
+					<xsl:otherwise>
+						<plx:nameRef name="{$variableName}"/>
+					</xsl:otherwise>
+				</xsl:choose>
+			</plxGen:surrogate>
+		</plxGen:inlineExpansion>
 	</xsl:template>
 </xsl:stylesheet>

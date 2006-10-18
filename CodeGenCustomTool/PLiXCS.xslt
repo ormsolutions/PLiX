@@ -33,6 +33,7 @@
 			newLineBeforeBlockOpen="yes"
 			defaultStatementClose=";"
 			requireCaseLabels="no"
+			expandInlineStatements="no"
 			comment="// "
 			docComment="/// ">
 			<xsl:choose>
@@ -448,6 +449,46 @@
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:call-template>
 	</xsl:template>
+	<xsl:template match="plx:conditionalOperator">
+		<xsl:param name="Indent"/>
+		<xsl:variable name="condition" select="plx:condition/child::*"/>
+		<xsl:variable name="left" select="plx:left/child::*"/>
+		<xsl:variable name="right" select="plx:right/child::*"/>
+		<!-- UNDONE: Add operator precedence tables to the language info and
+			 automatically determine when we need to add additional parentheses -->
+		<xsl:variable name="conditionalParens" select="$condition[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator]"/>
+		<xsl:variable name="leftParens" select="$left[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator]"/>
+		<xsl:variable name="rightParens" select="$right[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator]"/>
+		<xsl:if test="$conditionalParens">
+			<xsl:text>(</xsl:text>
+		</xsl:if>
+		<xsl:apply-templates select="$condition">
+			<xsl:with-param name="Indent" select="$Indent"/>
+		</xsl:apply-templates>
+		<xsl:if test="$conditionalParens">
+			<xsl:text>)</xsl:text>
+		</xsl:if>
+		<xsl:text> ? </xsl:text>
+		<xsl:if test="$leftParens">
+			<xsl:text>(</xsl:text>
+		</xsl:if>
+		<xsl:apply-templates select="$left">
+			<xsl:with-param name="Indent" select="$Indent"/>
+		</xsl:apply-templates>
+		<xsl:if test="$leftParens">
+			<xsl:text>)</xsl:text>
+		</xsl:if>
+		<xsl:text> : </xsl:text>
+		<xsl:if test="$rightParens">
+			<xsl:text>(</xsl:text>
+		</xsl:if>
+		<xsl:apply-templates select="$right">
+			<xsl:with-param name="Indent" select="$Indent"/>
+		</xsl:apply-templates>
+		<xsl:if test="$rightParens">
+			<xsl:text>)</xsl:text>
+		</xsl:if>
+	</xsl:template>
 	<xsl:template match="plx:continue">
 		<!-- UNDONE: If the nearest enclosing iterator or loop is a loop
 			 and checkCondition is 'after' and a beforeLoop statement is
@@ -459,8 +500,14 @@
 		<!-- UNDONE: Add operator precedence tables to the language info and
 			 automatically determine when we need to add additional parentheses -->
 		<!-- UNDONE: Can we always render like this, or only for nameRef and call* type='field' -->
-		<xsl:text>--</xsl:text>
+		<xsl:variable name="postfix" select="@type='post'"/>
+		<xsl:if test="not($postfix)">
+			<xsl:text>--</xsl:text>
+		</xsl:if>
 		<xsl:apply-templates select="child::*"/>
+		<xsl:if test="$postfix">
+			<xsl:text>--</xsl:text>
+		</xsl:if>
 	</xsl:template>
 	<xsl:template match="plx:defaultValueOf">
 		<xsl:text>default(</xsl:text>
@@ -998,8 +1045,14 @@
 		<!-- UNDONE: Add operator precedence tables to the language info and
 			 automatically determine when we need to add additional parentheses -->
 		<!-- UNDONE: Can we always render like this, or only for nameRef and call* type='field' -->
-		<xsl:text>++</xsl:text>
+		<xsl:variable name="postfix" select="@type='post'"/>
+		<xsl:if test="not($postfix)">
+			<xsl:text>++</xsl:text>
+		</xsl:if>
 		<xsl:apply-templates select="child::*"/>
+		<xsl:if test="$postfix">
+			<xsl:text>++</xsl:text>
+		</xsl:if>
 	</xsl:template>
 	<xsl:template match="plx:iterator">
 		<xsl:param name="Indent"/>
@@ -1148,6 +1201,34 @@
 			<xsl:text> = </xsl:text>
 		</xsl:if>
 		<xsl:value-of select="@name"/>
+	</xsl:template>
+	<xsl:template match="plx:nullFallbackOperator">
+		<xsl:param name="Indent"/>
+		<xsl:variable name="left" select="plx:left/child::*"/>
+		<xsl:variable name="right" select="plx:right/child::*"/>
+		<!-- UNDONE: Add operator precedence tables to the language info and
+			 automatically determine when we need to add additional parentheses -->
+		<xsl:variable name="leftParens" select="$left[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator]"/>
+		<xsl:variable name="rightParens" select="$right[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator]"/>
+		<xsl:if test="$leftParens">
+			<xsl:text>(</xsl:text>
+		</xsl:if>
+		<xsl:apply-templates select="$left">
+			<xsl:with-param name="Indent" select="$Indent"/>
+		</xsl:apply-templates>
+		<xsl:if test="$leftParens">
+			<xsl:text>)</xsl:text>
+		</xsl:if>
+		<xsl:text> ?? </xsl:text>
+		<xsl:if test="$rightParens">
+			<xsl:text>(</xsl:text>
+		</xsl:if>
+		<xsl:apply-templates select="$right">
+			<xsl:with-param name="Indent" select="$Indent"/>
+		</xsl:apply-templates>
+		<xsl:if test="$rightParens">
+			<xsl:text>)</xsl:text>
+		</xsl:if>
 	</xsl:template>
 	<xsl:template match="plx:nullKeyword">
 		<xsl:text>null</xsl:text>
@@ -1907,20 +1988,6 @@
 			<xsl:when test="$modifier='abstractOverride'">
 				<xsl:text>abstract override </xsl:text>
 			</xsl:when>
-		</xsl:choose>
-	</xsl:template>
-	<xsl:template name="RenderRawString">
-		<!-- Get the raw, unescaped version of a string element-->
-		<xsl:variable name="childStrings" select="plx:string"/>
-		<xsl:choose>
-			<xsl:when test="$childStrings">
-				<xsl:for-each select="$childStrings">
-					<xsl:call-template name="RenderRawString"/>
-				</xsl:for-each>
-			</xsl:when>
-			<xsl:otherwise>
-				<xsl:value-of select="."/>
-			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
 	<xsl:template name="RenderReadOnly">

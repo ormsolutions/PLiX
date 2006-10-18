@@ -16,20 +16,23 @@
 	version="1.0"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 	xmlns:plx="http://schemas.neumont.edu/CodeGeneration/PLiX"
-	xmlns:plxGen="urn:local-plix-generator" 
+	xmlns:plxGen="urn:local-plix-generator"
 	xmlns:exsl="http://exslt.org/common"
 	exclude-result-prefixes="#default exsl plx plxGen">
 	<xsl:import href="PLiXMain.xslt"/>
 	<xsl:output method="text"/>
 	<!-- The prefix used for any automatically generated labels -->
 	<xsl:param name="AutoLabelPrefix" select="'PLiXVB_AutoLabel'"/>
+	<xsl:param name="AutoVariablePrefix" select="'PLiXVB'"/>
 	<xsl:template match="*" mode="LanguageInfo">
 		<plxGen:languageInfo
 			defaultBlockClose=""
 			blockOpen=""
 			newLineBeforeBlockOpen="no"
 			defaultStatementClose=""
-			requireCaseLabels="yes" 
+			requireCaseLabels="yes"
+			expandInlineStatements="yes"
+			autoVariablePrefix="{$AutoVariablePrefix}"
 			comment="'"
 			docComment="''' "/>
 	</xsl:template>
@@ -1001,7 +1004,7 @@
 		</xsl:if>
 		<xsl:choose>
 			<xsl:when test="@checkCondition='after' and $condition">
-				<xsl:text> While</xsl:text>
+				<xsl:text>While </xsl:text>
 				<xsl:apply-templates select="plx:condition/child::plx:*">
 					<xsl:with-param name="Indent" select="$Indent"/>
 				</xsl:apply-templates>
@@ -1814,20 +1817,6 @@
 			<xsl:when test="$modifier='abstractOverride'">
 				<xsl:text>MustOverride Overrides </xsl:text>
 			</xsl:when>
-		</xsl:choose>
-	</xsl:template>
-	<xsl:template name="RenderRawString">
-		<!-- Get the raw, unescaped version of a string element-->
-		<xsl:variable name="childStrings" select="plx:string"/>
-		<xsl:choose>
-			<xsl:when test="$childStrings">
-				<xsl:for-each select="$childStrings">
-					<xsl:call-template name="RenderRawString"/>
-				</xsl:for-each>
-			</xsl:when>
-			<xsl:otherwise>
-				<xsl:value-of select="."/>
-			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
 	<xsl:template name="RenderReadOnly">
