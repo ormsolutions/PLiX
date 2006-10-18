@@ -230,11 +230,11 @@
 					<xsl:variable name="beforeLoop" select="plx:beforeLoop/child::plx:*"/>
 					<xsl:choose>
 						<xsl:when test="@checkCondition='after' and $condition">
-							<xsl:text>Exit While</xsl:text>
+							<xsl:text>Exit Do</xsl:text>
 						</xsl:when>
 						<xsl:otherwise>
 							<!-- UNDONE: Recognize patterns for VB's for loop. -->
-							<xsl:text>Exit Do</xsl:text>
+							<xsl:text>Exit While</xsl:text>
 						</xsl:otherwise>
 					</xsl:choose>
 				</xsl:when>
@@ -489,10 +489,10 @@
 					<xsl:variable name="beforeLoop" select="plx:beforeLoop/child::plx:*"/>
 					<xsl:choose>
 						<xsl:when test="@checkCondition='after' and $condition">
-							<xsl:text>Continue While</xsl:text>
+							<xsl:text>Continue Do</xsl:text>
 						</xsl:when>
 						<xsl:otherwise>
-							<xsl:text>Continue Do</xsl:text>
+							<xsl:text>Continue While</xsl:text>
 						</xsl:otherwise>
 						<!-- UNDONE: Recognize patterns for VB's for loop. -->
 					</xsl:choose>
@@ -1004,7 +1004,7 @@
 		</xsl:if>
 		<xsl:choose>
 			<xsl:when test="@checkCondition='after' and $condition">
-				<xsl:text>While </xsl:text>
+				<xsl:text>Loop While </xsl:text>
 				<xsl:apply-templates select="plx:condition/child::plx:*">
 					<xsl:with-param name="Indent" select="$Indent"/>
 				</xsl:apply-templates>
