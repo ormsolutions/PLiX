@@ -1516,7 +1516,7 @@
 			<xsl:with-param name="ContextField" select="$ContextField"/>
 		</xsl:apply-templates>
 	</xsl:template>
-	<xsl:template match="plx:branch | plx:alternateBranch" mode="CollectInline">
+	<xsl:template match="plx:branch | plx:alternateBranch | plx:switch" mode="CollectInline">
 		<xsl:param name="LocalItemKey"/>
 		<xsl:apply-templates select="plx:condition/child::*" mode="CollectInline">
 			<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>

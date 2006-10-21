@@ -360,7 +360,8 @@
 		<xsl:param name="Indent"/>
 		<xsl:for-each select="plx:condition">
 			<xsl:if test="position()!=1">
-				<xsl:text>, </xsl:text>
+				<xsl:value-of select="$NewLine"/>
+				<xsl:value-of select="$Indent"/>
 			</xsl:if>
 			<xsl:text>case </xsl:text>
 			<xsl:apply-templates select="child::plx:*">
