@@ -457,9 +457,9 @@
 		<xsl:variable name="right" select="plx:right/child::*"/>
 		<!-- UNDONE: Add operator precedence tables to the language info and
 			 automatically determine when we need to add additional parentheses -->
-		<xsl:variable name="conditionalParens" select="$condition[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator]"/>
-		<xsl:variable name="leftParens" select="$left[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator]"/>
-		<xsl:variable name="rightParens" select="$right[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator]"/>
+		<xsl:variable name="conditionalParens" select="$condition[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator | self::plx:inlineStatement]"/>
+		<xsl:variable name="leftParens" select="$left[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator | self::plx:inlineStatement]"/>
+		<xsl:variable name="rightParens" select="$right[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator | self::plx:inlineStatement]"/>
 		<xsl:if test="$conditionalParens">
 			<xsl:text>(</xsl:text>
 		</xsl:if>
@@ -638,7 +638,7 @@
 			<xsl:value-of select="$NewLine"/>
 			<xsl:value-of select="$Indent"/>
 		</xsl:if>
-		
+
 		<!-- With an implicit delegate in place, get back to rendering the event itself -->
 		<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
@@ -794,7 +794,7 @@
 					</xsl:if>
 				</xsl:for-each>
 			</xsl:when>
-			<xsl:otherwise>                                                     
+			<xsl:otherwise>
 				<xsl:value-of select="$NewLine"/>
 			</xsl:otherwise>
 		</xsl:choose>
@@ -1209,8 +1209,8 @@
 		<xsl:variable name="right" select="plx:right/child::*"/>
 		<!-- UNDONE: Add operator precedence tables to the language info and
 			 automatically determine when we need to add additional parentheses -->
-		<xsl:variable name="leftParens" select="$left[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator]"/>
-		<xsl:variable name="rightParens" select="$right[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator]"/>
+		<xsl:variable name="leftParens" select="$left[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator | self::plx:inlineStatement]"/>
+		<xsl:variable name="rightParens" select="$right[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator | self::plx:inlineStatement]"/>
 		<xsl:if test="$leftParens">
 			<xsl:text>(</xsl:text>
 		</xsl:if>
