@@ -782,11 +782,34 @@
 		</typeHandlerMap>
 	</handler>
 	<handler name="RenderBlockStatement" valueDataType="IBlockStatement">
-		<collection collectionProperty="Statements" itemDataType="IStatement" renderItem="RenderStatement">
+		<!-- Write custom iterator to enable rendering example statement comments -->
+		<plx:iterator localName="StatementsItem" dataTypeName="IStatement">
+			<plx:initialize>
+				<plx:callInstance name="Statements" type="property">
+					<plx:callObject>
+						<plx:nameRef name="value" type="parameter"/>
+					</plx:callObject>
+				</plx:callInstance>
+			</plx:initialize>
+			<plx:callThis name="WriteExampleStatementComment">
+				<plx:passParam>
+					<plx:nameRef name="StatementsItem"/>
+				</plx:passParam>
+			</plx:callThis>
+			<plx:callThis name="RenderStatement">
+				<plx:passParam>
+					<plx:nameRef name="StatementsItem"/>
+				</plx:passParam>
+				<plx:passParam>
+					<plx:trueKeyword/>
+				</plx:passParam>
+			</plx:callThis>
+		</plx:iterator>
+		<!--<collection collectionProperty="Statements" itemDataType="IStatement" renderItem="RenderStatement">
 			<plx:passParam>
 				<plx:trueKeyword/>
 			</plx:passParam>
-		</collection>
+		</collection>-->
 	</handler>
 	<handler name="RenderAttachEventStatement" valueDataType="IAttachEventStatement" elementName="attachEvent">
 		<child childProperty="Event" childDataType="IEventReferenceExpression" renderChild="RenderEventReferenceExpression" elementName="left"/>

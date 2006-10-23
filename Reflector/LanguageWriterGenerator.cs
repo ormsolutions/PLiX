@@ -737,6 +737,7 @@ namespace Reflector
 			{
 				foreach (IStatement StatementsItem in value.Statements)
 				{
+					this.WriteExampleStatementComment(StatementsItem);
 					this.RenderStatement(StatementsItem, true);
 				}
 			}

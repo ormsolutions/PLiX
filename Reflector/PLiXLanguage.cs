@@ -31,11 +31,13 @@ namespace Reflector
 		#region Member Variables
 		private ITranslatorManager myTranslatorManager;
 		private PLiXLanguageWriter myWriter;
+		private IPLiXConfiguration myConfiguration;
 		#endregion // Member Variables
 		#region Constructors
-		public PLiXLanguage(ITranslatorManager translatorManager)
+		public PLiXLanguage(ITranslatorManager translatorManager, IPLiXConfiguration configuration)
 		{
 			myTranslatorManager = translatorManager;
+			myConfiguration = configuration;
 		}
 		#endregion // Constructors
 		#region ILanguage Implementation
@@ -64,7 +66,7 @@ namespace Reflector
 			PLiXLanguageWriter retVal = myWriter;
 			if (retVal == null)
 			{
-				myWriter = retVal = new PLiXLanguageWriter(myTranslatorManager.Disassembler);
+				myWriter = retVal = new PLiXLanguageWriter(myTranslatorManager.Disassembler, myConfiguration);
 			}
 			retVal.Associate(formatter, configuration);
 			return retVal;
@@ -122,6 +124,7 @@ namespace Reflector
 			#region Member Variables
 			private IFormatter myFormatter;
 			private ILanguageWriterConfiguration myWriterConfiguration;
+			private IPLiXConfiguration myPLiXConfiguration;
 			private Stack<string> myOpenElements;
 			private bool myCurrentElementIsOpen;
 			private bool myCurrentElementClosedForText;
@@ -136,10 +139,11 @@ namespace Reflector
 			private XmlTextWriter myEscapeTextXmlWriter;
 			#endregion // Member Variables
 			#region Constructors
-			public PLiXLanguageWriter(ITranslator translator)
+			public PLiXLanguageWriter(ITranslator translator, IPLiXConfiguration configuration)
 			{
 				myTranslator = translator;
 				myOpenElements = new Stack<string>();
+				myPLiXConfiguration = configuration;
 			}
 			public void Associate(IFormatter formatter, ILanguageWriterConfiguration configuration)
 			{
@@ -542,6 +546,96 @@ namespace Reflector
 				}
 			}
 			#endregion // XML Output Helpers
+			#region Example Statement Output
+			private sealed class ExampleStatementFormatter : IFormatter
+			{
+				#region WriteLineRequested Exception
+				/// <summary>
+				/// A special exception to throw to break out of rendering an example statement.
+				/// Example statements are limited to a single line.
+				/// </summary>
+				private class WriteLineRequested : Exception
+				{
+					public static readonly WriteLineRequested Singleton = new WriteLineRequested();
+					private WriteLineRequested() { }
+				}
+				#endregion // WriteLineRequested Exception
+				#region Member Variables
+				private IFormatter myInnerFormatter;
+				#endregion // Member Variables
+				#region Constructor and Singleton
+				private static readonly ExampleStatementFormatter Singleton = new ExampleStatementFormatter();
+				private ExampleStatementFormatter() { }
+				#endregion // Constructor and Singleton
+				#region Methods
+				public static void RenderExampleStatementComment(IStatement statement, ILanguage statementLanguage, IFormatter formatter, ILanguageWriterConfiguration writerConfiguration)
+				{
+					ExampleStatementFormatter wrappingFormatter = Singleton;
+					wrappingFormatter.myInnerFormatter = formatter;
+					formatter.WriteLine();
+					formatter.WriteComment("<!-- ");
+					try
+					{
+						statementLanguage.GetWriter(wrappingFormatter, writerConfiguration).WriteStatement(statement);
+					}
+					catch (WriteLineRequested)
+					{
+					}
+					finally
+					{
+						formatter.WriteComment(" -->");
+					}
+				}
+				#endregion // Methods
+				#region IFormatter Implementation
+				void IFormatter.Write(string value)
+				{
+					myInnerFormatter.WriteComment(value);
+				}
+				void IFormatter.WriteComment(string value)
+				{
+					myInnerFormatter.WriteComment(value);
+				}
+				void IFormatter.WriteDeclaration(string value)
+				{
+					myInnerFormatter.WriteComment(value);
+				}
+				void IFormatter.WriteIndent()
+				{
+				}
+				void IFormatter.WriteKeyword(string value)
+				{
+					myInnerFormatter.WriteComment(value);
+				}
+				void IFormatter.WriteLine()
+				{
+					throw WriteLineRequested.Singleton;
+				}
+				void IFormatter.WriteLiteral(string value)
+				{
+					myInnerFormatter.WriteComment(value);
+				}
+				void IFormatter.WriteOutdent()
+				{
+				}
+				void IFormatter.WriteProperty(string name, string value)
+				{
+				}
+				void IFormatter.WriteReference(string value, string description, object target)
+				{
+					myInnerFormatter.WriteComment(value);
+				}
+				#endregion // IFormatter Implementation
+			}
+			private void WriteExampleStatementComment(IStatement statement)
+			{
+				ILanguage exampleLanguage = myPLiXConfiguration.ExampleLanguage;
+				if (exampleLanguage != null)
+				{
+					ExampleStatementFormatter.RenderExampleStatementComment(statement, exampleLanguage, myFormatter, myWriterConfiguration);
+				}
+			}
+			#endregion // Example Statement Output
 			#region Array helper functions
 			/// <summary>
 			/// Resolve array dimensions
