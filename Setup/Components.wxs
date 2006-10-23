@@ -37,7 +37,7 @@
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.PLIXRegRoot)">
 									<Registry Type="string" Name="InstallDir" Value="[$(var.DefaultShortProductDir)]"/>
 									<Registry Type="string" Name="ProductVersion" Value="$(var.ProductVersion)"/>
-									<Registry Type="integer" Name="SchemaVersion" Value="$(var.PLIXSchemaVersion)"/>
+									<Registry Type="string" Name="SchemaVersion" Value="$(var.PLIXSchemaVersion)"/>
 								</Registry>
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot)\CLSID\{$(var.PLIXCustomToolGuid)}">
 									<Registry Type="string" Value="Neumont.Tools.CodeGeneration.PlixLoaderCustomTool"/>
