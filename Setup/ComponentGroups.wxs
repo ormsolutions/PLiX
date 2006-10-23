@@ -35,5 +35,11 @@
 			<ComponentRef Id="VBCustomToolComponentExp"/>
 			<ComponentRef Id="CSCustomToolComponentExp"/>
 		</ComponentGroup>
+		<ComponentGroup Id="ReflectorComponents">
+			<ComponentRef Id="ReflectorAddinComponent"/>
+		</ComponentGroup>
+		<ComponentGroup Id="DocumentationComponents">
+			<ComponentRef Id="HTMLSchemaFilesComponent"/>
+		</ComponentGroup>
 	</Fragment>
 </Wix>

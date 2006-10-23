@@ -23,9 +23,14 @@
 			<Feature Id="FormattersFeature" Title="$(loc.FormattersFeatureTitle)" Description="$(loc.FormattersFeatureDescription)"
 				Level="1" TypicalDefault="install" InstallDefault="followParent" AllowAdvertise="no">
 				<ComponentGroupRef Id="FormattersComponents"/>
+				<ComponentGroupRef Id="DocumentationComponents"/>
 				<Feature Id="CustomToolFeature" Title="$(loc.CustomToolFeatureTitle)" Description="$(loc.CustomToolFeatureDescription)"
 					Level="1" TypicalDefault="install" InstallDefault="followParent" AllowAdvertise="no">
 					<ComponentGroupRef Id="CustomToolComponents"/>
+				</Feature>
+				<Feature Id="ReflectorComponents" Title="$(loc.ReflectorAddinFeatureTitle)" Description="$(loc.ReflectorAddinFeatureDescription)"
+					Level="1" TypicalDefault="install" InstallDefault="followParent" AllowAdvertise="no">
+					<ComponentGroupRef Id="ReflectorComponents"/>
 				</Feature>
 			</Feature>
 			

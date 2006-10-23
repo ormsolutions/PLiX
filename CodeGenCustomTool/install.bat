@@ -16,6 +16,7 @@ set envPath=%ProgramFiles%\Microsoft Visual Studio 8\
 set envPath=%~3
 )
 set plixBinaries=%ProgramFiles%\Neumont\PLiX for Visual Studio\bin\
+set plixHelp=%ProgramFiles%\Neumont\PLiX for Visual Studio\Help\
 set plixXML=%CommonProgramFiles%\Neumont\PLiX\
 set plixTool=Neumont.Tools.CodeGeneration.CustomTools
 set plixToolClass=Neumont.Tools.CodeGeneration.PlixLoaderCustomTool
@@ -32,6 +33,7 @@ if exist "%envPath%Neumont" rd /s /q "%envPath%Neumont"
 
 :: Create new directories
 if not exist "%plixBinaries%" md "%plixBinaries%"
+if not exist "%plixHelp%" md "%plixHelp%"
 if not exist "%plixXML%Schemas" md "%plixXML%Schemas"
 if not exist "%plixXML%Formatters" md "%plixXML%Formatters"
 
@@ -44,11 +46,12 @@ del "%plixBinaries%%plixTool%.pdb"
 )
 )
 
-xcopy /Y /D /Q "%rootPath%%outDir%PlixLoader.xsd" "%plixXML%\Schemas\"
-xcopy /Y /D /Q "%rootPath%%outDir%Plix.xsd" "%plixXML%\Schemas\"
-xcopy /Y /D /Q "%rootPath%%outDir%PlixRedirect.xsd" "%plixXML%\Schemas\"
-xcopy /Y /D /Q "%rootPath%%outDir%PlixSettings.xsd" "%plixXML%\Schemas\"
-xcopy /Y /D /Q "%rootPath%%outDir%catalog.xml" "%plixXML%\Schemas\"
+xcopy /Y /D /Q "%rootPath%PlixXsd.html" "%plixHelp%"
+xcopy /Y /D /Q "%rootPath%%outDir%PlixLoader.xsd" "%plixXML%\Schemas"
+xcopy /Y /D /Q "%rootPath%%outDir%Plix.xsd" "%plixXML%\Schemas"
+xcopy /Y /D /Q "%rootPath%%outDir%PlixRedirect.xsd" "%plixXML%\Schemas"
+xcopy /Y /D /Q "%rootPath%%outDir%PlixSettings.xsd" "%plixXML%\Schemas"
+xcopy /Y /D /Q "%rootPath%%outDir%catalog.xml" "%plixXML%\Schemas"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixSettings.xml" "%plixXML%"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixMain.xslt" "%plixXML%\Formatters"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixCS.xslt" "%plixXML%Formatters"

@@ -37,6 +37,7 @@
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.PLIXRegRoot)">
 									<Registry Type="string" Name="InstallDir" Value="[$(var.DefaultShortProductDir)]"/>
 									<Registry Type="string" Name="ProductVersion" Value="$(var.ProductVersion)"/>
+									<Registry Type="integer" Name="SchemaVersion" Value="$(var.PLIXSchemaVersion)"/>
 								</Registry>
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot)\CLSID\{$(var.PLIXCustomToolGuid)}">
 									<Registry Type="string" Value="Neumont.Tools.CodeGeneration.PlixLoaderCustomTool"/>
@@ -89,6 +90,18 @@
 									<Registry Type="string" Value="$(loc.ORMCSCustomToolDescription)"/>
 									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
 								</Registry>
+							</Component>
+							<Component Id="ReflectorAddinComponent" Guid="848FAECE-1062-423C-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<File Id="Reflector.PLiXLanguage.dll" Name="PLiXRef.dll" LongName="Reflector.PLiXLanguage.dll" src="..\Reflector\bin\$(var.BuildConfiguration)\Reflector.PLiXLanguage.dll"
+									DefaultVersion="$(var.ProductVersion)" DefaultLanguage="0" KeyPath="yes" Vital="yes" Assembly=".net" AssemblyManifest="Reflector.PLiXLanguage.dll" ProcessorArchitecture="msil" AssemblyApplication="Reflector.PLiXLanguage.dll"/>
+								<File Id="Reflector.PLiXLanguage.pdb" Name="PLiXRef.pdb" LongName="Reflector.PLiXLanguage.pdb" src="..\Reflector\bin\$(var.BuildConfiguration)\Reflector.PLiXLanguage.pdb"
+									DefaultLanguage="0" CompanionFile="Reflector.PLiXLanguage.dll"/>
+							</Component>
+						</Directory>
+						<Directory Id="HELPDIR" Name="Help">
+							<Component Id="HTMLSchemaFilesComponent" Guid="5AA0F7DD-44DB-471F-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<File Id="PlixXsd.html" Name="PlixXsd.htm" LongName="PlixXsd.html" src="..\CodeGenCustomTool\PlixXsd.html"
+									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
 							</Component>
 						</Directory>
 					</Directory>

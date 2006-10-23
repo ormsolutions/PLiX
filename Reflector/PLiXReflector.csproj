@@ -72,5 +72,6 @@
   -->
   <PropertyGroup>
     <PreBuildEvent>"$(SolutionDir)VersionGenerator.exe"</PreBuildEvent>
+    <PostBuildEvent>"$(ProjectDir)install.bat" "$(ProjectDir)" "$(OutDir)"</PostBuildEvent>
   </PropertyGroup>
 </Project>
