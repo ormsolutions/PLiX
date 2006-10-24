@@ -3879,6 +3879,10 @@
             <td>privateInterfaceMember</td>
             <td style="width:100%;">The code element is used as a private interface implementation. If an interface member (function, property, or event) has a single interfaceMember and is private and has the same name as the interface member then it can always be rendered as a single function if it is not called directly by other member function. The formatter does not know if such a call exists, so it must always render the function as callable if the visibility is private. The privateInterfaceMember value can be used to explicitly block generation of the forwarding function. Otherwise, it is treated like private.</td>
           </tr>
+          <tr>
+            <td>deferToPartial</td>
+            <td style="width:100%;">The code element is a type with visibility rendered on another portion of the partial class. Omit the visibility setting to defer to the partial value.</td>
+          </tr>
         </table>
       </li>
       <li>

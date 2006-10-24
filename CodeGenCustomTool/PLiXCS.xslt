@@ -2370,6 +2370,7 @@
 					<!-- C# won't do the and protected, but enforce internal -->
 					<xsl:text>internal </xsl:text>
 				</xsl:when>
+				<!-- deferToPartial and privateInterfaceMember are not rendered -->
 			</xsl:choose>
 		</xsl:if>
 	</xsl:template>

@@ -249,6 +249,9 @@
 	</xsl:template>
 	<xsl:template match="plx:callInstance">
 		<xsl:param name="Indent"/>
+		<xsl:if test="@type='methodReference'">
+			<xsl:text>AddressOf </xsl:text>
+		</xsl:if>
 		<xsl:variable name="caller" select="plx:callObject/child::*"/>
 		<xsl:variable name="callerNeedsParensFragment">
 			<xsl:for-each select="$caller">
@@ -352,6 +355,9 @@
 	</xsl:template>
 	<xsl:template match="plx:callStatic">
 		<xsl:param name="Indent"/>
+		<xsl:if test="@type='methodReference'">
+			<xsl:text>AddressOf </xsl:text>
+		</xsl:if>
 		<xsl:call-template name="RenderType"/>
 		<xsl:call-template name="RenderCallBody">
 			<xsl:with-param name="Indent" select="$Indent"/>
@@ -359,6 +365,9 @@
 	</xsl:template>
 	<xsl:template match="plx:callThis">
 		<xsl:param name="Indent"/>
+		<xsl:if test="@type='methodReference'">
+			<xsl:text>AddressOf </xsl:text>
+		</xsl:if>
 		<xsl:variable name="accessor" select="@accessor"/>
 		<xsl:choose>
 			<xsl:when test="$accessor='base'">
@@ -2203,6 +2212,7 @@
 					<!-- VB won't do the and protected, but enforce internal -->
 					<xsl:text>Friend </xsl:text>
 				</xsl:when>
+				<!-- deferToPartial is not rendered -->
 			</xsl:choose>
 		</xsl:if>
 	</xsl:template>
