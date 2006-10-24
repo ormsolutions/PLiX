@@ -289,14 +289,30 @@
 			<xsl:call-template name="AddAttributeCaseMapCondition">
 				<xsl:with-param name="RemainingValues" select="normalize-space(@value)"/>
 			</xsl:call-template>
-			<plx:assign>
-				<plx:left>
-					<plx:nameRef name="{../@attributeName}{$AttributeValueDecorator}"/>
-				</plx:left>
-				<plx:right>
-					<plx:string data="{@attributeValue}"/>
-				</plx:right>
-			</plx:assign>
+			<xsl:variable name="filterCondition" select="child::*"/>
+			<xsl:variable name="assignFragment">
+				<plx:assign>
+					<plx:left>
+						<plx:nameRef name="{../@attributeName}{$AttributeValueDecorator}"/>
+					</plx:left>
+					<plx:right>
+						<plx:string data="{@attributeValue}"/>
+					</plx:right>
+				</plx:assign>
+			</xsl:variable>
+			<xsl:choose>
+				<xsl:when test="$filterCondition">
+					<plx:branch>
+						<plx:condition>
+							<xsl:copy-of select="$filterCondition"/>
+						</plx:condition>
+						<xsl:copy-of select="$assignFragment"/>
+					</plx:branch>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:copy-of select="$assignFragment"/>
+				</xsl:otherwise>
+			</xsl:choose>
 		</plx:case>
 	</xsl:template>
 	<xsl:template name="AddAttributeCaseMapCondition">

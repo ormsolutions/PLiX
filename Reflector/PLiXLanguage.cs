@@ -633,6 +633,15 @@ namespace Reflector
 				ILanguage exampleLanguage = myPLiXConfiguration.ExampleLanguage;
 				if (exampleLanguage != null)
 				{
+					OutputDelayedElement();
+					IFormatter formatter = myFormatter;
+					if (myCurrentElementIsOpen)
+					{
+						WriteNamespace();
+						formatter.Write(">");
+						formatter.WriteIndent();
+						myCurrentElementIsOpen = false;
+					}
 					ExampleStatementFormatter.RenderExampleStatementComment(statement, exampleLanguage, myFormatter, myWriterConfiguration);
 				}
 			}

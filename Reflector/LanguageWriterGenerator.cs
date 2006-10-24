@@ -649,7 +649,7 @@ namespace Reflector
 													ILabeledStatement AsILabeledStatement = value as ILabeledStatement;
 													if (AsILabeledStatement != null)
 													{
-														this.RenderLabeledStatement(AsILabeledStatement);
+														this.RenderLabeledStatement(AsILabeledStatement, topLevel);
 													}
 													else
 													{
@@ -860,7 +860,8 @@ namespace Reflector
 					this.WriteElement("fallbackBranch");
 					foreach (IStatement elseStatement in elseStatements)
 					{
-						this.RenderStatement(elseStatement);
+						this.WriteExampleStatementComment(elseStatement);
+						this.RenderStatement(elseStatement, true);
 					}
 					this.WriteEndElement();
 				}
@@ -971,7 +972,7 @@ namespace Reflector
 				if (InitializerChild != null)
 				{
 					this.WriteElementDelayed("initializeLoop");
-					this.RenderStatement(InitializerChild);
+					this.RenderStatement(InitializerChild, true);
 					this.WriteEndElement();
 				}
 				IExpression ConditionChild = value.Condition;
@@ -985,7 +986,7 @@ namespace Reflector
 				if (IncrementChild != null)
 				{
 					this.WriteElementDelayed("beforeLoop");
-					this.RenderStatement(IncrementChild);
+					this.RenderStatement(IncrementChild, true);
 					this.WriteEndElement();
 				}
 				IBlockStatement BodyChild = value.Body;
@@ -1026,7 +1027,7 @@ namespace Reflector
 				this.WriteAttribute("name", value.Name);
 				this.WriteEndElement();
 			}
-			private void RenderLabeledStatement(ILabeledStatement value)
+			private void RenderLabeledStatement(ILabeledStatement value, bool topLevel)
 			{
 				this.WriteElement("label");
 				this.WriteAttribute("name", value.Name, true, false);
@@ -1034,7 +1035,7 @@ namespace Reflector
 				IStatement StatementChild = value.Statement;
 				if (StatementChild != null)
 				{
-					this.RenderStatement(StatementChild);
+					this.RenderStatement(StatementChild, topLevel);
 				}
 			}
 			private void RenderLockStatement(ILockStatement value)
@@ -1109,7 +1110,9 @@ namespace Reflector
 				}
 				for (int i = 0; i < statementCount; ++i)
 				{
-					this.RenderStatement(statements[i]);
+					IStatement currentStatement = statements[i];
+					this.WriteExampleStatementComment(currentStatement);
+					this.RenderStatement(currentStatement, true);
 				}
 			}
 			private void RenderSwitchCaseConditions(IExpression value)
@@ -2850,10 +2853,11 @@ namespace Reflector
 						typeAttributeValue = "negative";
 						break;
 					case UnaryOperator.PostIncrement:
-						typeAttributeValue = "post";
-						break;
 					case UnaryOperator.PostDecrement:
-						typeAttributeValue = "post";
+						if (!(topLevel))
+						{
+							typeAttributeValue = "post";
+						}
 						break;
 				}
 				if (typeAttributeValue.Length != 0)

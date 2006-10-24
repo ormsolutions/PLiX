@@ -767,7 +767,11 @@
 			<typeHandler valueDataType="IForEachStatement" handler="RenderForEachStatement"/>
 			<typeHandler valueDataType="IForStatement" handler="RenderForStatement"/>
 			<typeHandler valueDataType="IGotoStatement" handler="RenderGotoStatement"/>
-			<typeHandler valueDataType="ILabeledStatement" handler="RenderLabeledStatement"/>
+			<typeHandler valueDataType="ILabeledStatement" handler="RenderLabeledStatement">
+				<plx:passParam>
+					<plx:nameRef name="topLevel" type="parameter"/>
+				</plx:passParam>
+			</typeHandler>
 			<typeHandler valueDataType="ILockStatement" handler="RenderLockStatement"/>
 			<!--<typeHandler valueDataType="IMemoryCopyStatement" handler="RenderMemoryCopyStatement"/>-->
 			<!--<typeHandler valueDataType="IMemoryInitializeStatement" handler="RenderMemoryInitializeStatement"/>-->
@@ -994,9 +998,17 @@
 					<plx:initialize>
 						<plx:nameRef name="elseStatements"/>
 					</plx:initialize>
+					<plx:callThis name="WriteExampleStatementComment">
+						<plx:passParam>
+							<plx:nameRef name="elseStatement"/>
+						</plx:passParam>
+					</plx:callThis>
 					<plx:callThis name="RenderStatement">
 						<plx:passParam>
 							<plx:nameRef name="elseStatement"/>
+						</plx:passParam>
+						<plx:passParam>
+							<plx:trueKeyword/>
 						</plx:passParam>
 					</plx:callThis>
 				</plx:iterator>
@@ -1120,9 +1132,17 @@
 		</plx:branch>
 	</handler>
 	<handler name="RenderForStatement" valueDataType="IForStatement" elementName="loop">
-		<child childProperty="Initializer" childDataType="IStatement" renderChild="RenderStatement" elementName="initializeLoop" allowEmptyElement="false"/>
+		<child childProperty="Initializer" childDataType="IStatement" renderChild="RenderStatement" elementName="initializeLoop" allowEmptyElement="false">
+			<plx:passParam>
+				<plx:trueKeyword/>
+			</plx:passParam>
+		</child>
 		<child childProperty="Condition" childDataType="IExpression" renderChild="RenderExpression" elementName="condition" allowEmptyElement="false"/>
-		<child childProperty="Increment" childDataType="IStatement" renderChild="RenderStatement" elementName="beforeLoop" allowEmptyElement="false"/>
+		<child childProperty="Increment" childDataType="IStatement" renderChild="RenderStatement" elementName="beforeLoop" allowEmptyElement="false">
+			<plx:passParam>
+				<plx:trueKeyword/>
+			</plx:passParam>
+		</child>
 		<child childProperty="Body" childDataType="IBlockStatement" renderChild="RenderBlockStatement"/>
 	</handler>
 	<handler name="RenderForEachStatement" valueDataType="IForEachStatement" elementName="iterator">
@@ -1148,10 +1168,15 @@
 		<attribute name="name" valueProperty="Name"/>
 	</handler>
 	<handler name="RenderLabeledStatement" valueDataType="ILabeledStatement">
+		<plx:param name="topLevel" dataTypeName=".boolean"/>
 		<element name="label">
 			<commonConstruct ref="NameDeclarationAttribute"/>
 		</element>
-		<child childProperty="Statement" childDataType="IStatement" renderChild="RenderStatement"/>
+		<child childProperty="Statement" childDataType="IStatement" renderChild="RenderStatement">
+			<plx:passParam>
+				<plx:nameRef name="topLevel" type="parameter"/>
+			</plx:passParam>
+		</child>
 	</handler>
 	<handler name="RenderLockStatement" valueDataType="ILockStatement" elementName="lock">
 		<child childProperty="Expression" childDataType="IExpression" renderChild="RenderExpression" elementName="initialize"/>
@@ -1239,8 +1264,8 @@
 					<plx:nameRef name="i"/>
 				</plx:increment>
 			</plx:beforeLoop>
-			<plx:callThis name="RenderStatement">
-				<plx:passParam>
+			<plx:local name="currentStatement" dataTypeName="IStatement">
+				<plx:initialize>
 					<plx:callInstance name=".implied" type="indexerCall">
 						<plx:callObject>
 							<plx:nameRef name="statements"/>
@@ -1249,6 +1274,19 @@
 							<plx:nameRef name="i"/>
 						</plx:passParam>
 					</plx:callInstance>
+				</plx:initialize>
+			</plx:local>
+			<plx:callThis name="WriteExampleStatementComment">
+				<plx:passParam>
+					<plx:nameRef name="currentStatement"/>
+				</plx:passParam>
+			</plx:callThis>
+			<plx:callThis name="RenderStatement">
+				<plx:passParam>
+					<plx:nameRef name="currentStatement"/>
+				</plx:passParam>
+				<plx:passParam>
+					<plx:trueKeyword/>
 				</plx:passParam>
 			</plx:callThis>
 		</plx:loop>
@@ -2310,8 +2348,11 @@
 			<attributeCaseMap value="BitwiseNot" attributeValue="bitwiseNot"/>
 			<attributeCaseMap value="BooleanNot" attributeValue="booleanNot"/>
 			<attributeCaseMap value="Negate" attributeValue="negative"/>
-			<attributeCaseMap value="PostIncrement" attributeValue="post"/>
-			<attributeCaseMap value="PostDecrement" attributeValue="post"/>
+			<attributeCaseMap value="PostIncrement PostDecrement" attributeValue="post">
+				<plx:unaryOperator type="booleanNot">
+					<plx:nameRef name="topLevel" type="parameter"/>
+				</plx:unaryOperator>
+			</attributeCaseMap>
 		</attributeSwitchMap>
 		<child childProperty="Expression" childDataType="IExpression" renderChild="RenderExpression"/>
 		<plx:branch>
