@@ -257,12 +257,12 @@
 			<xsl:for-each select="$caller">
 				<xsl:variable name="tagName" select="local-name()"/>
 				<xsl:choose>
-					<xsl:when test="$tagName='cast' or $tagName='binaryOperator' or $tagName='unaryOperator' or $tagName='callNew'">
+					<xsl:when test="$tagName='binaryOperator' or $tagName='unaryOperator' or $tagName='callNew'">
 						<xsl:text>1</xsl:text>
 					</xsl:when>
 					<xsl:when test="$tagName='expression' and not(@parens='true' or @parens='1')">
 						<xsl:variable name="tagName2" select="local-name()"/>
-						<xsl:if test="$tagName2='cast' or $tagName2='binaryOperator' or $tagName2='unaryOperator' or $tagName2='callNew'">
+						<xsl:if test="$tagName2='binaryOperator' or $tagName2='unaryOperator' or $tagName2='callNew'">
 							<xsl:text>1</xsl:text>
 						</xsl:if>
 					</xsl:when>
@@ -461,11 +461,10 @@
 		</xsl:choose>
 	</xsl:template>
 	<xsl:template match="plx:catch">
-		<xsl:text>Catch (</xsl:text>
+		<xsl:text>Catch </xsl:text>
 		<xsl:value-of select="@localName"/>
 		<xsl:text> As </xsl:text>
 		<xsl:call-template name="RenderType"/>
-		<xsl:text>)</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:class">
 		<xsl:param name="Indent"/>
@@ -1054,7 +1053,9 @@
 	<xsl:template match="plx:onAdd">
 		<xsl:text>AddHandler(ByVal Value As </xsl:text>
 		<xsl:for-each select="parent::plx:event/plx:explicitDelegateType">
-			<xsl:call-template name="RenderType"/>
+			<xsl:call-template name="RenderType">
+				<xsl:with-param name="ExplicitPassTypeParams" select="following-sibling::plx:passTypeParam"/>
+			</xsl:call-template>
 		</xsl:for-each>
 		<xsl:text>)</xsl:text>
 	</xsl:template>
@@ -1069,17 +1070,47 @@
 	<xsl:template match="plx:onRemove">
 		<xsl:text>RemoveHandler(ByVal Value As </xsl:text>
 		<xsl:for-each select="parent::plx:event/plx:explicitDelegateType">
-			<xsl:call-template name="RenderType"/>
+			<xsl:call-template name="RenderType">
+				<xsl:with-param name="ExplicitPassTypeParams" select="following-sibling::plx:passTypeParam"/>
+			</xsl:call-template>
 		</xsl:for-each>
 		<xsl:text>)</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:onRemove" mode="IndentInfo">
-		<xsl:call-template name="CustomizeIndentInfo">
-			<xsl:with-param name="defaultInfo">
-				<xsl:apply-imports/>
-			</xsl:with-param>
-			<xsl:with-param name="closeWith" select="'End RemoveHandler'"/>
-		</xsl:call-template>
+		<xsl:choose>
+			<xsl:when test="following-sibling::plx:onFire[1]">
+				<xsl:call-template name="CustomizeIndentInfo">
+					<xsl:with-param name="defaultInfo">
+						<xsl:apply-imports/>
+					</xsl:with-param>
+					<xsl:with-param name="closeWith" select="'End RemoveHandler'"/>
+				</xsl:call-template>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:call-template name="CustomizeIndentInfo">
+					<xsl:with-param name="defaultInfo">
+						<xsl:apply-imports/>
+					</xsl:with-param>
+					<xsl:with-param name="closeBlockCallback" select="true()"/>
+				</xsl:call-template>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+	<xsl:template match="plx:onRemove" mode="CloseBlock">
+		<!-- onAdd and onRemove always appear together, but onFire is optional in the plix schema.
+		     If this is called, then we need to spit a dummy RaiseEvent for VB to compile -->
+		<xsl:param name="Indent"/>
+		<xsl:text>End RemoveHandler</xsl:text>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:text>RaiseEvent</xsl:text>
+		<xsl:for-each select="..">
+			<xsl:call-template name="RenderParams"/>
+		</xsl:for-each>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:text>End RaiseEvent</xsl:text>
+		<xsl:value-of select="$NewLine"/>
 	</xsl:template>
 	<xsl:template match="plx:operatorFunction">
 		<xsl:param name="Indent"/>
@@ -1464,6 +1495,14 @@
 	</xsl:template>
 	<xsl:template match="plx:try">
 		<xsl:text>Try</xsl:text>
+	</xsl:template>
+	<xsl:template match="plx:try" mode="IndentInfo">
+		<xsl:call-template name="CustomizeIndentInfo">
+			<xsl:with-param name="defaultInfo">
+				<xsl:apply-imports/>
+			</xsl:with-param>
+			<xsl:with-param name="closeWith" select="'End Try'"/>
+		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:typeOf">
 		<xsl:text>GetType(</xsl:text>
@@ -1896,6 +1935,7 @@
 	</xsl:template>
 	<xsl:template name="RenderType">
 		<xsl:param name="RenderArray" select="true()"/>
+		<xsl:param name="ExplicitPassTypeParams"/>
 		<xsl:variable name="rawTypeName" select="@dataTypeName"/>
 		<xsl:choose>
 			<xsl:when test="string-length($rawTypeName)">
@@ -2044,7 +2084,16 @@
 				</xsl:choose>
 
 				<!-- Deal with any type parameters -->
-				<xsl:call-template name="RenderPassTypeParams"/>
+				<xsl:choose>
+					<xsl:when test="$ExplicitPassTypeParams">
+						<xsl:call-template name="RenderPassTypeParams">
+							<xsl:with-param name="PassTypeParams" select="$ExplicitPassTypeParams"/>
+						</xsl:call-template>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:call-template name="RenderPassTypeParams"/>
+					</xsl:otherwise>
+				</xsl:choose>
 
 				<xsl:if test="$RenderArray">
 					<!-- Deal with array definitions. The explicit descriptor trumps the @dataTypeIsSimpleArray attribute -->
