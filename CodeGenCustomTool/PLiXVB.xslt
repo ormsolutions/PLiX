@@ -675,6 +675,16 @@
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
+	<xsl:template match="plx:expression">
+		<xsl:variable name="outputParens" select="@parens='true' or @parens='1'"/>
+		<xsl:if test="$outputParens">
+			<xsl:text>(</xsl:text>
+		</xsl:if>
+		<xsl:apply-templates select="child::*"/>
+		<xsl:if test="$outputParens">
+			<xsl:text>)</xsl:text>
+		</xsl:if>
+	</xsl:template>
 	<xsl:template match="plx:fallbackBranch">
 		<xsl:text>Else</xsl:text>
 	</xsl:template>

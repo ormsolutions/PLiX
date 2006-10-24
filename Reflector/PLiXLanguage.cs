@@ -549,19 +549,10 @@ namespace Reflector
 			#region Example Statement Output
 			private sealed class ExampleStatementFormatter : IFormatter
 			{
-				#region WriteLineRequested Exception
-				/// <summary>
-				/// A special exception to throw to break out of rendering an example statement.
-				/// Example statements are limited to a single line.
-				/// </summary>
-				private class WriteLineRequested : Exception
-				{
-					public static readonly WriteLineRequested Singleton = new WriteLineRequested();
-					private WriteLineRequested() { }
-				}
-				#endregion // WriteLineRequested Exception
 				#region Member Variables
 				private IFormatter myInnerFormatter;
+				private int myIndentLevel;
+				private bool myWriteLinePending;
 				#endregion // Member Variables
 				#region Constructor and Singleton
 				private static readonly ExampleStatementFormatter Singleton = new ExampleStatementFormatter();
@@ -572,58 +563,68 @@ namespace Reflector
 				{
 					ExampleStatementFormatter wrappingFormatter = Singleton;
 					wrappingFormatter.myInnerFormatter = formatter;
+					wrappingFormatter.myIndentLevel = 0;
+					wrappingFormatter.myWriteLinePending = false;
 					formatter.WriteLine();
 					formatter.WriteComment("<!-- ");
-					try
-					{
-						statementLanguage.GetWriter(wrappingFormatter, writerConfiguration).WriteStatement(statement);
-					}
-					catch (WriteLineRequested)
-					{
-					}
-					finally
-					{
-						formatter.WriteComment(" -->");
-					}
+					statementLanguage.GetWriter(wrappingFormatter, writerConfiguration).WriteStatement(statement);
+					formatter.WriteComment(" -->");
 				}
 				#endregion // Methods
 				#region IFormatter Implementation
+				private void Write(string value)
+				{
+					if (myIndentLevel == 0)
+					{
+						if (myWriteLinePending)
+						{
+							myWriteLinePending = false;
+							myInnerFormatter.WriteLine();
+						}
+						myInnerFormatter.WriteComment(value);
+					}
+				}
 				void IFormatter.Write(string value)
 				{
-					myInnerFormatter.WriteComment(value);
+					Write(value);
 				}
 				void IFormatter.WriteComment(string value)
 				{
-					myInnerFormatter.WriteComment(value);
+					Write(value);
 				}
 				void IFormatter.WriteDeclaration(string value)
 				{
-					myInnerFormatter.WriteComment(value);
+					Write(value);
 				}
 				void IFormatter.WriteIndent()
 				{
+					++myIndentLevel;
 				}
 				void IFormatter.WriteKeyword(string value)
 				{
-					myInnerFormatter.WriteComment(value);
+					Write(value);
 				}
 				void IFormatter.WriteLine()
 				{
-					throw WriteLineRequested.Singleton;
+					if (myIndentLevel == 0)
+					{
+						myWriteLinePending = true;
+					}
 				}
 				void IFormatter.WriteLiteral(string value)
 				{
-					myInnerFormatter.WriteComment(value);
+					Write(value);
 				}
 				void IFormatter.WriteOutdent()
 				{
+					--myIndentLevel;
 				}
 				void IFormatter.WriteProperty(string name, string value)
 				{
 				}
 				void IFormatter.WriteReference(string value, string description, object target)
 				{
-					myInnerFormatter.WriteComment(value);
+					Write(value);
 				}
 				#endregion // IFormatter Implementation
 			}

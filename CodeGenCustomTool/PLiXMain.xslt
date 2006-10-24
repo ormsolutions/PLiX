@@ -248,6 +248,11 @@
 				</xs:attribute>
 			</xs:complexType>
 		</xs:element>
+		<xs:attribute name="dontClose" type="xs:anySimpleType">
+			<xs:annotation>
+				<xs:documentation>Don't close the current block. Currently used to support leadingInfo and trailingInfo during secondary block inline statement expansion.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
 	</xs:schema>
 
 	<!--
@@ -851,6 +856,7 @@
 				</xsl:variable>
 				<xsl:variable name="closeWithCallback" select="$IndentInfo/@closeBlockCallback"/>
 				<xsl:choose>
+					<xsl:when test="@plxGen:dontClose"/>
 					<xsl:when test="$closeWithCallback='true' or $closeWithCallback='1'">
 						<xsl:choose>
 							<xsl:when test="$isNakedIndent">
@@ -923,6 +929,7 @@
 					</xsl:variable>
 					<xsl:variable name="closeWithCallback" select="$IndentInfo/@closeBlockCallback"/>
 					<xsl:choose>
+						<xsl:when test="@plxGen:dontClose"/>
 						<xsl:when test="$closeWithCallback='true' or $closeWithCallback='1'">
 							<xsl:apply-templates select="." mode="CloseBlock">
 								<xsl:with-param name="Indent" select="$Indent"/>
@@ -1045,6 +1052,9 @@
 						<xsl:choose>
 							<xsl:when test="$inlineExpansions">
 								<xsl:variable name="replacementBlockFragment">
+									<plx:dummy>
+										<xsl:copy-of select="preceding-sibling::*[1]/plx:blockTrailingInfo"/>
+									</plx:dummy>									
 									<xsl:apply-templates select="." mode="BuildInlineSecondaryBlock">
 										<xsl:with-param name="InlineExpansions" select="$inlineExpansions"/>
 										<xsl:with-param name="InlineLocalItemKey" select="$inlineLocalItemKey"/>
@@ -1052,7 +1062,7 @@
 										<xsl:with-param name="SiblingIndex" select="$SiblingIndex"/>
 									</xsl:apply-templates>
 								</xsl:variable>
-								<xsl:for-each select="exsl:node-set($replacementBlockFragment)/child::*">
+								<xsl:for-each select="exsl:node-set($replacementBlockFragment)/child::*[2]">
 									<xsl:variable name="indentInfoModifiedFragment">
 										<xsl:apply-templates select="." mode="IndentInfo"/>
 									</xsl:variable>
@@ -1135,12 +1145,19 @@
 			<xsl:for-each select="exsl:node-set($modifiedElementFragment)/child::*">
 				<plx:branch>
 					<xsl:copy-of select="@*|child::*|text()"/>
+					<xsl:if test="plx:blockTrailingInfo/child::plx:pragma[@type='closeConditional'] and plx:blockLeadingInfo/child::plx:pragma[@type='conditional' or @type='notConditional' or @type='alternateConditional' or @type='alternateNotConditional']">
+						<plx:pragma type="fallbackConditional"/>
+						<plx:branch plxGen:dontClose="">
+							<plx:condition>
+								<plx:falseKeyword/>
+							</plx:condition>
+						</plx:branch>
+					</xsl:if>
 				</plx:branch>
 			</xsl:for-each>
 			<xsl:call-template name="CopySecondaryBlocks">
 				<xsl:with-param name="Siblings" select="$Siblings"/>
 				<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
-				<xsl:with-param name="PreviousTrailingInfo" select="plx:blockTrailingInfo/child::*"/>
 			</xsl:call-template>
 		</plx:fallbackBranch>
 		<!-- UNDONE: Getting leading/trailing info correct will require examination of the
@@ -1150,76 +1167,25 @@
 	<xsl:template name="CopySecondaryBlocks">
 		<xsl:param name="Siblings" select="following-sibling::*"/>
 		<xsl:param name="SiblingIndex" select="1"/>
-		<xsl:param name="PreviousTrailingInfo"/>
 		<xsl:variable name="nextSibling" select="$Siblings[$SiblingIndex]"/>
-		<xsl:choose>
-			<xsl:when test="$nextSibling">
-				<xsl:for-each select="$nextSibling">
-					<xsl:variable name="indentInfoFragment">
-						<xsl:apply-templates select="." mode="IndentInfo"/>
-					</xsl:variable>
-					<xsl:variable name="indentInfo" select="exsl:node-set($indentInfoFragment)/child::*"/>
-					<xsl:variable name="indentStyle" select="string($indentInfo/@style)"/>
-					<xsl:choose>
-						<xsl:when test="$indentStyle='secondaryBlock'">
-							<xsl:choose>
-								<xsl:when test="$PreviousTrailingInfo">
-									<xsl:copy>
-										<xsl:copy-of select="@*"/>
-										<xsl:choose>
-											<xsl:when test="plx:blockLeadingInfo | plx:blockTrailingInfo">
-												<xsl:for-each select="child::*">
-													<xsl:choose>
-														<xsl:when test="self::plx:blockLeadingInfo">
-															<xsl:copy>
-																<xsl:copy-of select="$PreviousTrailingInfo[self::plx:pragma]"/>
-																<xsl:copy-of select="plx:pragma"/>
-																<xsl:copy-of select="$PreviousTrailingInfo[self::plx:comment]"/>
-																<xsl:copy-of select="plx:comment"/>
-															</xsl:copy>
-														</xsl:when>
-														<xsl:when test="self::plx:blockTrailingInfo">
-															<xsl:if test="not(preceding-sibling::plx:blockLeadingInfo[1])">
-																<plx:blockLeadingInfo>
-																	<xsl:copy-of select="$PreviousTrailingInfo"/>
-																</plx:blockLeadingInfo>
-															</xsl:if>
-															<xsl:copy-of select="."/>
-														</xsl:when>
-														<xsl:otherwise>
-															<xsl:copy-of select="."/>
-														</xsl:otherwise>
-													</xsl:choose>
-												</xsl:for-each>
-											</xsl:when>
-											<xsl:otherwise>
-												<plx:blockLeadingInfo>
-													<xsl:copy-of select="$PreviousTrailingInfo"/>
-												</plx:blockLeadingInfo>
-												<xsl:copy-of select="*"/>
-											</xsl:otherwise>
-										</xsl:choose>
-									</xsl:copy>
-								</xsl:when>
-								<xsl:otherwise>
-									<xsl:copy-of select="."/>
-								</xsl:otherwise>
-							</xsl:choose>
-							<xsl:call-template name="CopySecondaryBlocks">
-								<xsl:with-param name="Siblings" select="$Siblings"/>
-								<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
-							</xsl:call-template>
-						</xsl:when>
-						<xsl:when test="$PreviousTrailingInfo">
-							<xsl:copy-of select="$PreviousTrailingInfo"/>
-						</xsl:when>
-					</xsl:choose>
-				</xsl:for-each>
-			</xsl:when>
-			<xsl:otherwise>
-				<xsl:copy-of select="$PreviousTrailingInfo"/>
-			</xsl:otherwise>
-		</xsl:choose>
+		<xsl:if test="$nextSibling">
+			<xsl:for-each select="$nextSibling">
+				<xsl:variable name="indentInfoFragment">
+					<xsl:apply-templates select="." mode="IndentInfo"/>
+				</xsl:variable>
+				<xsl:variable name="indentInfo" select="exsl:node-set($indentInfoFragment)/child::*"/>
+				<xsl:variable name="indentStyle" select="string($indentInfo/@style)"/>
+				<xsl:choose>
+					<xsl:when test="$indentStyle='secondaryBlock'">
+						<xsl:copy-of select="."/>
+						<xsl:call-template name="CopySecondaryBlocks">
+							<xsl:with-param name="Siblings" select="$Siblings"/>
+							<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
+						</xsl:call-template>
+					</xsl:when>
+				</xsl:choose>
+			</xsl:for-each>
+		</xsl:if>
 	</xsl:template>
 	<!--
 	*********************************************************
