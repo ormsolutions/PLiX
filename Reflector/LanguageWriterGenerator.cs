@@ -156,6 +156,10 @@ namespace Reflector
 						}
 						foreach (IMethodDeclaration MethodsItem in value.Methods)
 						{
+							if (MethodsItem.SpecialName && !(MethodsItem.RuntimeSpecialName))
+							{
+								continue;
+							}
 							this.Render(MethodsItem, isInterface);
 						}
 						foreach (IPropertyDeclaration PropertiesItem in value.Properties)
@@ -436,7 +440,17 @@ namespace Reflector
 			{
 				string elementName = "function";
 				this.WriteElement(elementName);
-				this.WriteAttribute("name", value.Name, true, false);
+				IConstructorDeclaration constructorDeclaration = value as IConstructorDeclaration;
+				string methodName = value.Name;
+				if ((constructorDeclaration != null) || (value.RuntimeSpecialName && ((methodName == ".ctor") || (methodName == ".cctor"))))
+				{
+					methodName = ".construct";
+				}
+				else if (methodName == "Finalize")
+				{
+					methodName = ".finalize";
+				}
+				this.WriteAttribute("name", methodName, true, false);
 				if (!(isInterfaceMember))
 				{
 					this.RenderMethodVisibilityAttribute(value);
@@ -486,6 +500,20 @@ namespace Reflector
 				this.WriteEndElement();
 				if (this.myCurrentMethodBody != null)
 				{
+					if (constructorDeclaration != null)
+					{
+						IMethodInvokeExpression initializer = constructorDeclaration.Initializer;
+						IMethodReferenceExpression initializerMethod = initializer.Method as IMethodReferenceExpression;
+						if (!(((initializerMethod != null) && (initializerMethod.Target is IBaseReferenceExpression)) && (initializer.Arguments.Count == 0)))
+						{
+							if (initializer != null)
+							{
+								this.WriteElementDelayed("intializer");
+								this.RenderMethodInvokeExpression(initializer);
+								this.WriteEndElement();
+							}
+						}
+					}
 					IBlockStatement BodyChild = value.Body as IBlockStatement;
 					if (BodyChild != null)
 					{
@@ -2431,6 +2459,10 @@ namespace Reflector
 				else
 				{
 					memberName = member.Name;
+					if ((thisCall || baseCall) && (memberName == ".ctor"))
+					{
+						memberName = ".implied";
+					}
 				}
 				this.WriteAttribute("name", memberName);
 				if (isDelegateInvoke)

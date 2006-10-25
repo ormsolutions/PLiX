@@ -232,6 +232,29 @@
 					<plx:passParam>
 						<plx:nameRef name="isInterface"/>
 					</plx:passParam>
+					<plx:branch>
+						<plx:condition>
+							<plx:binaryOperator type="booleanAnd">
+								<plx:left>
+									<plx:callInstance name="SpecialName" type="property">
+										<plx:callObject>
+											<plx:nameRef name="MethodsItem"/>
+										</plx:callObject>
+									</plx:callInstance>
+								</plx:left>
+								<plx:right>
+									<plx:unaryOperator type="booleanNot">
+										<plx:callInstance name="RuntimeSpecialName" type="property">
+											<plx:callObject>
+												<plx:nameRef name="MethodsItem"/>
+											</plx:callObject>
+										</plx:callInstance>
+									</plx:unaryOperator>
+								</plx:right>
+							</plx:binaryOperator>
+						</plx:condition>
+						<plx:continue/>
+					</plx:branch>
 				</collection>
 				<collection collectionProperty="Properties" itemDataType="IPropertyDeclaration" renderItem="Render">
 					<plx:passParam>
@@ -599,7 +622,88 @@
 	</handler>
 	<handler name="Render" valueDataType="IMethodDeclaration" elementName="function">
 		<plx:param name="isInterfaceMember" dataTypeName=".boolean"/>
-		<commonConstruct ref="NameDeclarationAttribute"/>
+		<local name="constructorDeclaration" type="IConstructorDeclaration" testCast="true"/>
+		<local name="methodName" type=".string" property="Name"/>
+		<plx:branch>
+			<plx:condition>
+				<plx:binaryOperator type="booleanOr">
+					<plx:left>
+						<plx:binaryOperator type="identityInequality">
+							<plx:left>
+								<plx:nameRef name="constructorDeclaration"/>
+							</plx:left>
+							<plx:right>
+								<plx:nullKeyword/>
+							</plx:right>
+						</plx:binaryOperator>
+					</plx:left>
+					<plx:right>
+						<plx:binaryOperator type="booleanAnd">
+							<plx:left>
+								<plx:callInstance name="RuntimeSpecialName" type="property">
+									<plx:callObject>
+										<plx:nameRef name="value" type="parameter"/>
+									</plx:callObject>
+								</plx:callInstance>
+							</plx:left>
+							<plx:right>
+								<plx:binaryOperator type="booleanOr">
+									<plx:left>
+										<plx:binaryOperator type="equality">
+											<plx:left>
+												<plx:nameRef name="methodName"/>
+											</plx:left>
+											<plx:right>
+												<plx:string>.ctor</plx:string>
+											</plx:right>
+										</plx:binaryOperator>
+									</plx:left>
+									<plx:right>
+										<plx:binaryOperator type="equality">
+											<plx:left>
+												<plx:nameRef name="methodName"/>
+											</plx:left>
+											<plx:right>
+												<plx:string>.cctor</plx:string>
+											</plx:right>
+										</plx:binaryOperator>
+									</plx:right>
+								</plx:binaryOperator>
+							</plx:right>
+						</plx:binaryOperator>
+					</plx:right>
+				</plx:binaryOperator>
+			</plx:condition>
+			<plx:assign>
+				<plx:left>
+					<plx:nameRef name="methodName"/>
+				</plx:left>
+				<plx:right>
+					<plx:string>.construct</plx:string>
+				</plx:right>
+			</plx:assign>
+		</plx:branch>
+		<plx:alternateBranch>
+			<plx:condition>
+				<plx:binaryOperator type="equality">
+					<plx:left>
+						<plx:nameRef name="methodName"/>
+					</plx:left>
+					<plx:right>
+						<plx:string>Finalize</plx:string>
+					</plx:right>
+				</plx:binaryOperator>
+			</plx:condition>
+			<plx:assign>
+				<plx:left>
+					<plx:nameRef name="methodName"/>
+				</plx:left>
+				<plx:right>
+					<plx:string>.finalize</plx:string>
+				</plx:right>
+			</plx:assign>
+		</plx:alternateBranch>
+		<attribute name="name" localName="methodName" emphasis="declaration"/>
 		<plx:branch>
 			<plx:condition>
 				<plx:unaryOperator type="booleanNot">
@@ -643,6 +747,75 @@
 					</plx:right>
 				</plx:binaryOperator>
 			</plx:condition>
+			<plx:branch>
+				<plx:condition>
+					<plx:binaryOperator type="identityInequality">
+						<plx:left>
+							<plx:nameRef name="constructorDeclaration"/>
+						</plx:left>
+						<plx:right>
+							<plx:nullKeyword/>
+						</plx:right>
+					</plx:binaryOperator>
+				</plx:condition>
+				<local name="initializer" type="IMethodInvokeExpression" property="Initializer" propertyOf="constructorDeclaration"/>
+				<local name="initializerMethod" type="IMethodReferenceExpression" property="Method" propertyOf="initializer" testCast="true"/>
+				<plx:branch>
+					<plx:condition>
+						<plx:unaryOperator type="booleanNot">
+							<plx:binaryOperator type="booleanAnd">
+								<plx:left>
+									<plx:binaryOperator type="booleanAnd">
+										<plx:left>
+											<plx:binaryOperator type="identityInequality">
+												<plx:left>
+													<plx:nameRef name="initializerMethod"/>
+												</plx:left>
+												<plx:right>
+													<plx:nullKeyword/>
+												</plx:right>
+											</plx:binaryOperator>
+										</plx:left>
+										<plx:right>
+											<plx:binaryOperator type="typeEquality">
+												<plx:left>
+													<plx:callInstance name="Target" type="property">
+														<plx:callObject>
+															<plx:nameRef name="initializerMethod"/>
+														</plx:callObject>
+													</plx:callInstance>
+												</plx:left>
+												<plx:right>
+													<plx:directTypeReference dataTypeName="IBaseReferenceExpression"/>
+												</plx:right>
+											</plx:binaryOperator>
+										</plx:right>
+									</plx:binaryOperator>
+								</plx:left>
+								<plx:right>
+									<plx:binaryOperator type="equality">
+										<plx:left>
+											<plx:callInstance name="Count" type="property">
+												<plx:callObject>
+													<plx:callInstance name="Arguments" type="property">
+														<plx:callObject>
+															<plx:nameRef name="initializer"/>
+														</plx:callObject>
+													</plx:callInstance>
+												</plx:callObject>
+											</plx:callInstance>
+										</plx:left>
+										<plx:right>
+											<plx:value data="0" type="i4"/>
+										</plx:right>
+									</plx:binaryOperator>
+								</plx:right>
+							</plx:binaryOperator>
+						</plx:unaryOperator>
+					</plx:condition>
+					<defer localName="initializer" deferRender="RenderMethodInvokeExpression" elementName="intializer" allowEmptyElement="false"/>
+				</plx:branch>
+			</plx:branch>
 			<child childProperty="Body" childDataType="IBlockStatement" renderChild="RenderBlockStatement" testCast="true"/>
 		</plx:branch>
 	</handler>
@@ -2039,6 +2212,40 @@
 					</plx:callInstance>
 				</plx:right>
 			</plx:assign>
+			<plx:branch>
+				<plx:condition>
+					<plx:binaryOperator type="booleanAnd">
+						<plx:left>
+							<plx:binaryOperator type="booleanOr">
+								<plx:left>
+									<plx:nameRef name="thisCall"/>
+								</plx:left>
+								<plx:right>
+									<plx:nameRef name="baseCall"/>
+								</plx:right>
+							</plx:binaryOperator>
+						</plx:left>
+						<plx:right>
+							<plx:binaryOperator type="equality">
+								<plx:left>
+									<plx:nameRef name="memberName"/>
+								</plx:left>
+								<plx:right>
+									<plx:string>.ctor</plx:string>
+								</plx:right>
+							</plx:binaryOperator>
+						</plx:right>
+					</plx:binaryOperator>
+				</plx:condition>
+				<plx:assign>
+					<plx:left>
+						<plx:nameRef name="memberName"/>
+					</plx:left>
+					<plx:right>
+						<plx:string>.implied</plx:string>
+					</plx:right>
+				</plx:assign>
+			</plx:branch>
 		</plx:fallbackBranch>
 		<attribute name="name">
 			<plx:nameRef name="memberName"/>
