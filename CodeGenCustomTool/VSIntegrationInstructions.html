@@ -1,0 +1,105 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<head>
+    <title>NUPlixLoader Custom Tool</title>
+</head>
+<body>
+<div>
+<h2>PLiX in Visual Studio (C# and Visual Basic Projects)</h2>
+The PLiX code generation system requires several steps.
+<ol>
+<li>Generate PLiX XML representing your code. This is most easily done by writing it in another language and using the Reflector tool to copy out the equivalent PLiX. The provided PLiX.xsd file facilitates making PLiX modifications in the XML editor.</li>
+<li>Create a data file with XML data representing the replacement fields for your code. You may also want to schematize your XML format to make it easier to maintain and enter. Note that PLiX does not use a validating loader for your file formats: The schema is for your own use.</li>
+<li>Create an .xslt transform file that takes your data file (from step #2) as input and produces a PLiX XML file as output. You can use PLiX XML copied out of the Reflector tool to enter the bulk of your PLiX XML.</li>
+<li>Run the transform from step #3 against the data from step #2.</li>
+<li>Render the PLiX XML resulting from step #4 into your target language using one of the registered PLiX language formatters.</li>
+</ol>
+The <strong>NUPlixLoader</strong> custom tool included with your PLiX installation automates steps #4 and #5.<br/><br />
+To activate the NUPlixLoader custom tool:
+<ol>
+<li>Add your XML data file to a Visual Basic or C# project.</li>
+<li>Select the file in the <em>Solution Explorer</em> window and open the <em>Properties</em> window.</li>
+<li>Set the <em>CustomTool</em> property to NUPlixLoader.</li>
+<li>Your code file will now generate automatically when you:
+<ul>
+<li>Save the XML data file.</li>
+<li>Dirty the XML data file and activate any other document in Visual Studio. Note: if the XML file is dirty because of one or more Undo operations then the file will not regenerate on deactivation. This is a known Visual Studio bug.</li>
+<li>Explicitly run the custom tool by opening the Solution Explorer context menu for the data file and choosing <em>Run Custom Tool</em></li>
+</ul>
+</li>
+<li>The generated code file appears in the Solution Explorer as a child of the data file. If you do not see a + expansion beside your data file, then toggle on the <em>Show All Files</em> option on the Solution Explorer toolbar.</li>
+</ol>
+<h3>Transform Association</h3>
+Your XML data file is of little use without an associated transform file to transform your data file into PLiX XML. A <em>Transform file not found</em> comment and <em>#error NUPlixLoader Exception</em> line are written to your output file if a transform is not associated with your file.<br /><br />
+NUPlixLoader will test three conditions to get PLiX XML it can generate from.
+<ol>
+<li>Look for an association between the data file and a transform in the PLiX.xml file in the project's root directory. See <a href="#UsingPLiXdotXML"><em>Using PLiX.xml</em></a> for more information.</li>
+<li>Look for a transform file with the same base file name as the data file. The transform file should have an .XSLT or .XSL extension. A <em>Sample.xslt</em> file in the same directory as <em>Sample.xml</em> would be used as the transform file. The transform file does not need to be in the project, but it is usually easier to manage if it is explicitly included.</li>
+<li>Test if the XML file is already PLiX XML. This option is useful for testing PLiX snippets. The PLiX formatters support rendering any PLiX element, so you can easily see the output of any snippet. For example, the trivial &lt;plx:trueKeyword xmlns:plx="http://schemas.neumont.edu/CodeGeneration/PLiX"/&gt; is a valid root element for PLiX document. Most generated PLiX documents use plx:root as the root element.</li>
+</ol>
+If your transform does not produce valid PLiX XML, then your code file will contain a commented dump of an XML exception message and stack trace, along with an #error NUPlixLoader Exception line. Refer to <a href="#DebuggingTechniques">debugging techniques</a> for tips on how to determine the problem.<br /><br />
+NUPlixLoader does not automatically regenerate when the transform file is saved or changed, and only used the saved file contents. This behavior is meant to allow you to switch your active editor back and forth between your generated code and your generation transform without forcing an immediate regeneration.
+<h3>Generating Multiple Code Files</h3>
+The value entered for the CustomTool property is associated with a generator class that implements the <em>IVs<strong>SingleFile</strong>Generator</em> interface. This interface lives up to its name. It is much more difficult to generate multiple files than a single file. Given this architectural design, and the tight relationship between the name of the data file and the name of the transform to run, each NUPlixLoader-associated XML files generates a single code file. If you need to generate more than one code file from a single source you must use <em>PLiX Redirection</em>.<br /><br />
+To use PLiX Redirection, you create a single XML file that specifies a relative path from the directory of the redirection file to the actual source file. You must target the actual source file, not another redirection file. <em>&ltredirectSourceFile target="MainSourceFile.xml" xmlns="http://schemas.neumont.edu/CodeGeneration/PLiXRedirect"/&gt;</em> is an example of a PLiX redirection XML file.<br /><br />
+After creating your redirection file, you can set the CustomTool property to NUPlixLoader just as you would with a normal data file. All transform settings are based on the name of the redirection file, while all data is provided by the targeted source file. If the targeted source file also has NUPlixLoader as its CustomTool, then any action that causes regeneration of the targeted file will also force the redirection file to regenerate.
+<h3>Automatic Parameter Bindings</h3>
+NUPlixLoader automatically provides four input parameters to your transform file. You can optionally use any of these values by placing an xsl:param with the same name at the top of your transform.
+<ul>
+<li><strong>CustomToolNamespace</strong> is the value provided in the <em>Custom Tool Namespace</em> property that is adjacent to the Custom Tool property. Any changes to this property will immediately regenerated the file. The project system will automatically generate a value here if it is not specified. Generally, the value will be the default project namespace with a .DIRECTORYNAME appended to it for each directory between the project root and the generated file.</li>
+<li><strong>ProjectNamespace</strong> is the project default namespace set as part of the project options. If this value is not set, then this will have the same value as CustomToolNamespace.</li>
+<li><strong>ProjectPath</strong> is the directory for the current project, including a trailing \</li>
+<li><strong>SourceFile</strong> is the file name for the input data file currently transform. This value is given relative to the ProjectPath.</li>
+</ul>
+A typical starting point for an transform file that leverages the CustomToolNamespace property is shown here.
+<pre>
+&lt;?xml version="1.0" encoding="UTF-8" ?&gt;
+&lt;xsl:stylesheet version="1.0"
+	xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+	xmlns:plx="http://schemas.neumont.edu/CodeGeneration/PLiX"&gt;
+	&lt;xsl:param name="CustomToolNamespace" select="'TestNamespace'"/&gt;
+	&lt;xsl:template match="/"&gt;
+		&lt;plx:root&gt;
+			&lt;plx:namespace name="{$CustomToolNamespace}"&gt;
+				&lt;xsl:apply-templates select="*"/&gt;
+			&lt;/plx:namespace&gt;
+		&lt;/plx:root&gt;
+	&lt;/xsl:template&gt;
+&lt;/xsl:stylesheet&gt;
+</pre>
+<h3>Document Resolution</h3>
+XSL transforms require document resolution in two different areas. First, the files specified in the xsl:include and xsl:import files need to resolve correctly. Second, the xpath document function needs to correctly resolve its file. NUPlixLoader resolves include and import files relative to the transform file directory, and any document function requested relative to the source file directory. This lets you put your transforms and data files in separate directories and still seamlessly load all referenced files.
+<h3 id="UsingPLiXdotXML">Using the PLiX.xml Settings File</h3>
+Associating a transform file with a data file is easy (just provide transform file with the same base name). However, this simple mechanism does not allow you to use the same transform against multiple data files or specify additional parameters for the transform. These advanced capabilities are enabled by putting a PLiX.xml file in the root directory of your project. The PLiX.xml file must have a root element called <em>sourceFiles</em> bound to the <em>http://schemas.neumont.edu/CodeGeneration/PLiXLoader</em> namespace. The schema for this namespace (in PLiXLoader.xsd) will be installed with Visual Studio, so you get full IntelliSense support editing this file in the XML Editor. An HTML view of the PLiXLoader file is also provided alongside this document.<br /><br />
+Inside the sourceFiles element, you can provide a sourceFile element for each NUPlixLoader source file you wish to modify. The source file is specified using the sourceFile/@file, which takes a value relative to the project root directory.
+The PLiXLoader settings allow you to perform five customizations to the NUPlixLoader behavior.
+<ul>
+<li><strong>Associate any transform</strong> to run against your data file using the sourceFile/@transformFile attribute.</li>
+<li><strong>Provide additional parameters</strong> to your transform using one or more sourceFile/transformParameter element.</li>
+<li><strong>Add extension functions</strong> to the set of functions available to your xslt using the sourceFile/extensionClass element.</li>
+<li><strong>Add required references</strong> to the project using the sourceFile/projectReference element.</li>
+<li><strong>Provide live generation</strong> for documents loaded in a designer that does not provide a live text document using the sourceFile/@liveDocumentObject attribute. This is a very advanced feature that requires custom support from the VS editor. If a source file serializes as xml but does not have an in-memory xml representation (such as any DSLTools-based designer), then this property is required for live generation. Otherwise, regeneration will occur when the document is saved.</li>
+</ul>
+<h3 id="DebuggingTechniques">Debugging Techniques</h3>
+Visual Studio 2005 has an integrated XSLT debugger. Once you get used to a couple of quirks and learn patience on large files you will find that you can easily track issue from a failed NUPlixLoader generation back to root of the problem.<br /><br />
+The actual PLiX XML that is formatted into your code is not saved to disk by NUPlixLoader. While other errors are possible (an uncompilable transform, for example), most errors working with PLiX come from generating a file that does not pass PLiX schema validation. You can easily regenerate the intermediate XML file as follows:
+<ol>
+<li>Open the transform file in a Visual Studio editor.</li>
+<li>Click in the editor (make sure the editor, not the Solution Explorer is active) and open the Properties window (F4 is the standard Properties window shortcut).</li>
+<li>Set the Input property to your source file.</li>
+<li>Optionally set the Output property (INPUTFILE.PLiX.xml works well), or leave the default to write to a file in the temp directory</li>
+<li>Click back in the editor to get the XML menu and run XML/Show XSLT Output (Alt+X,X)</li>
+<li>If the document has long lines, you can reformat it using Edit/Advanced/Format Document (Ctrl+K,Ctrl+D)</li>
+<li>Scan the file for squiggles or View/Error List (Ctrl+\,Ctrl+E) to see the same schema violations that were caught by NUPlixLoader.</li>
+</ol>
+If the bug in your transform is not obvious and you need to debug, put a breakpoint in the xslt file and choose XML/Debug XSLT (Alt+X,D) to launch your debugging session. The following are miscellaneous debugging tips that might be useful:
+<ul>
+<li>The Locals window (Debug/Windows/Locals) automatically shows your current document context and any variables that are in scope.</li>
+<li>Entering a variable reference ($MyVar) in the watch window always fails. Refer to the Locals window if you want to see these.</li>
+<li>Watching a single attribute value (@name, etc) often fails. If you find that @* succeeds and expands to show the name attribute but @name fails with the same context, then use the @*[local-name()='name'] expression in place of @name.</li>
+<li>Conditional breakpoints work well in the XSLT debugger. Make sure your conditional expressions work correctly in the watch window before using them conditionally.</li>
+<li>Before debugging you may need to edit your transform to provide default parameters (you won't have NUPlixLoader sending them in automatically). Make sure you put string values in the appropriate quotes (&lt;xsl:param name="CustomToolNamespace" select="TestNamespace"/&gt; places an empty set in CustomToolNamespace unless TestNamespace is the root element of your document, &lt;xsl:param name="CustomToolNamespace" select="'TestNamespace'"/&gt; works as expected).</li>
+</ul>
+</div>
+</body>
+</html>

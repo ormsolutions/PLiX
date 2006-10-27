@@ -218,7 +218,7 @@
 	</xs:attributeGroup>
 	<xs:simpleType name="classModifierValues">
 		<xs:annotation>
-			<xs:documentation>A list of mutually exclusive class modifiers.</xs:documentation>
+			<xs:documentation>Values for mutually exclusive class modifiers.</xs:documentation>
 		</xs:annotation>
 		<xs:restriction base="xs:token">
 			<xs:enumeration value="none">
@@ -273,55 +273,7 @@
 			<xs:documentation>All attributes for the enum element.</xs:documentation>
 		</xs:annotation>
 		<xs:attributeGroup ref="memberAttributes"/>
-		<xs:attribute name="elementType" default="i4">
-			<xs:annotation>
-				<xs:documentation>The base type for this enumeration. Includes all integer types. Defaults to i4.</xs:documentation>
-			</xs:annotation>
-			<xs:simpleType>
-				<xs:restriction base="xs:token">
-					<xs:enumeration value="i1">
-						<xs:annotation>
-							<xs:documentation>Signed byte (System.SByte)</xs:documentation>
-						</xs:annotation>
-					</xs:enumeration>
-					<xs:enumeration value="i2">
-						<xs:annotation>
-							<xs:documentation>Signed short integer (System.Int16)</xs:documentation>
-						</xs:annotation>
-					</xs:enumeration>
-					<xs:enumeration value="i4">
-						<xs:annotation>
-							<xs:documentation>Signed integer (System.Int32). The default element type.</xs:documentation>
-						</xs:annotation>
-					</xs:enumeration>
-					<xs:enumeration value="i8">
-						<xs:annotation>
-							<xs:documentation>Signed long integer (System.Int64)</xs:documentation>
-						</xs:annotation>
-					</xs:enumeration>
-					<xs:enumeration value="u1">
-						<xs:annotation>
-							<xs:documentation>Unsigned byte (System.Byte)</xs:documentation>
-						</xs:annotation>
-					</xs:enumeration>
-					<xs:enumeration value="u2">
-						<xs:annotation>
-							<xs:documentation>Unsigned short integer (System.UInt16)</xs:documentation>
-						</xs:annotation>
-					</xs:enumeration>
-					<xs:enumeration value="u4">
-						<xs:annotation>
-							<xs:documentation>Unsigned integer (System.UInt32).</xs:documentation>
-						</xs:annotation>
-					</xs:enumeration>
-					<xs:enumeration value="u8">
-						<xs:annotation>
-							<xs:documentation>Unsigned long integer (System.UInt64)</xs:documentation>
-						</xs:annotation>
-					</xs:enumeration>
-				</xs:restriction>
-			</xs:simpleType>
-		</xs:attribute>
+		<xs:attribute name="elementType" default="i4" type="enumItemElementTypeValues"/>
 	</xs:attributeGroup>
 	<xs:group name="memberElements">
 		<xs:sequence>
@@ -569,92 +521,99 @@
 	</xs:complexType>
 
 	<!-- Data type definitions -->
-	<xs:simpleType name="intrinsicDataTypeValues">
+	<xs:simpleType name="dataTypeNameType">
 		<xs:annotation>
-			<xs:documentation>A list of intrinsic data types. Use as a dataTypeName to get an intrinsic type.</xs:documentation>
+			<xs:documentation>A simple name, or one of the intrinsic type values.</xs:documentation>
 		</xs:annotation>
-		<xs:restriction base="xs:token">
-			<xs:enumeration value=".boolean">
+		<xs:union memberTypes="simpleNameType">
+			<xs:simpleType>
 				<xs:annotation>
-					<xs:documentation>A boolean value</xs:documentation>
+					<xs:documentation>Values for intrinsic data types. Use as a dataTypeName to get an intrinsic type.</xs:documentation>
 				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".char">
-				<xs:annotation>
-					<xs:documentation>A single character (char)</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".date">
-				<xs:annotation>
-					<xs:documentation>A date value</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".decimal">
-				<xs:annotation>
-					<xs:documentation>A floating decimal point integer value</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".i1">
-				<xs:annotation>
-					<xs:documentation>A signed 8-bit integer value (signed byte)</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".i2">
-				<xs:annotation>
-					<xs:documentation>A signed 16-bit integer value (short)</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".i4">
-				<xs:annotation>
-					<xs:documentation>A signed 32-bit integer value (int)</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".i8">
-				<xs:annotation>
-					<xs:documentation>A signed 64-bit integer value (long)</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".object">
-				<xs:annotation>
-					<xs:documentation>An object type</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".r4">
-				<xs:annotation>
-					<xs:documentation>A 4-byte floating point number (float)</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".r8">
-				<xs:annotation>
-					<xs:documentation>An 8-byte floating point number (double)</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".string">
-				<xs:annotation>
-					<xs:documentation>A string value</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".u1">
-				<xs:annotation>
-					<xs:documentation>An unsigned 8-bit integer value (byte)</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".u2">
-				<xs:annotation>
-					<xs:documentation>An unsigned 16-bit integer value (ushort)</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".u4">
-				<xs:annotation>
-					<xs:documentation>An unsigned 32-bit integer value (uint)</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".u8">
-				<xs:annotation>
-					<xs:documentation>An unsigned 64-bit integer value (ulong)</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-		</xs:restriction>
+				<xs:restriction base="xs:token">
+					<xs:enumeration value=".boolean">
+						<xs:annotation>
+							<xs:documentation>A boolean value</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".char">
+						<xs:annotation>
+							<xs:documentation>A single character (char)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".date">
+						<xs:annotation>
+							<xs:documentation>A date value</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".decimal">
+						<xs:annotation>
+							<xs:documentation>A floating decimal point integer value</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".i1">
+						<xs:annotation>
+							<xs:documentation>A signed 8-bit integer value (signed byte)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".i2">
+						<xs:annotation>
+							<xs:documentation>A signed 16-bit integer value (short)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".i4">
+						<xs:annotation>
+							<xs:documentation>A signed 32-bit integer value (int)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".i8">
+						<xs:annotation>
+							<xs:documentation>A signed 64-bit integer value (long)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".object">
+						<xs:annotation>
+							<xs:documentation>An object type</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".r4">
+						<xs:annotation>
+							<xs:documentation>A 4-byte floating point number (float)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".r8">
+						<xs:annotation>
+							<xs:documentation>An 8-byte floating point number (double)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".string">
+						<xs:annotation>
+							<xs:documentation>A string value</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".u1">
+						<xs:annotation>
+							<xs:documentation>An unsigned 8-bit integer value (byte)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".u2">
+						<xs:annotation>
+							<xs:documentation>An unsigned 16-bit integer value (ushort)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".u4">
+						<xs:annotation>
+							<xs:documentation>An unsigned 32-bit integer value (uint)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".u8">
+						<xs:annotation>
+							<xs:documentation>An unsigned 64-bit integer value (ulong)</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:union>
 	</xs:simpleType>
 	<xs:complexType name="simpleTypeRefType" abstract="true">
 		<xs:annotation>
@@ -665,14 +624,7 @@
 				 as expressions. There are other uses as well (field, attribute), but these are less
 				 common than the expression uses and will be handled separately. -->
 			<xs:extension base="expressionElementType">
-				<xs:attribute name="dataTypeName" use="required">
-					<xs:simpleType>
-						<xs:annotation>
-							<xs:documentation>A simple name, or one of the intrinsic type values.</xs:documentation>
-						</xs:annotation>
-						<xs:union memberTypes="simpleNameType intrinsicDataTypeValues"/>
-					</xs:simpleType>
-				</xs:attribute>
+				<xs:attribute name="dataTypeName" use="required" type="dataTypeNameType"/>
 				<xs:attribute name="dataTypeQualifier" type="qualifierNameType" use="optional">
 					<xs:annotation>
 						<xs:documentation>Ignored if an intrinsic type or parametrizedDataTypeQualifier is specified.</xs:documentation>
@@ -907,19 +859,20 @@
 		<xs:annotation>
 			<xs:documentation>The different types of elements that can be referenced through a callInstance element.</xs:documentation>
 		</xs:annotation>
-		<xs:union memberTypes="callTypeArrayValues callTypeNonArrayValues"/>
-	</xs:simpleType>
-	<xs:simpleType name="callTypeArrayValues">
-		<xs:annotation>
-			<xs:documentation>The different types of calls that can be made against an array.</xs:documentation>
-		</xs:annotation>
-		<xs:restriction base="xs:token">
-			<xs:enumeration value="arrayIndexer">
+		<xs:union memberTypes="callTypeNonArrayValues">
+			<xs:simpleType>
 				<xs:annotation>
-					<xs:documentation>Index an array.</xs:documentation>
+					<xs:documentation>The different types of calls that can be made against an array.</xs:documentation>
 				</xs:annotation>
-			</xs:enumeration>
-		</xs:restriction>
+				<xs:restriction base="xs:token">
+					<xs:enumeration value="arrayIndexer">
+						<xs:annotation>
+							<xs:documentation>Index an array.</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:union>
 	</xs:simpleType>
 	<xs:simpleType name="callTypeNonArrayValues">
 		<xs:annotation>
@@ -1017,20 +970,21 @@
 			</xs:enumeration>
 		</xs:restriction>
 	</xs:simpleType>
-	<xs:simpleType name="specialCallNameValues">
-		<xs:restriction base="xs:token">
-			<xs:enumeration value=".implied">
-				<xs:annotation>
-					<xs:documentation>The name of the call is implied by the call type. Used with indexer and arrayIndexer call types.</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-		</xs:restriction>
-	</xs:simpleType>
 	<xs:simpleType name="callNameType">
 		<xs:annotation>
 			<xs:documentation>The name of the a call. Can be the special .implied value if the name is implied by the type of the call.</xs:documentation>
 		</xs:annotation>
-		<xs:union memberTypes="simpleNameType specialCallNameValues"/>
+		<xs:union memberTypes="simpleNameType">
+			<xs:simpleType>
+				<xs:restriction base="xs:token">
+					<xs:enumeration value=".implied">
+						<xs:annotation>
+							<xs:documentation>The name of the call is implied by the call type. Used with indexer and arrayIndexer call types.</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:union>
 	</xs:simpleType>
 	<xs:element name="callInstance" type="callInstanceType" substitutionGroup="expressionElement"/>
 	<xs:complexType name="callInstanceType">
@@ -1241,7 +1195,7 @@
 	</xs:group>
 	<xs:group name="blockContents">
 		<xs:annotation>
-			<xs:documentation>A list of elements that can be top-level statements.</xs:documentation>
+			<xs:documentation>A group of elements that can be top-level statements.</xs:documentation>
 		</xs:annotation>
 		<xs:choice>
 			<xs:group ref="callExpressions"/>
@@ -1259,7 +1213,7 @@
 	</xs:group>
 	<xs:simpleType name="vtableModifierValues">
 		<xs:annotation>
-			<xs:documentation>A list of mutually exclusive vtable modification settings for functions, properties, and events</xs:documentation>
+			<xs:documentation>Values for mutually exclusive vtable modification settings for functions, properties, and events</xs:documentation>
 		</xs:annotation>
 		<xs:restriction base="xs:token">
 			<xs:enumeration value="none">
@@ -1338,23 +1292,6 @@
 			</xs:choice>
 		</xs:sequence>
 	</xs:group>
-	<xs:simpleType name="specialFunctionNameValues">
-		<xs:annotation>
-			<xs:documentation>Special names for functions.</xs:documentation>
-		</xs:annotation>
-		<xs:restriction base="xs:token">
-			<xs:enumeration value=".construct">
-				<xs:annotation>
-					<xs:documentation>The function acts as a constructor. The function name depends on the output language.</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-			<xs:enumeration value=".finalize">
-				<xs:annotation>
-					<xs:documentation>The function acts as a finalizer. The function name depends on the output language.</xs:documentation>
-				</xs:annotation>
-			</xs:enumeration>
-		</xs:restriction>
-	</xs:simpleType>
 	<xs:simpleType name="paramTypeDeclarationValues">
 		<xs:annotation>
 			<xs:documentation>Additional values used for parameter declaration that are not used for parameter passing.</xs:documentation>
@@ -1416,14 +1353,7 @@
 				</xs:sequence>
 				<xs:attributeGroup ref="universalMemberAttributes"/>
 				<xs:attributeGroup ref="procedureAttributes"/>
-				<xs:attribute name="name" use="required">
-					<xs:annotation>
-						<xs:documentation>A simple name with no qualifiers, or the special names .construct and .finalize</xs:documentation>
-					</xs:annotation>
-					<xs:simpleType>
-						<xs:union memberTypes="specialFunctionNameValues simpleNameType"/>
-					</xs:simpleType>
-				</xs:attribute>
+				<xs:attribute name="name" use="required" type="functionNameType"/>
 				<xs:attribute name="overload" type="xs:boolean" default="false">
 					<xs:annotation>
 						<xs:documentation>The containing type has another function of the same name with a different signature.</xs:documentation>
@@ -1432,6 +1362,30 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
+	<xs:simpleType name="functionNameType">
+		<xs:annotation>
+			<xs:documentation>A simple name with no qualifiers, or the special names .construct and .finalize</xs:documentation>
+		</xs:annotation>
+		<xs:union memberTypes="simpleNameType">
+			<xs:simpleType>
+				<xs:annotation>
+					<xs:documentation>Special names for functions.</xs:documentation>
+				</xs:annotation>
+				<xs:restriction base="xs:token">
+					<xs:enumeration value=".construct">
+						<xs:annotation>
+							<xs:documentation>The function acts as a constructor. The function name depends on the output language.</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value=".finalize">
+						<xs:annotation>
+							<xs:documentation>The function acts as a finalizer. The function name depends on the output language.</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:union>
+	</xs:simpleType>
 	<xs:element name="property" type="propertyType" substitutionGroup="implementationMember"/>
 	<xs:complexType name="propertyType">
 		<xs:annotation>
@@ -1767,7 +1721,7 @@
 			</xs:enumeration>
 			<xs:enumeration value="equality">
 				<xs:annotation>
-					<xs:documentation>Value equality comparison operator. Identity comparisons (such as comparing to nullObjectKeyword) should use identifyEquality.</xs:documentation>
+					<xs:documentation>Value equality comparison operator. Identity comparisons (such as comparing to nullKeyword) should use identityEquality.</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="greaterThan">
@@ -1782,17 +1736,17 @@
 			</xs:enumeration>
 			<xs:enumeration value="identityEquality">
 				<xs:annotation>
-					<xs:documentation>Test if two expressions represent the same object. Use this operator instead of equality to compare to nullObjectKeyword. (C#: ==, VB: Is)</xs:documentation>
+					<xs:documentation>Test if two expressions represent the same object. Use this operator instead of equality to compare to nullKeyword. (C#: ==, VB: Is)</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="identityInequality">
 				<xs:annotation>
-					<xs:documentation>Test if two expressions do not represent the same object. Use this operator instead of inequality to compare to nullObjectKeyword. (C#: !=, VB: IsNot)</xs:documentation>
+					<xs:documentation>Test if two expressions do not represent the same object. Use this operator instead of inequality to compare to nullKeyword. (C#: !=, VB: IsNot)</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="inequality">
 				<xs:annotation>
-					<xs:documentation>Value inequality comparison operator. Identity comparisons (such as comparing to nullObjectKeyword) should use identifyInequality.</xs:documentation>
+					<xs:documentation>Value inequality comparison operator. Identity comparisons (such as comparing to nullKeyword) should use identityInequality.</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="lessThan">
@@ -2030,6 +1984,53 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
+	<xs:simpleType name="enumItemElementTypeValues">
+		<xs:annotation>
+			<xs:documentation>The base type for this enumeration. Includes all integer types. Defaults to i4.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="i1">
+				<xs:annotation>
+					<xs:documentation>Signed byte (System.SByte)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="i2">
+				<xs:annotation>
+					<xs:documentation>Signed short integer (System.Int16)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="i4">
+				<xs:annotation>
+					<xs:documentation>Signed integer (System.Int32). The default element type.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="i8">
+				<xs:annotation>
+					<xs:documentation>Signed long integer (System.Int64)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="u1">
+				<xs:annotation>
+					<xs:documentation>Unsigned byte (System.Byte)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="u2">
+				<xs:annotation>
+					<xs:documentation>Unsigned short integer (System.UInt16)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="u4">
+				<xs:annotation>
+					<xs:documentation>Unsigned integer (System.UInt32).</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="u8">
+				<xs:annotation>
+					<xs:documentation>Unsigned long integer (System.UInt64)</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
 	<xs:simpleType name="valueTypeValues">
 		<xs:annotation>
 			<xs:documentation>The type of value. Specifies how the data attribute is interpreted.</xs:documentation>

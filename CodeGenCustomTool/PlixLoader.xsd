@@ -20,44 +20,76 @@
 	xmlns:xs="http://www.w3.org/2001/XMLSchema"
 	>
 	<xs:element name="sourceFiles">
+		<xs:annotation>
+			<xs:documentation>Settings for files with the CustomTool property set to NUPlixLoader. Provides the schema for the Plix.xml file, which should be placed in the project's root directory.</xs:documentation>
+		</xs:annotation>
 		<xs:complexType>
 			<xs:choice minOccurs="0" maxOccurs="unbounded">
 				<xs:element name="sourceFile">
+					<xs:annotation>
+						<xs:documentation>A file in the project with a CustomTool property set to NUPlixLoader.</xs:documentation>
+					</xs:annotation>
 					<xs:complexType>
 						<xs:choice minOccurs="0" maxOccurs="unbounded">
 							<xs:element name="projectReference" minOccurs="0" maxOccurs="1">
+								<xs:annotation>
+									<xs:documentation>Ensure that the project references the specified assembly.</xs:documentation>
+								</xs:annotation>
 								<xs:complexType>
 									<xs:sequence></xs:sequence>
-									<!-- The name used to test for existence of the reference in the project
-										 with the EnvDTE.References.Item method-->
-									<xs:attribute name="namespace" type="xs:string" use="required" />
-									<!-- The string used to add a reference to the project if it is not
-										 already in the references collection -->
-									<xs:attribute name="assembly" type="xs:string" use="required" />
+									<xs:attribute name="namespace" type="xs:string" use="required">
+										<xs:annotation>
+											<xs:documentation>The assembly name used to test for existence of the reference in the project with the EnvDTE.References.Item method.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+									<xs:attribute name="assembly" type="xs:string" use="required">
+										<xs:annotation>
+											<xs:documentation>The name of the assembly file used to add a reference to the project if it is not already in the references collection.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
 								</xs:complexType>
 							</xs:element>
 							<xs:element name="extensionClass" minOccurs="0" maxOccurs="1">
+								<xs:annotation>
+									<xs:documentation>Add a set of available extensions functions for use by the transform.</xs:documentation>
+								</xs:annotation>
 								<xs:complexType>
 									<xs:sequence></xs:sequence>
-									<!-- The namespace for this extension in the transform file -->
-									<xs:attribute name="xslNamespace" type="xs:string" use="required" />
+									<xs:attribute name="xslNamespace" type="xs:string" use="required">
+										<xs:annotation>
+											<xs:documentation>The namespace for this extension in the transform file.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
 									<!-- A fully qualified name for loading the class to instantiate and use with this extension -->
-									<xs:attribute name="className" type="xs:string" use="required" />
+									<xs:attribute name="className" type="xs:string" use="required">
+										<xs:annotation>
+											<xs:documentation>A fully qualified name for loading the class to instantiate and use with this extension</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
 								</xs:complexType>
 							</xs:element>
 							<xs:element name="transformParameter" minOccurs="0" maxOccurs="1">
+								<xs:annotation>
+									<xs:documentation>Pass an in parameter to the transform.</xs:documentation>
+								</xs:annotation>
 								<xs:complexType>
 									<xs:sequence></xs:sequence>
-									<xs:attribute name="name" type="xs:string" use="required" />
-									<xs:attribute name="value" type="xs:string" use="required" />
+									<xs:attribute name="name" type="xs:string" use="required">
+										<xs:annotation>
+											<xs:documentation>The name parameter pass into the transform file. Matches the name attribute of an xsl:param element in the transform.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+									<xs:attribute name="value" type="xs:string" use="required">
+										<xs:annotation>
+											<xs:documentation>The value to pass to the transform for this parameter.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
 								</xs:complexType>
 							</xs:element>
 						</xs:choice>
-						<!--  -->
 						<xs:attribute name="file" type="xs:string" use="required">
 							<xs:annotation><xs:documentation>The name of the file relative to the location of the plix.xml file. Plix.xml should be placed in the root directory of the project.</xs:documentation></xs:annotation>
 						</xs:attribute>
-						<!--  -->
 						<xs:attribute name="transformFile" type="xs:string" use="optional">
 							<xs:annotation><xs:documentation>The transform file used to process the source file. If transformFile is not specified, then the default is the specified
 							 file with the extension replaced by '.xslt' or '.xsl' extensions.</xs:documentation></xs:annotation>

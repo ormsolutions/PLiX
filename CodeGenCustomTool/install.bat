@@ -47,6 +47,8 @@ del "%plixBinaries%%plixTool%.pdb"
 )
 
 xcopy /Y /D /Q "%rootPath%PlixXsd.html" "%plixHelp%"
+xcopy /Y /D /Q "%rootPath%PlixLoaderXsd.html" "%plixHelp%"
+xcopy /Y /D /Q "%rootPath%VSIntegrationInstructions.html" "%plixHelp%"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixLoader.xsd" "%plixXML%\Schemas"
 xcopy /Y /D /Q "%rootPath%%outDir%Plix.xsd" "%plixXML%\Schemas"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixRedirect.xsd" "%plixXML%\Schemas"

@@ -102,6 +102,10 @@
 							<Component Id="HTMLSchemaFilesComponent" Guid="5AA0F7DD-44DB-471F-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 								<File Id="PlixXsd.html" Name="PlixXsd.htm" LongName="PlixXsd.html" src="..\CodeGenCustomTool\PlixXsd.html"
 									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
+								<File Id="PlixLoaderXsd.html" Name="PlxLdXsd.htm" LongName="PlixLoaderXsd.html" src="..\CodeGenCustomTool\PlixLoaderXsd.html"
+									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
+								<File Id="VSIntegrationInstructions.html" Name="VSInteg.htm" LongName="VSIntegrationInstructions.html" src="..\CodeGenCustomTool\VSIntegrationInstructions.html"
+									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
 							</Component>
 						</Directory>
 					</Directory>
