@@ -930,102 +930,8 @@
 		<xsl:param name="ElementName" select="@elementName"/>
 		<xsl:param name="RenderObject" select="not(@renderObject='false')"/>
 		<xsl:param name="RenderVoid" select="not(@renderVoid='false')"/>
-		<plx:branch>
-			<plx:condition>
-				<xsl:choose>
-					<xsl:when test="$RenderObject and $RenderVoid">
-						<plx:binaryOperator type="identityInequality">
-							<plx:left>
-								<xsl:copy-of select="$TypeForExpression"/>
-							</plx:left>
-							<plx:right>
-								<plx:nullKeyword/>
-							</plx:right>
-						</plx:binaryOperator>
-					</xsl:when>
-					<xsl:when test="@resolvedType='true'">
-						<plx:binaryOperator type="booleanAnd">
-							<plx:left>
-								<plx:binaryOperator type="identityInequality">
-									<plx:left>
-										<xsl:copy-of select="$TypeForExpression"/>
-									</plx:left>
-									<plx:right>
-										<plx:nullKeyword/>
-									</plx:right>
-								</plx:binaryOperator>
-							</plx:left>
-							<plx:right>
-								<plx:binaryOperator type="booleanOr">
-									<plx:left>
-										<plx:binaryOperator type="inequality">
-											<plx:left>
-												<plx:callInstance name="Namespace" type="property">
-													<plx:callObject>
-														<xsl:copy-of select="$TypeForExpression"/>
-													</plx:callObject>
-												</plx:callInstance>
-											</plx:left>
-											<plx:right>
-												<plx:string>System</plx:string>
-											</plx:right>
-										</plx:binaryOperator>
-									</plx:left>
-									<plx:right>
-										<plx:binaryOperator type="inequality">
-											<plx:left>
-												<plx:callInstance name="Name" type="property">
-													<plx:callObject>
-														<xsl:copy-of select="$TypeForExpression"/>
-													</plx:callObject>
-												</plx:callInstance>
-											</plx:left>
-											<plx:right>
-												<xsl:choose>
-													<xsl:when test="$RenderVoid">
-														<plx:string>Object</plx:string>
-													</xsl:when>
-													<xsl:otherwise>
-														<plx:string>Void</plx:string>
-													</xsl:otherwise>
-												</xsl:choose>
-											</plx:right>
-										</plx:binaryOperator>
-									</plx:right>
-								</plx:binaryOperator>
-							</plx:right>
-						</plx:binaryOperator>
-					</xsl:when>
-					<xsl:otherwise>
-						<plx:binaryOperator type="booleanAnd">
-							<plx:left>
-								<plx:binaryOperator type="identityInequality">
-									<plx:left>
-										<xsl:copy-of select="$TypeForExpression"/>
-									</plx:left>
-									<plx:right>
-										<plx:nullKeyword/>
-									</plx:right>
-								</plx:binaryOperator>
-							</plx:left>
-							<plx:right>
-								<plx:unaryOperator type="booleanNot">
-									<plx:callThis name="IsVoidType" accessor="static">
-										<xsl:if test="$RenderVoid">
-											<xsl:attribute name="name">
-												<xsl:text>IsObjectType</xsl:text>
-											</xsl:attribute>
-										</xsl:if>
-										<plx:passParam>
-											<xsl:copy-of select="$TypeForExpression"/>
-										</plx:passParam>
-									</plx:callThis>
-								</plx:unaryOperator>
-							</plx:right>
-						</plx:binaryOperator>
-					</xsl:otherwise>
-				</xsl:choose>
-			</plx:condition>
+		<xsl:param name="TestForNull" select="not(@canBeNull='false')"/>
+		<xsl:variable name="blockContents">
 			<xsl:if test="$ElementName">
 				<plx:callThis name="WriteElement">
 					<xsl:if test="@allowEmptyElement='false'">
@@ -1058,7 +964,112 @@
 			<xsl:if test="$ElementName">
 				<plx:callThis name="WriteEndElement"/>
 			</xsl:if>
-		</plx:branch>
+		</xsl:variable>
+		<xsl:choose>
+			<xsl:when test="$TestForNull">
+				<plx:branch>
+					<plx:condition>
+						<xsl:choose>
+							<xsl:when test="$RenderObject and $RenderVoid">
+								<plx:binaryOperator type="identityInequality">
+									<plx:left>
+										<xsl:copy-of select="$TypeForExpression"/>
+									</plx:left>
+									<plx:right>
+										<plx:nullKeyword/>
+									</plx:right>
+								</plx:binaryOperator>
+							</xsl:when>
+							<xsl:when test="@resolvedType='true'">
+								<plx:binaryOperator type="booleanAnd">
+									<plx:left>
+										<plx:binaryOperator type="identityInequality">
+											<plx:left>
+												<xsl:copy-of select="$TypeForExpression"/>
+											</plx:left>
+											<plx:right>
+												<plx:nullKeyword/>
+											</plx:right>
+										</plx:binaryOperator>
+									</plx:left>
+									<plx:right>
+										<plx:binaryOperator type="booleanOr">
+											<plx:left>
+												<plx:binaryOperator type="inequality">
+													<plx:left>
+														<plx:callInstance name="Namespace" type="property">
+															<plx:callObject>
+																<xsl:copy-of select="$TypeForExpression"/>
+															</plx:callObject>
+														</plx:callInstance>
+													</plx:left>
+													<plx:right>
+														<plx:string>System</plx:string>
+													</plx:right>
+												</plx:binaryOperator>
+											</plx:left>
+											<plx:right>
+												<plx:binaryOperator type="inequality">
+													<plx:left>
+														<plx:callInstance name="Name" type="property">
+															<plx:callObject>
+																<xsl:copy-of select="$TypeForExpression"/>
+															</plx:callObject>
+														</plx:callInstance>
+													</plx:left>
+													<plx:right>
+														<xsl:choose>
+															<xsl:when test="$RenderVoid">
+																<plx:string>Object</plx:string>
+															</xsl:when>
+															<xsl:otherwise>
+																<plx:string>Void</plx:string>
+															</xsl:otherwise>
+														</xsl:choose>
+													</plx:right>
+												</plx:binaryOperator>
+											</plx:right>
+										</plx:binaryOperator>
+									</plx:right>
+								</plx:binaryOperator>
+							</xsl:when>
+							<xsl:otherwise>
+								<plx:binaryOperator type="booleanAnd">
+									<plx:left>
+										<plx:binaryOperator type="identityInequality">
+											<plx:left>
+												<xsl:copy-of select="$TypeForExpression"/>
+											</plx:left>
+											<plx:right>
+												<plx:nullKeyword/>
+											</plx:right>
+										</plx:binaryOperator>
+									</plx:left>
+									<plx:right>
+										<plx:unaryOperator type="booleanNot">
+											<plx:callThis name="IsVoidType" accessor="static">
+												<xsl:if test="$RenderVoid">
+													<xsl:attribute name="name">
+														<xsl:text>IsObjectType</xsl:text>
+													</xsl:attribute>
+												</xsl:if>
+												<plx:passParam>
+													<xsl:copy-of select="$TypeForExpression"/>
+												</plx:passParam>
+											</plx:callThis>
+										</plx:unaryOperator>
+									</plx:right>
+								</plx:binaryOperator>
+							</xsl:otherwise>
+						</xsl:choose>
+					</plx:condition>
+					<xsl:copy-of select="$blockContents"/>
+				</plx:branch>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:copy-of select="$blockContents"/>
+			</xsl:otherwise>
+		</xsl:choose>
 	</xsl:template>
 	<xsl:template match="lw:collection">
 		<xsl:param name="DocumentRoot"/>

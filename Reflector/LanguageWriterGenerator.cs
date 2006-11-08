@@ -24,7 +24,7 @@ namespace Reflector
 	{
 		private partial class PLiXLanguageWriter
 		{
-			private void Render(ITypeDeclaration value)
+			private void Render(ITypeDeclaration value, bool translateMethods)
 			{
 				string elementName = "class";
 				ITypeReference baseType = value.BaseType;
@@ -102,6 +102,7 @@ namespace Reflector
 				}
 				else
 				{
+					this.RenderDocumentation(value);
 					foreach (ICustomAttribute AttributesItem in value.Attributes)
 					{
 						this.RenderCustomAttribute(AttributesItem);
@@ -152,7 +153,7 @@ namespace Reflector
 						}
 						foreach (IEventDeclaration EventsItem in value.Events)
 						{
-							this.Render(EventsItem, false, isInterface);
+							this.Render(EventsItem, translateMethods, isInterface);
 						}
 						foreach (IMethodDeclaration MethodsItem in value.Methods)
 						{
@@ -160,11 +161,11 @@ namespace Reflector
 							{
 								continue;
 							}
-							this.Render(MethodsItem, isInterface);
+							this.Render(MethodsItem, translateMethods, isInterface);
 						}
 						foreach (IPropertyDeclaration PropertiesItem in value.Properties)
 						{
-							this.Render(PropertiesItem, false, isInterface);
+							this.Render(PropertiesItem, translateMethods, isInterface);
 						}
 						foreach (IFieldDeclaration FieldsItem in value.Fields)
 						{
@@ -172,7 +173,7 @@ namespace Reflector
 						}
 						foreach (ITypeDeclaration NestedTypesItem in value.NestedTypes)
 						{
-							this.Render(NestedTypesItem);
+							this.Render(NestedTypesItem, translateMethods);
 						}
 					}
 				}
@@ -243,6 +244,7 @@ namespace Reflector
 				{
 					this.RenderType(value.FieldType);
 				}
+				this.RenderDocumentation(value);
 				foreach (ICustomAttribute AttributesItem in value.Attributes)
 				{
 					this.RenderCustomAttribute(AttributesItem);
@@ -279,6 +281,7 @@ namespace Reflector
 						this.RenderMethodModifierAttribute(referenceMethod);
 					}
 				}
+				this.RenderDocumentation(value);
 				foreach (ICustomAttribute AttributesItem in value.Attributes)
 				{
 					this.RenderCustomAttribute(AttributesItem);
@@ -335,6 +338,7 @@ namespace Reflector
 						this.RenderMethodModifierAttribute(referenceMethod);
 					}
 				}
+				this.RenderDocumentation(value);
 				foreach (ICustomAttribute AttributesItem in value.Attributes)
 				{
 					this.RenderCustomAttribute(AttributesItem);
@@ -405,6 +409,10 @@ namespace Reflector
 						this.RenderMethodVisibilityAttribute(accessorDeclaration);
 					}
 				}
+				if (accessorDeclaration != null)
+				{
+					this.RenderDocumentation(accessorDeclaration);
+				}
 				foreach (ICustomAttribute accessorDeclarationAttributesItem in accessorDeclaration.Attributes)
 				{
 					this.RenderCustomAttribute(accessorDeclarationAttributesItem);
@@ -430,13 +438,53 @@ namespace Reflector
 					}
 				}
 			}
-			private void Render(IMethodDeclaration value)
+			private void Render(IMethodDeclaration value, bool translateMethod)
 			{
 				ITypeReference declaringType = value.DeclaringType as ITypeReference;
 				bool isInterfaceMember = (declaringType != null) && declaringType.Resolve().Interface;
-				this.Render(value, isInterfaceMember);
+				this.Render(value, translateMethod, isInterfaceMember);
 			}
-			private void Render(IMethodDeclaration value, bool isInterfaceMember)
+			private void Render(IMethodDeclaration value, bool translateMethod, bool isInterfaceMember)
+			{
+				translateMethod = translateMethod && !(isInterfaceMember);
+				if (translateMethod)
+				{
+					try
+					{
+						this.myCurrentMethodDeclaration = value;
+						this.myCurrentMethodBody = value.Body as IMethodBody;
+						value = this.myTranslator.TranslateMethodDeclaration(value);
+					}
+					catch
+					{
+						if (!(this.myFirstWrite))
+						{
+							this.myFormatter.WriteLine();
+						}
+						this.myFormatter.WriteComment(string.Format(System.Globalization.CultureInfo.CurrentCulture, "<!-- Reflector Error: Disassembly of {0} failed, method body will be empty. -->", value.Name));
+						translateMethod = false;
+						this.myCurrentMethodDeclaration = null;
+						this.myCurrentMethodBody = null;
+					}
+					try
+					{
+						this.RenderMethod(value, isInterfaceMember);
+					}
+					finally
+					{
+						if (translateMethod)
+						{
+							this.myCurrentMethodDeclaration = null;
+							this.myCurrentMethodBody = null;
+						}
+					}
+				}
+				else
+				{
+					this.RenderMethod(value, isInterfaceMember);
+				}
+			}
+			private void RenderMethod(IMethodDeclaration value, bool isInterfaceMember)
 			{
 				string elementName = "function";
 				this.WriteElement(elementName);
@@ -456,6 +504,7 @@ namespace Reflector
 					this.RenderMethodVisibilityAttribute(value);
 					this.RenderMethodModifierAttribute(value);
 				}
+				this.RenderDocumentation(value);
 				foreach (ICustomAttribute AttributesItem in value.Attributes)
 				{
 					this.RenderCustomAttribute(AttributesItem);
@@ -503,14 +552,17 @@ namespace Reflector
 					if (constructorDeclaration != null)
 					{
 						IMethodInvokeExpression initializer = constructorDeclaration.Initializer;
-						IMethodReferenceExpression initializerMethod = initializer.Method as IMethodReferenceExpression;
-						if (!(((initializerMethod != null) && (initializerMethod.Target is IBaseReferenceExpression)) && (initializer.Arguments.Count == 0)))
+						if (initializer != null)
 						{
-							if (initializer != null)
+							IMethodReferenceExpression initializerMethod = initializer.Method as IMethodReferenceExpression;
+							if (!(((initializerMethod != null) && (initializerMethod.Target is IBaseReferenceExpression)) && (initializer.Arguments.Count == 0)))
 							{
-								this.WriteElementDelayed("intializer");
-								this.RenderMethodInvokeExpression(initializer);
-								this.WriteEndElement();
+								if (initializer != null)
+								{
+									this.WriteElementDelayed("initialize");
+									this.RenderMethodInvokeExpression(initializer);
+									this.WriteEndElement();
+								}
 							}
 						}
 					}
@@ -944,6 +996,21 @@ namespace Reflector
 					this.WriteEndElement();
 				}
 			}
+			private void RenderDocumentation(IDocumentationProvider value)
+			{
+				if (this.myShowDocumentation)
+				{
+					string documentation = value.Documentation;
+					if (!(string.IsNullOrEmpty(documentation)))
+					{
+						this.WriteElement("leadingInfo");
+						this.WriteElement("docComment");
+						this.WriteText(documentation, true, true);
+						this.WriteEndElement();
+						this.WriteEndElement();
+					}
+				}
+			}
 			private void RenderEnum(ITypeDeclaration value)
 			{
 				IFieldDeclarationCollection fields = value.Fields;
@@ -963,6 +1030,7 @@ namespace Reflector
 						}
 					}
 				}
+				this.RenderDocumentation(value);
 				foreach (ICustomAttribute AttributesItem in value.Attributes)
 				{
 					this.RenderCustomAttribute(AttributesItem);
@@ -978,6 +1046,7 @@ namespace Reflector
 				{
 					this.WriteElement("enumItem");
 					this.WriteAttribute("name", value.Name, true, false);
+					this.RenderDocumentation(value);
 					foreach (ICustomAttribute AttributesItem in value.Attributes)
 					{
 						this.RenderCustomAttribute(AttributesItem);
@@ -1846,10 +1915,7 @@ namespace Reflector
 			}
 			private void RenderArrayCreateExpressionType(IArrayCreateExpression value)
 			{
-				if (MockupArrayType(value.Type, value.Dimensions.Count) != null)
-				{
-					this.RenderType(MockupArrayType(value.Type, value.Dimensions.Count));
-				}
+				this.RenderType(MockupArrayType(value.Type, value.Dimensions.Count));
 			}
 			private void RenderArrayIndexerExpression(IArrayIndexerExpression value)
 			{
@@ -3086,6 +3152,15 @@ namespace Reflector
 				IType elementType;
 				Queue<IArrayDimensionCollection> dimensionsQueue = ResolveArrayDimensions(value, out elementType);
 				bool isSimpleArray = dimensionsQueue == null;
+				if (!(isSimpleArray) && (dimensionsQueue.Count == 1))
+				{
+					IArrayDimensionCollection firstDimensions = dimensionsQueue.Peek();
+					if (firstDimensions.Count == 1)
+					{
+						IArrayDimension firstDimension = firstDimensions[0];
+						isSimpleArray = (firstDimension.LowerBound == 0) && (firstDimension.UpperBound == -1);
+					}
+				}
 				string dataTypeIsSimpleArrayAttributeValue = "";
 				if (isSimpleArray)
 				{

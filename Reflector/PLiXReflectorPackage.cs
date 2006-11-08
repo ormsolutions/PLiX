@@ -28,6 +28,14 @@ namespace Reflector
 		/// Get the current example language. Can be null.
 		/// </summary>
 		ILanguage ExampleLanguage { get;}
+		/// <summary>
+		/// Return true to include method implementations as part of the type declaration
+		/// </summary>
+		bool FullyExpandTypeDeclarations { get;}
+		/// <summary>
+		/// Return true to show documentation comments. Wrapper for Reflector's LanguageWriter/ShowDocumentation option.
+		/// </summary>
+		bool ShowDocumentation { get;}
 	}
 	/// <summary>
 	/// Starting point for a Reflector class
@@ -39,14 +47,20 @@ namespace Reflector
 		{
 			#region Member Variables
 			private IConfiguration myConfiguration;
+			private IConfiguration myLanguageWriterConfiguration;
 			private string myExampleLanguageName;
 			private int myExampleLanguageIndex;
 			private ILanguage myExampleLanguage;
+			private bool myFullyExpandTypeDeclarations;
+			private bool myFullyExpandCurrentTypeDeclaration;
 			private PLiXLanguagePackage myPackage;
 			#endregion // Member Variables
 			#region Constants
 			private const string ConfigurationSection = "PLiXLanguage";
 			private const string ExampleLanguageValueName = "ExampleLanguage";
+			private const string FullExpandTypeDeclarationsValueName = "FullyExpandTypeDeclarations";
+			private const string LanguageWriterConfigurationSection = "LanguageWriter";
+			private const string ShowDocumentationValueName = "ShowDocumentation";
 			#endregion // Constants
 			#region Constructors
 			/// <summary>
@@ -56,8 +70,12 @@ namespace Reflector
 			public PLiXConfiguration(PLiXLanguagePackage package)
 			{
 				myPackage = package;
-				myConfiguration = ((IConfigurationManager)package.myServiceProvider.GetService(typeof(IConfigurationManager)))[ConfigurationSection];
+				IConfigurationManager configManager = (IConfigurationManager)package.myServiceProvider.GetService(typeof(IConfigurationManager));
+				myConfiguration = configManager[ConfigurationSection];
+				myLanguageWriterConfiguration = configManager[LanguageWriterConfigurationSection];
+
 				myExampleLanguageName = myConfiguration.GetProperty(ExampleLanguageValueName, "C#");
+				myFullyExpandTypeDeclarations = 0 == string.Compare(myConfiguration.GetProperty(FullExpandTypeDeclarationsValueName, "false"), "true", StringComparison.CurrentCultureIgnoreCase);
 			}
 			#endregion // Constructors
 			#region IPLiXConfiguration Implementation
@@ -123,11 +141,71 @@ namespace Reflector
 						string languageName = (value != null) ? value.Name : "";
 						myExampleLanguageName = languageName;
 						myConfiguration.SetProperty(ExampleLanguageValueName, languageName);
-						// Forces rerendering of the selected item
-						myPackage.myLanguageManager.ActiveLanguage = myPackage.myLanguageManager.ActiveLanguage;
+						RefreshCurrentSelection();
 						// myExampleLanguageIndex will refresh itself automatically
 					}
 				}
+			}
+			public bool FullyExpandTypeDeclarations
+			{
+				get
+				{
+					if (myFullyExpandCurrentTypeDeclaration)
+					{
+						return true;
+					}
+					return myFullyExpandTypeDeclarations;
+				}
+				set
+				{
+					if (value != myFullyExpandTypeDeclarations)
+					{
+						myFullyExpandTypeDeclarations = value;
+						myConfiguration.SetProperty(FullExpandTypeDeclarationsValueName, value ? "true" : "false");
+						if (value && myFullyExpandCurrentTypeDeclaration)
+						{
+							// No refresh is necessary, we already have the correct state
+							myFullyExpandCurrentTypeDeclaration = false;
+						}
+						else
+						{
+							RefreshCurrentSelection();
+						}
+					}
+				}
+			}
+			public bool ShowDocumentation
+			{
+				get
+				{
+					return myLanguageWriterConfiguration.GetProperty(ShowDocumentationValueName, "false") == "true";
+				}
+			}
+			public bool FullyExpandCurrentTypeDeclaration
+			{
+				get
+				{
+					return myFullyExpandCurrentTypeDeclaration;
+				}
+				set
+				{
+					if (value != myFullyExpandCurrentTypeDeclaration)
+					{
+						myFullyExpandCurrentTypeDeclaration = value;
+						if (value)
+						{
+							RefreshCurrentSelection();
+						}
+					}
+				}
+			}
+			/// <summary>
+			/// Force the disassembler page to refresh
+			/// </summary>
+			private void RefreshCurrentSelection()
+			{
+				// Forces rerendering of the selected item
+				myPackage.myLanguageManager.ActiveLanguage = myPackage.myLanguageManager.ActiveLanguage;
 			}
 			#endregion // IPLiXConfiguration Implementation
 		}
@@ -135,9 +213,12 @@ namespace Reflector
 		#region Member Variables
 		private ILanguageManager myLanguageManager;
 		private ILanguage myLanguage;
+		private IAssemblyBrowser myAssemblyBrowser;
 		private IServiceProvider myServiceProvider;
 		private ICommandBarMenu myTopMenu;
 		private ICommandBarMenu myExampleLanguageMenu;
+		private ICommandBarItem myExpandCurrentTypeDeclarationButton;
+		private ICommandBarCheckBox myFullExpandTypeDeclarationsCheckBox;
 		private IPLiXConfiguration myConfiguration;
 		#endregion // Member Variables
 		#region IPackage Implementation
@@ -146,6 +227,9 @@ namespace Reflector
 			// Set this early so it is easily referenced
 			myServiceProvider = serviceProvider;
 
+			IAssemblyBrowser assemblyBrowser = (IAssemblyBrowser)serviceProvider.GetService(typeof(IAssemblyBrowser));
+			assemblyBrowser.ActiveItemChanged += new EventHandler(OnActiveItemChanged);
+			myAssemblyBrowser = assemblyBrowser;
 			ILanguageManager languageManager = (ILanguageManager)serviceProvider.GetService(typeof(ILanguageManager));
 			myLanguageManager = languageManager;
 			myConfiguration = new PLiXConfiguration(this);
@@ -161,14 +245,17 @@ namespace Reflector
 			topMenu.Visible = false;
 			topMenu.DropDown += new EventHandler(OnOpenTopMenu);
 
-			ICommandBarMenu exampleLanguageMenu = topMenu.Items.AddMenu("PLiXExampleLanguage", "&Example Language");
-			myExampleLanguageMenu = exampleLanguageMenu;
+			ICommandBarItemCollection menuItems = topMenu.Items;
+			myExampleLanguageMenu = menuItems.AddMenu("PLiXExampleLanguage", "&Example Language");
+			menuItems.AddSeparator();
+			myExpandCurrentTypeDeclarationButton = menuItems.AddButton("E&xpand Current Type Declaration", new EventHandler(OnExpandCurrentTypeDeclaration));
+			(myFullExpandTypeDeclarationsCheckBox = menuItems.AddCheckBox("Ex&pand All Type Declarations")).Click += new EventHandler(OnFullyExpandTypeDeclarationsChanged);
 			myTopMenu = topMenu;
 		}
-
 		void IPackage.Unload()
 		{
 			myLanguageManager.ActiveLanguageChanged -= new EventHandler(OnActiveLanguageChanged);
+			myAssemblyBrowser.ActiveItemChanged -= new EventHandler(OnActiveItemChanged);
 			myTopMenu.DropDown -= new EventHandler(OnOpenTopMenu);
 			myLanguageManager.UnregisterLanguage(myLanguage);
 			((ICommandBarManager)myServiceProvider.GetService(typeof(ICommandBarManager))).CommandBars["MenuBar"].Items.Remove(myTopMenu);
@@ -181,6 +268,13 @@ namespace Reflector
 			myTopMenu.Visible = myLanguageManager.ActiveLanguage == myLanguage;
 		}
 		/// <summary>
+		/// Event handler to reenable the 'Expand Current Type Declaration' menu on selection change
+		/// </summary>
+		void OnActiveItemChanged(object sender, EventArgs e)
+		{
+			((PLiXConfiguration)myConfiguration).FullyExpandCurrentTypeDeclaration = false;
+		}
+		/// <summary>
 		/// Synchronize the example language sub menu with the current set of languages.
 		/// Unfortunately, there is no add/remove event when languages are added and removed,
 		/// and the DropDown event does not fire on submenus, so we need to synchronize here.
@@ -190,6 +284,11 @@ namespace Reflector
 			ICommandBarItemCollection exampleItems = myExampleLanguageMenu.Items;
 			ILanguageCollection languages = myLanguageManager.Languages;
 			ILanguage selectedLanguage = myConfiguration.ExampleLanguage;
+			bool alreadyExpandedCurrentType = ((PLiXConfiguration)myConfiguration).FullyExpandCurrentTypeDeclaration;
+			bool alwaysExpandTypes = alreadyExpandedCurrentType ? false : myConfiguration.FullyExpandTypeDeclarations;
+			myExpandCurrentTypeDeclarationButton.Visible = !alwaysExpandTypes;
+			myExpandCurrentTypeDeclarationButton.Enabled = !alreadyExpandedCurrentType && myAssemblyBrowser.ActiveItem is ITypeDeclaration;
+			myFullExpandTypeDeclarationsCheckBox.Checked = alwaysExpandTypes;
 			int itemsCount = exampleItems.Count;
 			ICommandBarCheckBox currentItem;
 			if (itemsCount == 0)
@@ -292,6 +391,30 @@ namespace Reflector
 		void OnExampleLanguageClick(object sender, EventArgs e)
 		{
 			((PLiXConfiguration)myConfiguration).ExampleLanguage = ((ICommandBarItem)sender).Value as ILanguage;
+		}
+		/// <summary>
+		/// Event handler for toggling the full type expansion option
+		/// </summary>
+		void OnFullyExpandTypeDeclarationsChanged(object sender, EventArgs e)
+		{
+			PLiXConfiguration config = (PLiXConfiguration)myConfiguration;
+			// If the current is explicitly expanded, then FullyExpandTypeDeclarations will return
+			// true, even if the cached flag is off.
+			if (config.FullyExpandCurrentTypeDeclaration)
+			{
+				config.FullyExpandTypeDeclarations = true;
+			}
+			else
+			{
+				config.FullyExpandTypeDeclarations = !config.FullyExpandTypeDeclarations;
+			}
+		}
+		/// <summary>
+		/// Event handler for toggling the full type expansion option
+		/// </summary>
+		void OnExpandCurrentTypeDeclaration(object sender, EventArgs e)
+		{
+			((PLiXConfiguration)myConfiguration).FullyExpandCurrentTypeDeclaration = true;
 		}
 		#endregion // IPackage Implementation
 	}

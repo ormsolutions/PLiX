@@ -132,6 +132,7 @@ namespace Reflector
 			private string myDelayWriteElement;
 			private ITranslator myTranslator;
 			private bool myTranslateRequested;
+			private bool myShowDocumentation;
 			private IMethodBody myCurrentMethodBody;
 			private IMethodDeclaration myCurrentMethodDeclaration;
 			private StringBuilder myEscapeTextStringBuilder;
@@ -149,6 +150,7 @@ namespace Reflector
 			{
 				myFormatter = formatter;
 				myWriterConfiguration = configuration;
+				myShowDocumentation = myPLiXConfiguration.ShowDocumentation;
 			}
 			#endregion // Constructors
 			#region ILanguageWriter Implementation
@@ -237,22 +239,13 @@ namespace Reflector
 			protected void WriteMethodDeclaration(IMethodDeclaration value)
 			{
 				myFirstWrite = true;
-				try
+				bool translate = false;
+				if (myTranslateRequested)
 				{
-					if (myTranslateRequested)
-					{
-						myCurrentMethodDeclaration = value;
-						myCurrentMethodBody = value.Body as IMethodBody;
-						value = myTranslator.TranslateMethodDeclaration(value);
-						myTranslateRequested = false;
-					}
-					Render(value);
+					translate = true;
+					myTranslateRequested = false;
 				}
-				finally
-				{
-					myCurrentMethodDeclaration = value;
-					myCurrentMethodBody = null;
-				}
+				Render(value, translate);
 			}
 			void ILanguageWriter.WriteMethodDeclaration(IMethodDeclaration value)
 			{
@@ -352,13 +345,13 @@ namespace Reflector
 			protected void WriteTypeDeclaration(ITypeDeclaration value)
 			{
 				myFirstWrite = true;
+				bool translateMethods = false;
 				if (myTranslateRequested)
 				{
-					// UNDONE: This is triggering occasional crashes, leave off for now
-					//value = myTranslator.TranslateTypeDeclaration(value);
+					translateMethods = myPLiXConfiguration.FullyExpandTypeDeclarations;
 					myTranslateRequested = false;
 				}
-				Render(value);
+				Render(value, translateMethods);
 			}
 			void ILanguageWriter.WriteTypeDeclaration(ITypeDeclaration value)
 			{
@@ -518,6 +511,10 @@ namespace Reflector
 			}
 			private void WriteText(string value)
 			{
+				WriteText(value, false, false);
+			}
+			private void WriteText(string value, bool renderRaw, bool formatAsComment)
+			{
 				if (!string.IsNullOrEmpty(value))
 				{
 					OutputDelayedElement();
@@ -529,7 +526,15 @@ namespace Reflector
 						myCurrentElementClosedForText = true;
 						myCurrentElementIsOpen = false;
 					}
-					myFormatter.WriteLiteral(EscapeText(value));
+					string escapedText = renderRaw ? value : EscapeText(value);
+					if (formatAsComment)
+					{
+						myFormatter.WriteComment(escapedText);
+					}
+					else
+					{
+						myFormatter.WriteLiteral(escapedText);
+					}
 				}
 			}
 			private void WriteNamespace()
