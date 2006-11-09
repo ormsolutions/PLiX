@@ -150,7 +150,7 @@ namespace Reflector
 			{
 				get
 				{
-					if (myFullyExpandCurrentTypeDeclaration)
+					if (myFullyExpandCurrentTypeDeclaration && myPackage.myAssemblyBrowser.ActiveItem == myPackage.myLastActiveItem)
 					{
 						return true;
 					}
@@ -220,6 +220,7 @@ namespace Reflector
 		private ICommandBarItem myExpandCurrentTypeDeclarationButton;
 		private ICommandBarCheckBox myFullExpandTypeDeclarationsCheckBox;
 		private IPLiXConfiguration myConfiguration;
+		private object myLastActiveItem;
 		#endregion // Member Variables
 		#region IPackage Implementation
 		void IPackage.Load(IServiceProvider serviceProvider)
@@ -229,6 +230,7 @@ namespace Reflector
 
 			IAssemblyBrowser assemblyBrowser = (IAssemblyBrowser)serviceProvider.GetService(typeof(IAssemblyBrowser));
 			assemblyBrowser.ActiveItemChanged += new EventHandler(OnActiveItemChanged);
+			myLastActiveItem = assemblyBrowser.ActiveItem;
 			myAssemblyBrowser = assemblyBrowser;
 			ILanguageManager languageManager = (ILanguageManager)serviceProvider.GetService(typeof(ILanguageManager));
 			myLanguageManager = languageManager;
@@ -273,6 +275,12 @@ namespace Reflector
 		void OnActiveItemChanged(object sender, EventArgs e)
 		{
 			((PLiXConfiguration)myConfiguration).FullyExpandCurrentTypeDeclaration = false;
+			// Reflector does not have an ActiveItemChanging event, so this event handler
+			// fires after some other windows are already updated, causing the 'expand current type'
+			// setting to be stickier than it should be. To handle this, we track the active item
+			// as well so that this setting can be ignored if the last active item is not the current
+			// active item.
+			myLastActiveItem = myAssemblyBrowser.ActiveItem;
 		}
 		/// <summary>
 		/// Synchronize the example language sub menu with the current set of languages.
