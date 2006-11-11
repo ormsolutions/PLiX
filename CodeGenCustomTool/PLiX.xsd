@@ -2615,10 +2615,267 @@
 			<xs:documentation>Documentation comments, allowed on members</xs:documentation>
 		</xs:annotation>
 		<xs:sequence>
-			<!-- UNDONE: Get schema information for doc comments -->
 			<xs:any maxOccurs="unbounded" namespace="##local" processContents="skip"/>
 		</xs:sequence>
+		<!-- UNDONE: Solidify schema information for doc comments. In the meantime, allow any local element -->
+		<!--<xs:sequence>
+			<xs:element name="summary" type="docCommentType_summary" form="unqualified" minOccurs="0"/>
+			<xs:element name="altmember" type="docCommentType_altmember" form="unqualified" minOccurs="0"/>
+			<xs:element name="altcompliant" type="docCommentType_altcompliant" form="unqualified" minOccurs="0"/>
+			<xs:element name="typeparam" type="docCommentType_param" form="unqualified" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="param" type="docCommentType_param" form="unqualified" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="returns" type="docCommentType_returns" form="unqualified" minOccurs="0"/>
+			<xs:element name="value" type="docCommentType_value" form="unqualified" minOccurs="0"/>
+			<xs:element name="exception" type="docCommentType_exception"  form="unqualified" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="threadsafe" type="docCommentType_threadsafe" form="unqualified" minOccurs="0"/>
+			<xs:element name="remarks" type="docCommentType_remarks" form="unqualified" minOccurs="0"/>
+			<xs:element name="example" type="docCommentType_example" form="unqualified" minOccurs="0"/>
+			<xs:element name="permission" type="docCommentType_permission" form="unqualified" minOccurs="0"/>
+		</xs:sequence>-->
 	</xs:complexType>
+	<!--
+	<xs:complexType name="docCommentType_summary" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+			<xs:element name="block" type="docCommentType_block" form="unqualified"/>
+			<xs:element name="list" type="docCommentType_list" form="unqualified"/>
+			<xs:element name="seealso" type="docCommentType_see" form="unqualified"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_altmember">
+		<xs:attribute name="cref" type="xs:string" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_altcompliant">
+		<xs:attribute name="cref" type="xs:string" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_example" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="code" type="docCommentType_code" form="unqualified"/>
+			<xs:element name="c" type="docCommentType_c" form="unqualified"/>
+			<xs:element name="codelink" type="docCommentType_codelink" form="unqualified"/>
+			<xs:element name="list" type="docCommentType_list" form="unqualified"/>
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_param" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="c" type="docCommentType_c" form="unqualified"/>
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+			<xs:element name="block" type="docCommentType_block" form="unqualified"/>
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="SPAN" type="docCommentType_SPAN" form="unqualified"/>
+		</xs:choice>
+		<xs:attribute name="name" type="xs:string" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_returns" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="list" type="docCommentType_list" form="unqualified"/>
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_value" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="list" type="docCommentType_list" form="unqualified"/>
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_exception" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="SPAN" type="docCommentType_SPAN" form="unqualified"/>
+			<xs:element name="block" type="docCommentType_block" form="unqualified"/>
+		</xs:choice>
+		<xs:attribute name="cref" type="xs:string" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_threadsafe">
+		<xs:sequence>
+			<xs:element name="para" type="docCommentType_para" form="unqualified" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_remarks" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="block" type="docCommentType_block" form="unqualified"/>
+			<xs:element name="list" type="docCommentType_list" form="unqualified"/>
+			<xs:element name="c" type="docCommentType_c" form="unqualified"/>
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+			<xs:element name="pre" form="unqualified">
+				<xs:complexType/>
+			</xs:element>
+			<xs:element name="SPAN" type="docCommentType_SPAN" form="unqualified"/>
+			<xs:element name="code" type="docCommentType_code" form="unqualified"/>
+			<xs:element name="PRE" form="unqualified">
+				<xs:complexType/>
+			</xs:element>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_permission" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="block" type="docCommentType_block" form="unqualified"/>
+		</xs:choice>
+		<xs:attribute name="cref" type="xs:string" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_SPAN" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="SPAN" type="docCommentType_SPAN" form="unqualified"/>
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+			<xs:element name="block" type="docCommentType_block" form="unqualified"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_block" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="list" type="docCommentType_list" form="unqualified"/>
+			<xs:element name="block" type="docCommentType_block" form="unqualified"/>
+			<xs:element name="c" type="docCommentType_c" form="unqualified"/>
+			<xs:element name="subscript" type="docCommentType_subscript" form="unqualified"/>
+			<xs:element name="code" type="docCommentType_code" form="unqualified"/>
+			<xs:element name="sup" type="docCommentType_sup" form="unqualified"/>
+			<xs:element name="pi" type="docCommentType_pi" form="unqualified"/>
+		</xs:choice>
+		<xs:attribute name="subset" type="xs:string" use="required"/>
+		<xs:attribute name="type" type="xs:NMTOKEN" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_c" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="code" type="docCommentType_code" form="unqualified"/>
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+			<xs:any namespace="##targetNamespace" processContents="strict"/>
+ 		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_code">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:any namespace="##targetNamespace" processContents="strict"/>
+		</xs:choice>
+		<xs:attribute name="lang" type="xs:string"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_codelink">
+		<xs:attribute name="SampleID" type="xs:string" use="required"/>
+		<xs:attribute name="SnippetID" type="xs:string" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_description" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="SPAN" type="docCommentType_SPAN" form="unqualified"/>
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+			<xs:element name="c" type="docCommentType_c" form="unqualified"/>
+			<xs:element name="permille" type="docCommentType_permille" form="unqualified"/>
+			<xs:element name="block" type="docCommentType_block" form="unqualified"/>
+			<xs:element name="sub" type="docCommentType_sub" form="unqualified"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_list">
+		<xs:sequence>
+			<xs:element name="listheader" form="unqualified" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="term" type="docCommentType_term" form="unqualified"/>
+						<xs:element name="description" type="docCommentType_description" form="unqualified" maxOccurs="unbounded"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="item" form="unqualified" minOccurs="0" maxOccurs="unbounded">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="term" type="docCommentType_term" form="unqualified"/>
+						<xs:element name="description" type="docCommentType_description" form="unqualified" minOccurs="0" maxOccurs="unbounded"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="type" type="xs:NMTOKEN" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_onequarter"/>
+	<xs:complexType name="docCommentType_para" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+			<xs:element name="block" type="docCommentType_block" form="unqualified"/>
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="c" type="docCommentType_c" form="unqualified"/>
+			<xs:element name="onequarter" type="docCommentType_onequarter" form="unqualified"/>
+			<xs:element name="superscript" type="docCommentType_superscript" form="unqualified"/>
+			<xs:element name="sup" type="docCommentType_sup" form="unqualified"/>
+			<xs:element name="permille" type="docCommentType_permille" form="unqualified"/>
+			<xs:element name="SPAN" type="docCommentType_SPAN" form="unqualified"/>
+			<xs:element name="list" type="docCommentType_list" form="unqualified"/>
+			<xs:element name="pi" type="docCommentType_pi" form="unqualified"/>
+			<xs:element name="theta" type="docCommentType_theta" form="unqualified"/>
+			<xs:element name="sub" type="docCommentType_sub" form="unqualified"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_paramref">
+		<xs:attribute name="name" type="xs:string" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_permille"/>
+	<xs:complexType name="docCommentType_pi"/>
+	<xs:complexType name="docCommentType_see">
+		<xs:attribute name="cref" type="xs:string"/>
+		<xs:attribute name="langword" type="xs:string"/>
+		<xs:attribute name="qualify" type="xs:string"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_sub" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_subscript">
+		<xs:attribute name="term" type="xs:string" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_sup" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="i" type="xs:string"/>
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_superscript">
+		<xs:attribute name="term" type="xs:string" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_term" mixed="true">
+		<xs:choice minOccurs="0" maxOccurs="unbounded">
+			<xs:element name="block" type="docCommentType_block" form="unqualified"/>
+			<xs:element name="see" type="docCommentType_see" form="unqualified"/>
+			<xs:element name="paramref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="typeparamref" type="docCommentType_paramref" form="unqualified"/>
+			<xs:element name="para" type="docCommentType_para" form="unqualified"/>
+			<xs:element name="c" type="docCommentType_c" form="unqualified"/>
+			<xs:element name="sup" type="docCommentType_sup" form="unqualified"/>
+			<xs:element name="pi" type="docCommentType_pi" form="unqualified"/>
+			<xs:element name="theta" type="docCommentType_theta" form="unqualified"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="docCommentType_theta"/>
+	-->
 	<xs:simpleType name="pragmaTypeValues">
 		<xs:annotation>
 			<xs:documentation>Supported pragma types</xs:documentation>

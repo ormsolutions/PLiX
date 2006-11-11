@@ -397,9 +397,9 @@
 	</xsl:template>
 	<xsl:template match="plx:docComment">
 		<xsl:param name="Indent"/>
-		<xsl:variable name="NextLine" select="concat($NewLine,$Indent,$DocComment)"/>
+		<xsl:variable name="NextIndent" select="concat($Indent,$DocComment)"/>
+		<xsl:variable name="NextLine" select="concat($NewLine,$NextIndent)"/>
 		<!-- The assumption is made that all doc comments are in xml tags -->
-		<!-- UNDONE: Support spitting code examples in the output language -->
 		<!-- UNDONE: Support spitting code examples in other languages -->
 		<xsl:for-each select="child::*">
 			<xsl:choose>
@@ -410,27 +410,10 @@
 					<xsl:value-of select="$NextLine"/>
 				</xsl:otherwise>
 			</xsl:choose>
-			<!-- UNDONE: We really just want to spit the xml as is, but this
-				 is difficult to do in text output mode -->
-			<xsl:text>&lt;</xsl:text>
-			<xsl:value-of select="local-name()"/>
-			<xsl:for-each select="@*">
-				<xsl:text> </xsl:text>
-				<xsl:value-of select="name()"/>
-				<xsl:text>="</xsl:text>
-				<xsl:value-of select="."/>
-				<xsl:text>"</xsl:text>
-			</xsl:for-each>
-			<xsl:text>&gt;</xsl:text>
-			<xsl:value-of select="$NextLine"/>
-			<xsl:call-template name="RenderDocCommentString">
-				<xsl:with-param name="String" select="."/>
+			<xsl:apply-templates select="." mode="RenderDocComment">
+				<xsl:with-param name="Indent" select="$NextIndent"/>
 				<xsl:with-param name="NextLine" select="$NextLine"/>
-			</xsl:call-template>
-			<xsl:value-of select="$NextLine"/>
-			<xsl:text>&lt;/</xsl:text>
-			<xsl:value-of select="local-name()"/>
-			<xsl:text>&gt;</xsl:text>
+			</xsl:apply-templates>
 		</xsl:for-each>
 	</xsl:template>
 	<xsl:template name="RenderRawString">
@@ -454,6 +437,55 @@
 				</xsl:choose>
 			</xsl:otherwise>
 		</xsl:choose>
+	</xsl:template>
+	<xsl:template match="*" mode="RenderDocComment">
+		<xsl:param name="Indent"/>
+		<xsl:param name="NextLine"/>
+		<xsl:variable name="children" select="child::*|text()"/>
+		<xsl:text>&lt;</xsl:text>
+		<xsl:value-of select="local-name()"/>
+		<xsl:for-each select="@*">
+			<xsl:text> </xsl:text>
+			<xsl:value-of select="name()"/>
+			<xsl:text>="</xsl:text>
+			<xsl:value-of select="."/>
+			<xsl:text>"</xsl:text>
+		</xsl:for-each>
+		<xsl:choose>
+			<xsl:when test="$children">
+				<xsl:text>&gt;</xsl:text>
+				<xsl:apply-templates select="child::*|text()" mode="RenderDocComment">
+					<xsl:with-param name="Indent" select="$Indent"/>
+					<xsl:with-param name="NextLine" select="$NextLine"/>
+				</xsl:apply-templates>
+				<xsl:text>&lt;/</xsl:text>
+				<xsl:value-of select="local-name()"/>
+				<xsl:text>&gt;</xsl:text>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:text>/&gt;</xsl:text>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+	<xsl:template match="plx:*" mode="RenderDocComment">
+		<xsl:param name="Indent"/>
+		<xsl:call-template name="RenderElement">
+			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="SkipLeadingIndent" select="true()"/>
+			<!-- UNDONE: Not everything that passes here is necessarily a statement.
+			For example, <plx:falseKeyword/> will render as 'false;' in C#. Add an
+			'AutoStatement' mode where the statement/simple expression choice is made
+			automatically. In the mean time, this mostly used for code samples, so
+			we'll default to include the statement -->
+			<xsl:with-param name="Statement" select="true()"/>
+		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="text()" mode="RenderDocComment">
+		<xsl:param name="NextLine"/>
+		<xsl:call-template name="RenderDocCommentString">
+			<xsl:with-param name="NextLine" select="$NextLine"/>
+			<xsl:with-param name="String" select="string(.)"/>
+		</xsl:call-template>
 	</xsl:template>
 	<xsl:template name="RenderDocCommentString">
 		<xsl:param name="NextLine"/>
@@ -559,6 +591,7 @@
 		<xsl:param name="LocalItemKey"/>
 		<xsl:param name="Statement" select="false()"/>
 		<xsl:param name="CaseLabels"/>
+		<xsl:param name="SkipLeadingIndent" select="false()"/>
 		<xsl:variable name="indentInfoFragment">
 			<xsl:apply-templates select="." mode="IndentInfo"/>
 		</xsl:variable>
@@ -575,10 +608,12 @@
 				<xsl:variable name="inlineExpansions" select="exsl:node-set($inlineExpansionsFragment)/child::*"/>
 				<xsl:choose>
 					<xsl:when test="$inlineExpansions">
+						<!-- The gist of the next block is shown here, but we need to get all expansion child at one shot
+						so we can support skipping the first indent. Therefore, we back up from the children to the
+						inline expansion key to get the key value.
 						<xsl:for-each select="$inlineExpansions">
 							<xsl:variable name="inlineExpansionKey" select="@key"/>
 							<xsl:for-each select="plxGen:expansion/child::*">
-								<!-- Recurse to RenderElement to pick up nested inline statements -->
 								<xsl:call-template name="RenderElement">
 									<xsl:with-param name="Indent" select="$Indent"/>
 									<xsl:with-param name="LocalItemKey" select="$inlineExpansionKey"/>
@@ -586,6 +621,18 @@
 									<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
 								</xsl:call-template>
 							</xsl:for-each>
+						</xsl:for-each>
+						-->
+						<!-- Recurse to RenderElement to pick up nested inline statements -->
+						<xsl:variable name="leadingExpansions" select="$inlineExpansions/plxGen:expansion/child::*"/>
+						<xsl:for-each select="$leadingExpansions">
+							<xsl:call-template name="RenderElement">
+								<xsl:with-param name="Indent" select="$Indent"/>
+								<xsl:with-param name="LocalItemKey" select="../../@key"/>
+								<xsl:with-param name="Statement" select="true()"/>
+								<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+								<xsl:with-param name="SkipLeadingIndent" select="$SkipLeadingIndent and position()=1"/>
+							</xsl:call-template>
 						</xsl:for-each>
 						<xsl:variable name="preExpandedSurrogate" select="count($inlineExpansions)=1 and $inlineExpansions/@surrogatePreExpanded='true'"/>
 						<xsl:variable name="modifiedFragment">
@@ -610,6 +657,7 @@
 												<xsl:with-param name="IndentInfo" select="$indentInfo"/>
 												<xsl:with-param name="IndentStyle" select="$indentStyle"/>
 												<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+												<xsl:with-param name="SkipLeadingIndent" select="$SkipLeadingIndent and position()=1"/>
 											</xsl:call-template>
 										</xsl:for-each>
 									</xsl:when>
@@ -623,6 +671,7 @@
 												<xsl:with-param name="IndentInfo" select="$indentInfo"/>
 												<xsl:with-param name="IndentStyle" select="$indentStyle"/>
 												<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+												<xsl:with-param name="SkipLeadingIndent" select="$SkipLeadingIndent and position()=1"/>
 											</xsl:call-template>
 										</xsl:for-each>
 									</xsl:otherwise>
@@ -638,6 +687,7 @@
 									<xsl:with-param name="IndentInfo" select="$indentInfo"/>
 									<xsl:with-param name="IndentStyle" select="$indentStyle"/>
 									<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+									<xsl:with-param name="SkipLeadingIndent" select="$SkipLeadingIndent"/>
 								</xsl:call-template>
 							</xsl:when>
 							<xsl:otherwise>
@@ -650,6 +700,7 @@
 									<xsl:with-param name="IndentInfo" select="$indentInfo"/>
 									<xsl:with-param name="IndentStyle" select="$indentStyle"/>
 									<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+									<xsl:with-param name="SkipLeadingIndent" select="$SkipLeadingIndent"/>
 								</xsl:call-template>
 							</xsl:otherwise>
 						</xsl:choose>
@@ -663,6 +714,7 @@
 							<xsl:with-param name="IndentInfo" select="$indentInfo"/>
 							<xsl:with-param name="IndentStyle" select="$indentStyle"/>
 							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+							<xsl:with-param name="SkipLeadingIndent" select="$SkipLeadingIndent"/>
 						</xsl:call-template>
 					</xsl:otherwise>
 				</xsl:choose>
@@ -676,6 +728,7 @@
 					<xsl:with-param name="IndentInfo" select="$indentInfo"/>
 					<xsl:with-param name="IndentStyle" select="$indentStyle"/>
 					<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+					<xsl:with-param name="SkipLeadingIndent" select="$SkipLeadingIndent"/>
 				</xsl:call-template>
 			</xsl:otherwise>
 		</xsl:choose>
@@ -690,6 +743,7 @@
 		<xsl:param name="IndentInfo"/>
 		<xsl:param name="IndentStyle"/>
 		<xsl:param name="CaseLabels"/>
+		<xsl:param name="SkipLeadingIndent" select="false()"/>
 		<!-- A leadBlock may have siblings and has no leading or trailing info associated with it -->
 		<xsl:variable name="leadBlock" select="$IndentStyle='block' or $IndentStyle='blockWithNestedSiblings' or $IndentStyle='blockWithSecondarySiblings'"/>
 		<xsl:variable name="nextLocalItemKeyFragment">
@@ -740,10 +794,13 @@
 						<xsl:call-template name="RenderElement">
 							<xsl:with-param name="Indent" select="$Indent"/>
 							<xsl:with-param name="Statement" select="true()"/>
+							<xsl:with-param name="SkipLeadingIndent" select="$SkipLeadingIndent and position()=1"/>
 						</xsl:call-template>
 					</xsl:for-each>
 				</xsl:if>
-				<xsl:value-of select="$Indent"/>
+				<xsl:if test="not($SkipLeadingIndent)">
+					<xsl:value-of select="$Indent"/>
+				</xsl:if>
 				<xsl:choose>
 					<xsl:when test="$ModifiedElement">
 						<xsl:apply-templates select="$ModifiedElement">
@@ -803,6 +860,7 @@
 						<xsl:if test="$IndentStyle='blockWithSecondarySiblings'">
 							<xsl:call-template name="RenderSecondaryBlocks">
 								<xsl:with-param name="Indent" select="$nextIndent"/>
+								<xsl:with-param name="PreviousIndent" select="$Indent"/>
 								<xsl:with-param name="ParentLocalItemKey" select="$LocalItemKey"/>
 								<xsl:with-param name="LeadBlockPosition" select="$CurrentPosition"/>
 								<xsl:with-param name="CaseLabels" select="$newCaseLabels"/>
@@ -829,6 +887,7 @@
 						<xsl:if test="$IndentStyle='blockWithSecondarySiblings'">
 							<xsl:call-template name="RenderSecondaryBlocks">
 								<xsl:with-param name="Indent" select="$nextIndent"/>
+								<xsl:with-param name="PreviousIndent" select="$Indent"/>
 								<xsl:with-param name="ParentLocalItemKey" select="$LocalItemKey"/>
 								<xsl:with-param name="LeadBlockPosition" select="$CurrentPosition"/>
 								<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
@@ -887,6 +946,9 @@
 						</xsl:call-template>
 					</xsl:for-each>
 				</xsl:if>
+				<xsl:if test="$SkipLeadingIndent">
+					<xsl:value-of select="$Indent"/>
+				</xsl:if>
 			</xsl:when>
 			<xsl:when test="$IndentStyle='simpleMember' or $IndentStyle='simple'">
 				<xsl:variable name="hasInfo" select="$IndentStyle='simpleMember'"/>
@@ -895,10 +957,13 @@
 						<xsl:call-template name="RenderElement">
 							<xsl:with-param name="Indent" select="$Indent"/>
 							<xsl:with-param name="Statement" select="true()"/>
+							<xsl:with-param name="SkipLeadingIndent" select="$SkipLeadingIndent and position()=1"/>
 						</xsl:call-template>
 					</xsl:for-each>
 				</xsl:if>
-				<xsl:value-of select="$Indent"/>
+				<xsl:if test="not($SkipLeadingIndent)">
+					<xsl:value-of select="$Indent"/>
+				</xsl:if>
 				<xsl:choose>
 					<xsl:when test="$ModifiedElement">
 						<xsl:apply-templates select="$ModifiedElement">
@@ -949,6 +1014,9 @@
 							<xsl:with-param name="Statement" select="true()"/>
 						</xsl:call-template>
 					</xsl:for-each>
+				</xsl:if>
+				<xsl:if test="$SkipLeadingIndent and $Statement">
+					<xsl:value-of select="$Indent"/>
 				</xsl:if>
 			</xsl:when>
 			<xsl:when test="$IndentStyle='blockSibling' or $IndentStyle='secondaryBlock'">
@@ -1028,105 +1096,131 @@
 	</xsl:template>
 	<xsl:template name="RenderSecondaryBlocks">
 		<xsl:param name="Indent"/>
+		<xsl:param name="PreviousIndent"/>
 		<xsl:param name="Siblings" select="following-sibling::*"/>
 		<xsl:param name="SiblingIndex" select="1"/>
 		<xsl:param name="ParentLocalItemKey"/>
 		<xsl:param name="LeadBlockPosition"/>
 		<xsl:param name="CaseLabels"/>
-		<xsl:for-each select="$Siblings[$SiblingIndex]">
-			<xsl:variable name="indentInfoFragment">
-				<xsl:apply-templates select="." mode="IndentInfo"/>
-			</xsl:variable>
-			<xsl:variable name="indentInfo" select="exsl:node-set($indentInfoFragment)/child::*"/>
-			<xsl:variable name="indentStyle" select="string($indentInfo/@style)"/>
-			<xsl:if test="$indentStyle='secondaryBlock'">
-				<xsl:choose>
-					<xsl:when test="$ExpandInlineStatements">
-						<xsl:variable name="inlineLocalItemKey" select="concat($ParentLocalItemKey,'_',position(),'ex')"/>
-						<xsl:variable name="inlineExpansionsFragment">
-							<xsl:apply-templates select="." mode="CollectInline">
-								<xsl:with-param name="LocalItemKey" select="$inlineLocalItemKey"/>
-							</xsl:apply-templates>
-						</xsl:variable>
-						<xsl:variable name="inlineExpansions" select="exsl:node-set($inlineExpansionsFragment)/child::*"/>
-						<xsl:choose>
-							<xsl:when test="$inlineExpansions">
-								<xsl:variable name="replacementBlockFragment">
-									<plx:dummy>
-										<xsl:copy-of select="preceding-sibling::*[1]/plx:blockTrailingInfo"/>
-									</plx:dummy>									
-									<xsl:apply-templates select="." mode="BuildInlineSecondaryBlock">
-										<xsl:with-param name="InlineExpansions" select="$inlineExpansions"/>
-										<xsl:with-param name="InlineLocalItemKey" select="$inlineLocalItemKey"/>
-										<xsl:with-param name="Siblings" select="$Siblings"/>
-										<xsl:with-param name="SiblingIndex" select="$SiblingIndex"/>
-									</xsl:apply-templates>
-								</xsl:variable>
-								<xsl:for-each select="exsl:node-set($replacementBlockFragment)/child::*[2]">
-									<xsl:variable name="indentInfoModifiedFragment">
-										<xsl:apply-templates select="." mode="IndentInfo"/>
+		<xsl:variable name="currentSibling" select="$Siblings[$SiblingIndex]"/>
+		<xsl:choose>
+			<xsl:when test="$currentSibling">
+				<xsl:for-each select="$Siblings[$SiblingIndex]">
+					<xsl:variable name="indentInfoFragment">
+						<xsl:apply-templates select="." mode="IndentInfo"/>
+					</xsl:variable>
+					<xsl:variable name="indentInfo" select="exsl:node-set($indentInfoFragment)/child::*"/>
+					<xsl:variable name="indentStyle" select="string($indentInfo/@style)"/>
+					<xsl:choose>
+						<xsl:when test="$indentStyle='secondaryBlock'">
+							<xsl:choose>
+								<xsl:when test="$ExpandInlineStatements">
+									<xsl:variable name="inlineLocalItemKey" select="concat($ParentLocalItemKey,'_',position(),'ex')"/>
+									<xsl:variable name="inlineExpansionsFragment">
+										<xsl:apply-templates select="." mode="CollectInline">
+											<xsl:with-param name="LocalItemKey" select="$inlineLocalItemKey"/>
+										</xsl:apply-templates>
 									</xsl:variable>
-									<xsl:variable name="indentInfoModified" select="exsl:node-set($indentInfoModifiedFragment)/child::*"/>
-									<xsl:variable name="indentStyleModified" select="string($indentInfoModified/@style)"/>
+									<xsl:variable name="inlineExpansions" select="exsl:node-set($inlineExpansionsFragment)/child::*"/>
+									<xsl:choose>
+										<xsl:when test="$inlineExpansions">
+											<xsl:variable name="replacementBlockFragment">
+												<plx:dummy>
+													<xsl:copy-of select="preceding-sibling::*[1]/plx:blockTrailingInfo"/>
+												</plx:dummy>
+												<xsl:apply-templates select="." mode="BuildInlineSecondaryBlock">
+													<xsl:with-param name="InlineExpansions" select="$inlineExpansions"/>
+													<xsl:with-param name="InlineLocalItemKey" select="$inlineLocalItemKey"/>
+													<xsl:with-param name="Siblings" select="$Siblings"/>
+													<xsl:with-param name="SiblingIndex" select="$SiblingIndex"/>
+												</xsl:apply-templates>
+											</xsl:variable>
+											<xsl:for-each select="exsl:node-set($replacementBlockFragment)/child::*[2]">
+												<xsl:variable name="indentInfoModifiedFragment">
+													<xsl:apply-templates select="." mode="IndentInfo"/>
+												</xsl:variable>
+												<xsl:variable name="indentInfoModified" select="exsl:node-set($indentInfoModifiedFragment)/child::*"/>
+												<xsl:variable name="indentStyleModified" select="string($indentInfoModified/@style)"/>
+												<xsl:call-template name="RenderElementWithIndentInfo">
+													<xsl:with-param name="Indent" select="$Indent"/>
+													<xsl:with-param name="Statement" select="true()"/>
+													<xsl:with-param name="ProcessSecondaryBlock" select="true()"/>
+													<xsl:with-param name="CurrentPosition" select="$LeadBlockPosition + $SiblingIndex"/>
+													<xsl:with-param name="LocalItemKey" select="$ParentLocalItemKey"/>
+													<xsl:with-param name="IndentInfo" select="$indentInfoModified"/>
+													<xsl:with-param name="IndentStyle" select="$indentStyleModified"/>
+													<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+												</xsl:call-template>
+											</xsl:for-each>
+										</xsl:when>
+										<xsl:otherwise>
+											<!-- Same as later otherwise -->
+											<xsl:call-template name="RenderElementWithIndentInfo">
+												<xsl:with-param name="Indent" select="$Indent"/>
+												<xsl:with-param name="Statement" select="true()"/>
+												<xsl:with-param name="ProcessSecondaryBlock" select="true()"/>
+												<xsl:with-param name="CurrentPosition" select="$LeadBlockPosition + $SiblingIndex"/>
+												<xsl:with-param name="LocalItemKey" select="$ParentLocalItemKey"/>
+												<xsl:with-param name="IndentInfo" select="$indentInfo"/>
+												<xsl:with-param name="IndentStyle" select="$indentStyle"/>
+												<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+											</xsl:call-template>
+											<xsl:call-template name="RenderSecondaryBlocks">
+												<xsl:with-param name="Indent" select="$Indent"/>
+												<xsl:with-param name="PreviousIndent" select="$PreviousIndent"/>
+												<xsl:with-param name="Siblings" select="$Siblings"/>
+												<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
+												<xsl:with-param name="ParentLocalItemKey" select="$ParentLocalItemKey"/>
+												<xsl:with-param name="LeadBlockPosition" select="$LeadBlockPosition"/>
+												<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+											</xsl:call-template>
+										</xsl:otherwise>
+									</xsl:choose>
+								</xsl:when>
+								<xsl:otherwise>
+									<!-- Same as previous otherwise -->
 									<xsl:call-template name="RenderElementWithIndentInfo">
 										<xsl:with-param name="Indent" select="$Indent"/>
 										<xsl:with-param name="Statement" select="true()"/>
 										<xsl:with-param name="ProcessSecondaryBlock" select="true()"/>
 										<xsl:with-param name="CurrentPosition" select="$LeadBlockPosition + $SiblingIndex"/>
 										<xsl:with-param name="LocalItemKey" select="$ParentLocalItemKey"/>
-										<xsl:with-param name="IndentInfo" select="$indentInfoModified"/>
-										<xsl:with-param name="IndentStyle" select="$indentStyleModified"/>
+										<xsl:with-param name="IndentInfo" select="$indentInfo"/>
+										<xsl:with-param name="IndentStyle" select="$indentStyle"/>
 										<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
 									</xsl:call-template>
-								</xsl:for-each>
-							</xsl:when>
-							<xsl:otherwise>
-								<!-- Same as later otherwise -->
-								<xsl:call-template name="RenderElementWithIndentInfo">
-									<xsl:with-param name="Indent" select="$Indent"/>
+									<xsl:call-template name="RenderSecondaryBlocks">
+										<xsl:with-param name="Indent" select="$Indent"/>
+										<xsl:with-param name="PreviousIndent" select="$PreviousIndent"/>
+										<xsl:with-param name="Siblings" select="$Siblings"/>
+										<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
+										<xsl:with-param name="ParentLocalItemKey" select="$ParentLocalItemKey"/>
+										<xsl:with-param name="LeadBlockPosition" select="$LeadBlockPosition"/>
+										<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+									</xsl:call-template>
+								</xsl:otherwise>
+							</xsl:choose>
+						</xsl:when>
+						<xsl:when test="$SiblingIndex > 1">
+							<xsl:for-each select="$Siblings[$SiblingIndex - 1]/plx:blockTrailingInfo/child::plx:*">
+								<xsl:call-template name="RenderElement">
+									<xsl:with-param name="Indent" select="$PreviousIndent"/>
 									<xsl:with-param name="Statement" select="true()"/>
-									<xsl:with-param name="ProcessSecondaryBlock" select="true()"/>
-									<xsl:with-param name="CurrentPosition" select="$LeadBlockPosition + $SiblingIndex"/>
-									<xsl:with-param name="LocalItemKey" select="$ParentLocalItemKey"/>
-									<xsl:with-param name="IndentInfo" select="$indentInfo"/>
-									<xsl:with-param name="IndentStyle" select="$indentStyle"/>
-									<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
 								</xsl:call-template>
-								<xsl:call-template name="RenderSecondaryBlocks">
-									<xsl:with-param name="Indent" select="$Indent"/>
-									<xsl:with-param name="Siblings" select="$Siblings"/>
-									<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
-									<xsl:with-param name="ParentLocalItemKey" select="$ParentLocalItemKey"/>
-									<xsl:with-param name="LeadBlockPosition" select="$LeadBlockPosition"/>
-									<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
-								</xsl:call-template>
-							</xsl:otherwise>
-						</xsl:choose>
-					</xsl:when>
-					<xsl:otherwise>
-						<!-- Same as previous otherwise -->
-						<xsl:call-template name="RenderElementWithIndentInfo">
-							<xsl:with-param name="Indent" select="$Indent"/>
-							<xsl:with-param name="Statement" select="true()"/>
-							<xsl:with-param name="ProcessSecondaryBlock" select="true()"/>
-							<xsl:with-param name="CurrentPosition" select="$LeadBlockPosition + $SiblingIndex"/>
-							<xsl:with-param name="LocalItemKey" select="$ParentLocalItemKey"/>
-							<xsl:with-param name="IndentInfo" select="$indentInfo"/>
-							<xsl:with-param name="IndentStyle" select="$indentStyle"/>
-							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
-						</xsl:call-template>
-						<xsl:call-template name="RenderSecondaryBlocks">
-							<xsl:with-param name="Indent" select="$Indent"/>
-							<xsl:with-param name="Siblings" select="$Siblings"/>
-							<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
-							<xsl:with-param name="ParentLocalItemKey" select="$ParentLocalItemKey"/>
-							<xsl:with-param name="LeadBlockPosition" select="$LeadBlockPosition"/>
-							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
-						</xsl:call-template>
-					</xsl:otherwise>
-				</xsl:choose>
-			</xsl:if>
-		</xsl:for-each>
+							</xsl:for-each>
+						</xsl:when>
+					</xsl:choose>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:when test="$SiblingIndex > 1">
+				<xsl:for-each select="$Siblings[$SiblingIndex - 1]/plx:blockTrailingInfo/child::plx:*">
+					<xsl:call-template name="RenderElement">
+						<xsl:with-param name="Indent" select="$PreviousIndent"/>
+						<xsl:with-param name="Statement" select="true()"/>
+					</xsl:call-template>
+				</xsl:for-each>
+			</xsl:when>
+		</xsl:choose>
 	</xsl:template>
 	<xsl:template match="plx:alternateBranch" mode="BuildInlineSecondaryBlock">
 		<xsl:param name="InlineExpansions"/>
@@ -1160,32 +1254,39 @@
 				<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
 			</xsl:call-template>
 		</plx:fallbackBranch>
-		<!-- UNDONE: Getting leading/trailing info correct will require examination of the
-		     pragma types in the leading/trailing info. For example, currently a conditional/closeConditional
-		     in the leading/trailing info will leave a hanging End If -->
 	</xsl:template>
 	<xsl:template name="CopySecondaryBlocks">
 		<xsl:param name="Siblings" select="following-sibling::*"/>
 		<xsl:param name="SiblingIndex" select="1"/>
+		<xsl:param name="RecursiveCall" select="false()"/>
 		<xsl:variable name="nextSibling" select="$Siblings[$SiblingIndex]"/>
-		<xsl:if test="$nextSibling">
-			<xsl:for-each select="$nextSibling">
-				<xsl:variable name="indentInfoFragment">
-					<xsl:apply-templates select="." mode="IndentInfo"/>
-				</xsl:variable>
-				<xsl:variable name="indentInfo" select="exsl:node-set($indentInfoFragment)/child::*"/>
-				<xsl:variable name="indentStyle" select="string($indentInfo/@style)"/>
-				<xsl:choose>
-					<xsl:when test="$indentStyle='secondaryBlock'">
-						<xsl:copy-of select="."/>
-						<xsl:call-template name="CopySecondaryBlocks">
-							<xsl:with-param name="Siblings" select="$Siblings"/>
-							<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
-						</xsl:call-template>
-					</xsl:when>
-				</xsl:choose>
-			</xsl:for-each>
-		</xsl:if>
+		<xsl:choose>
+			<xsl:when test="$nextSibling">
+				<xsl:for-each select="$nextSibling">
+					<xsl:variable name="indentInfoFragment">
+						<xsl:apply-templates select="." mode="IndentInfo"/>
+					</xsl:variable>
+					<xsl:variable name="indentInfo" select="exsl:node-set($indentInfoFragment)/child::*"/>
+					<xsl:variable name="indentStyle" select="string($indentInfo/@style)"/>
+					<xsl:choose>
+						<xsl:when test="$indentStyle='secondaryBlock'">
+							<xsl:copy-of select="."/>
+							<xsl:call-template name="CopySecondaryBlocks">
+								<xsl:with-param name="Siblings" select="$Siblings"/>
+								<xsl:with-param name="SiblingIndex" select="$SiblingIndex + 1"/>
+								<xsl:with-param name="RecursiveCall" select="true()"/>
+							</xsl:call-template>
+						</xsl:when>
+						<xsl:when test="not($RecursiveCall) and ($SiblingIndex > 1)">
+							<xsl:copy-of select="$Siblings[$SiblingIndex - 1]/plx:blockTrailingInfo/child::plx:*"/>
+						</xsl:when>
+					</xsl:choose>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:when test="not($RecursiveCall) and ($SiblingIndex > 1)">
+				<xsl:copy-of select="$Siblings[$SiblingIndex - 1]/plx:blockTrailingInfo/child::plx:*"/>
+			</xsl:when>
+		</xsl:choose>
 	</xsl:template>
 	<!--
 	*********************************************************
