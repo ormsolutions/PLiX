@@ -2133,7 +2133,7 @@
 			<attributeCaseMap value="LessThan" attributeValue="lessThan"/>
 			<attributeCaseMap value="LessThanOrEqual" attributeValue="lessThanOrEqual"/>
 			<attributeCaseMap value="Modulus" attributeValue="modulus"/>
-			<attributeCaseMap value="Multiply" attributeValue="multipley"/>
+			<attributeCaseMap value="Multiply" attributeValue="multiply"/>
 			<attributeCaseMap value="ShiftLeft" attributeValue="shiftLeft"/>
 			<attributeCaseMap value="ShiftRight" attributeValue="shiftRight"/>
 			<attributeCaseMap value="Subtract" attributeValue="subtract"/>
@@ -3632,7 +3632,7 @@
 	<commonConstruct name="TypeVisibilityAttribute">
 		<attributeSwitchMap valueProperty="Visibility" valueDataType="TypeVisibility" attributeName="visibility">
 			<attributeCaseMap value="Public" attributeValue="public"/>
-			<attributeCaseMap value="Private" attributeValue="private"/>
+			<attributeCaseMap value="Private" attributeValue="internal"/>
 			<attributeCaseMap value="NestedAssembly" attributeValue="internal"/>
 			<attributeCaseMap value="NestedFamily" attributeValue="protected"/>
 			<attributeCaseMap value="NestedFamilyAndAssembly" attributeValue="protectedAndInternal"/>

@@ -1560,6 +1560,9 @@
 			<xsl:when test="$type='hex2' or $type='hex4' or $type='hex8'">
 				<xsl:text>&amp;H</xsl:text>
 				<xsl:value-of select="@data"/>
+				<xsl:if test="$type='hex2'">
+					<xsl:text>S</xsl:text>
+				</xsl:if>
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:value-of select="@data"/>
@@ -1590,6 +1593,24 @@
 			<xsl:when test="$Inline">
 				<!-- Put them all in a single bracket -->
 				<xsl:for-each select="plx:attribute">
+					<xsl:variable name="rawAttributeName" select="@dataTypeName"/>
+					<xsl:variable name="attributeNameFragment">
+						<xsl:choose>
+							<xsl:when test="string-length($rawAttributeName)&gt;9 and contains($rawAttributeName,'Attribute')">
+								<xsl:choose>
+									<xsl:when test="substring-after($rawAttributeName,'Attribute')">
+										<xsl:value-of select="$rawAttributeName"/>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:value-of select="substring($rawAttributeName, 1, string-length($rawAttributeName)-9)"/>
+									</xsl:otherwise>
+								</xsl:choose>
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:value-of select="$rawAttributeName"/>
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:variable>
 					<xsl:choose>
 						<xsl:when test="position()=1">
 							<xsl:text>&lt;</xsl:text>
@@ -1599,7 +1620,9 @@
 						</xsl:otherwise>
 					</xsl:choose>
 					<xsl:value-of select="$Prefix"/>
-					<xsl:call-template name="RenderType"/>
+					<xsl:call-template name="RenderType">
+						<xsl:with-param name="DataTypeName" select="string($attributeNameFragment)"/>
+					</xsl:call-template>
 					<xsl:call-template name="RenderPassParams">
 						<xsl:with-param name="Indent" select="$Indent"/>
 					</xsl:call-template>
@@ -1610,9 +1633,29 @@
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:for-each select="plx:attribute">
+					<xsl:variable name="rawAttributeName" select="@dataTypeName"/>
+					<xsl:variable name="attributeNameFragment">
+						<xsl:choose>
+							<xsl:when test="string-length($rawAttributeName)&gt;9 and contains($rawAttributeName,'Attribute')">
+								<xsl:choose>
+									<xsl:when test="substring-after($rawAttributeName,'Attribute')">
+										<xsl:value-of select="$rawAttributeName"/>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:value-of select="substring($rawAttributeName, 1, string-length($rawAttributeName)-9)"/>
+									</xsl:otherwise>
+								</xsl:choose>
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:value-of select="$rawAttributeName"/>
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:variable>
 					<xsl:text>&lt;</xsl:text>
 					<xsl:value-of select="$Prefix"/>
-					<xsl:call-template name="RenderType"/>
+					<xsl:call-template name="RenderType">
+						<xsl:with-param name="DataTypeName" select="string($attributeNameFragment)"/>
+					</xsl:call-template>
 					<xsl:call-template name="RenderPassParams">
 						<xsl:with-param name="Indent" select="$Indent"/>
 					</xsl:call-template>
@@ -1946,7 +1989,8 @@
 	<xsl:template name="RenderType">
 		<xsl:param name="RenderArray" select="true()"/>
 		<xsl:param name="ExplicitPassTypeParams"/>
-		<xsl:variable name="rawTypeName" select="@dataTypeName"/>
+		<xsl:param name="DataTypeName" select="@dataTypeName"/>
+		<xsl:variable name="rawTypeName" select="$DataTypeName"/>
 		<xsl:choose>
 			<xsl:when test="string-length($rawTypeName)">
 				<!-- Spit the name for the raw type -->

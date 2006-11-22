@@ -58,7 +58,7 @@ namespace Reflector
 						visibilityAttributeValue = "public";
 						break;
 					case TypeVisibility.Private:
-						visibilityAttributeValue = "private";
+						visibilityAttributeValue = "internal";
 						break;
 					case TypeVisibility.NestedAssembly:
 						visibilityAttributeValue = "internal";
@@ -2020,7 +2020,7 @@ namespace Reflector
 						typeAttributeValue = "modulus";
 						break;
 					case BinaryOperator.Multiply:
-						typeAttributeValue = "multipley";
+						typeAttributeValue = "multiply";
 						break;
 					case BinaryOperator.ShiftLeft:
 						typeAttributeValue = "shiftLeft";

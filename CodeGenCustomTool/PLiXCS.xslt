@@ -440,8 +440,10 @@
 	<xsl:template match="plx:catch">
 		<xsl:text>catch (</xsl:text>
 		<xsl:call-template name="RenderType"/>
-		<xsl:text> </xsl:text>
-		<xsl:value-of select="@localName"/>
+		<xsl:if test="string(@localName)">
+			<xsl:text> </xsl:text>
+			<xsl:value-of select="@localName"/>
+		</xsl:if>
 		<xsl:text>)</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:class | plx:interface | plx:structure">
@@ -828,6 +830,7 @@
 		</xsl:call-template>
 		<xsl:call-template name="RenderVisibility"/>
 		<xsl:call-template name="RenderStatic"/>
+		<xsl:call-template name="RenderVolatile"/>
 		<xsl:call-template name="RenderReplacesName"/>
 		<xsl:call-template name="RenderConst"/>
 		<xsl:call-template name="RenderReadOnly"/>
@@ -866,10 +869,16 @@
 				</xsl:variable>
 				<xsl:choose>
 					<xsl:when test="$name='.construct'">
-						<xsl:call-template name="RenderVisibility"/>
+						<xsl:choose>
+							<xsl:when test="@modifier='static'">
+								<!-- Ignore modifiers other than static, don't call RenderProcedureModifier -->
+								<xsl:text>static </xsl:text>
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:call-template name="RenderVisibility"/>
+							</xsl:otherwise>
+						</xsl:choose>
 						<xsl:if test="@modifier='static'">
-							<!-- Ignore modifiers other than static, don't call RenderProcedureModifier -->
-							<xsl:text>static </xsl:text>
 						</xsl:if>
 						<xsl:value-of select="$className"/>
 						<xsl:call-template name="RenderParams"/>
@@ -906,6 +915,9 @@
 					<xsl:if test="not(parent::plx:interface)">
 						<xsl:call-template name="RenderVisibility"/>
 						<xsl:call-template name="RenderProcedureModifier"/>
+						<xsl:if test="@modifier='static' and plx:attribute[@dataTypeName='DllImport' or @dataTypeName='DllImportAttribute'][not(@dataTypeQualifier) or @dataTypeQualifier='System.Runtime.InteropServices']">
+							<xsl:text>extern </xsl:text>
+						</xsl:if>
 					</xsl:if>
 					<xsl:call-template name="RenderReplacesName"/>
 				</xsl:if>
@@ -952,6 +964,14 @@
 						<xsl:apply-imports/>
 					</xsl:with-param>
 					<xsl:with-param name="closeBlockCallback" select="true()"/>
+				</xsl:call-template>
+			</xsl:when>
+			<xsl:when test="@modifier='static' and plx:attribute[@dataTypeName='DllImport' or @dataTypeName='DllImportAttribute'][not(@dataTypeQualifier) or @dataTypeQualifier='System.Runtime.InteropServices']">
+				<xsl:call-template name="CustomizeIndentInfo">
+					<xsl:with-param name="defaultInfo">
+						<xsl:apply-imports/>
+					</xsl:with-param>
+					<xsl:with-param name="style" select="'simpleMember'"/>
 				</xsl:call-template>
 			</xsl:when>
 			<xsl:otherwise>
@@ -1701,18 +1721,43 @@
 	</xsl:template>
 	<xsl:template match="plx:value">
 		<xsl:variable name="type" select="string(@type)"/>
+		<xsl:variable name="data" select="string(@data)"/>
 		<xsl:choose>
 			<xsl:when test="$type='char'">
 				<xsl:text>'</xsl:text>
-				<xsl:value-of select="@data"/>
+				<xsl:variable name="rawCharData" select="substring($data,1,1)"/>
+				<xsl:choose>
+					<xsl:when test="$rawCharData='&#xd;'">
+						<xsl:text>\r</xsl:text>
+					</xsl:when>
+					<xsl:when test="$rawCharData='&#xa;'">
+						<xsl:text>\n</xsl:text>
+					</xsl:when>
+					<xsl:when test='$rawCharData="&apos;"'>
+						<xsl:text>\'</xsl:text>
+					</xsl:when>
+					<xsl:when test="$rawCharData='\'">
+						<xsl:text>\\</xsl:text>
+					</xsl:when>
+					<xsl:when test="$rawCharData='&#x9;'">
+						<xsl:text>\t</xsl:text>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:value-of select="$rawCharData"/>
+					</xsl:otherwise>
+				</xsl:choose>
 				<xsl:text>'</xsl:text>
 			</xsl:when>
 			<xsl:when test="$type='hex2' or $type='hex4' or $type='hex8'">
 				<xsl:text>0x</xsl:text>
-				<xsl:value-of select="@data"/>
+				<xsl:value-of select="$data"/>
+			</xsl:when>
+			<xsl:when test="$type='r4'">
+				<xsl:value-of select="$data"/>
+				<xsl:text>F</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>
-				<xsl:value-of select="@data"/>
+				<xsl:value-of select="$data"/>
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
@@ -1740,6 +1785,24 @@
 			<xsl:when test="$Inline">
 				<!-- Put them all in a single bracket -->
 				<xsl:for-each select="plx:attribute">
+					<xsl:variable name="rawAttributeName" select="@dataTypeName"/>
+					<xsl:variable name="attributeNameFragment">
+						<xsl:choose>
+							<xsl:when test="string-length($rawAttributeName)&gt;9 and contains($rawAttributeName,'Attribute')">
+								<xsl:choose>
+									<xsl:when test="substring-after($rawAttributeName,'Attribute')">
+										<xsl:value-of select="$rawAttributeName"/>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:value-of select="substring($rawAttributeName, 1, string-length($rawAttributeName)-9)"/>
+									</xsl:otherwise>
+								</xsl:choose>
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:value-of select="$rawAttributeName"/>
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:variable>
 					<xsl:choose>
 						<xsl:when test="position()=1">
 							<xsl:text>[</xsl:text>
@@ -1749,7 +1812,9 @@
 						</xsl:otherwise>
 					</xsl:choose>
 					<xsl:value-of select="$Prefix"/>
-					<xsl:call-template name="RenderType"/>
+					<xsl:call-template name="RenderType">
+						<xsl:with-param name="DataTypeName" select="string($attributeNameFragment)"/>
+					</xsl:call-template>
 					<xsl:call-template name="RenderPassParams">
 						<xsl:with-param name="Indent" select="$Indent"/>
 					</xsl:call-template>
@@ -1760,9 +1825,29 @@
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:for-each select="plx:attribute">
+					<xsl:variable name="rawAttributeName" select="@dataTypeName"/>
+					<xsl:variable name="attributeNameFragment">
+						<xsl:choose>
+							<xsl:when test="string-length($rawAttributeName)&gt;9 and contains($rawAttributeName,'Attribute')">
+								<xsl:choose>
+									<xsl:when test="substring-after($rawAttributeName,'Attribute')">
+										<xsl:value-of select="$rawAttributeName"/>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:value-of select="substring($rawAttributeName, 1, string-length($rawAttributeName)-9)"/>
+									</xsl:otherwise>
+								</xsl:choose>
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:value-of select="$rawAttributeName"/>
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:variable>
 					<xsl:text>[</xsl:text>
 					<xsl:value-of select="$Prefix"/>
-					<xsl:call-template name="RenderType"/>
+					<xsl:call-template name="RenderType">
+						<xsl:with-param name="DataTypeName" select="string($attributeNameFragment)"/>
+					</xsl:call-template>
 					<xsl:call-template name="RenderPassParams">
 						<xsl:with-param name="Indent" select="$Indent"/>
 					</xsl:call-template>
@@ -2069,7 +2154,8 @@
 	</xsl:template>
 	<xsl:template name="RenderType">
 		<xsl:param name="RenderArray" select="true()"/>
-		<xsl:variable name="rawTypeName" select="@dataTypeName"/>
+		<xsl:param name="DataTypeName" select="@dataTypeName"/>
+		<xsl:variable name="rawTypeName" select="$DataTypeName"/>
 		<xsl:choose>
 			<xsl:when test="string-length($rawTypeName)">
 				<!-- Spit the name for the raw type -->
@@ -2382,6 +2468,12 @@
 				</xsl:when>
 				<!-- deferToPartial and privateInterfaceMember are not rendered -->
 			</xsl:choose>
+		</xsl:if>
+	</xsl:template>
+	<xsl:template name="RenderVolatile">
+		<xsl:param name="Volatile" select="@volatile"/>
+		<xsl:if test="$Volatile='true' or $Volatile='1'">
+			<xsl:text>volatile </xsl:text>
 		</xsl:if>
 	</xsl:template>
 
