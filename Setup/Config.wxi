@@ -64,7 +64,7 @@
 	<?define VSRegRoot="SOFTWARE\Microsoft\VisualStudio\8.0"?>
 	<?define VSRegExpRoot="SOFTWARE\Microsoft\VisualStudio\8.0Exp"?>
 	<?define PLIXRegRoot="SOFTWARE\Neumont\PLiX for Visual Studio"?>
-	<?define PLIXSchemaVersion="2"?>
+	<?define PLIXSchemaVersion="3"?>
 	<!-- The default target directory for installation (under ProgramFilesFolder). -->
 	<!-- NOTE: This is intentionally not being localized, so that the installation location is constant. -->
 	<?define DefaultCompanyDir="Neumont"?>

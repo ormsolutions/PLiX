@@ -219,33 +219,29 @@
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:break">
-		<xsl:for-each select="(ancestor::plx:loop | ancestor::plx:iterator | ancestor::plx:switch)[1]">
-			<xsl:variable name="parentName" select="local-name()"/>
-			<xsl:choose>
-				<xsl:when test="$parentName='loop'">
-					<!-- This needs to be carefully kept in sync with plx:loop so
+		<xsl:apply-templates select=".." mode="RenderBreak"/>
+	</xsl:template>
+	<xsl:template match="*" mode="RenderBreak">
+		<xsl:apply-templates select=".." mode="RenderBreak"/>
+	</xsl:template>
+	<xsl:template match="plx:loop" mode="RenderBreak">
+		<!-- This needs to be carefully kept in sync with plx:loop so
 						 we match the correct loop type -->
-					<xsl:variable name="initialize" select="plx:initializeLoop/child::plx:*"/>
-					<xsl:variable name="condition" select="plx:condition/child::plx:*"/>
-					<xsl:variable name="beforeLoop" select="plx:beforeLoop/child::plx:*"/>
-					<xsl:choose>
-						<xsl:when test="@checkCondition='after' and $condition">
-							<xsl:text>Exit Do</xsl:text>
-						</xsl:when>
-						<xsl:otherwise>
-							<!-- UNDONE: Recognize patterns for VB's for loop. -->
-							<xsl:text>Exit While</xsl:text>
-						</xsl:otherwise>
-					</xsl:choose>
-				</xsl:when>
-				<xsl:when test="$parentName='iterator'">
-					<xsl:text>Exit For</xsl:text>
-				</xsl:when>
-				<xsl:when test="$parentName='switch'">
-					<xsl:text>Exit Select</xsl:text>
-				</xsl:when>
-			</xsl:choose>
-		</xsl:for-each>
+		<xsl:choose>
+			<xsl:when test="@checkCondition='after' and plx:condition">
+				<xsl:text>Exit Do</xsl:text>
+			</xsl:when>
+			<xsl:otherwise>
+				<!-- UNDONE: Recognize patterns for VB's for loop. -->
+				<xsl:text>Exit While</xsl:text>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+	<xsl:template match="plx:iterator" mode="RenderBreak">
+		<xsl:text>Exit For</xsl:text>
+	</xsl:template>
+	<xsl:template match="plx:switch" mode="RenderBreak">
+		<xsl:text>Exit Select</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:callInstance">
 		<xsl:param name="Indent"/>
@@ -255,15 +251,13 @@
 		<xsl:variable name="caller" select="plx:callObject/child::*"/>
 		<xsl:variable name="callerNeedsParensFragment">
 			<xsl:for-each select="$caller">
-				<xsl:variable name="tagName" select="local-name()"/>
 				<xsl:choose>
-					<xsl:when test="$tagName='binaryOperator' or $tagName='unaryOperator' or $tagName='callNew'">
+					<xsl:when test="self::plx:binaryOperator|self::plx:unaryOperator|self::plx:callNew">
 						<xsl:text>1</xsl:text>
 					</xsl:when>
-					<xsl:when test="$tagName='expression' and not(@parens='true' or @parens='1')">
-						<xsl:variable name="tagName2" select="local-name()"/>
-						<xsl:if test="$tagName2='binaryOperator' or $tagName2='unaryOperator' or $tagName2='callNew'">
-							<xsl:text>1</xsl:text>
+					<xsl:when test="self::plx:expression and not(@parens='true' or @parens='1')">
+						<xsl:if test="plx:binaryOperator|plx:unaryOperator|plx:callNew">
+								<xsl:text>1</xsl:text>
 						</xsl:if>
 					</xsl:when>
 				</xsl:choose>
@@ -481,35 +475,58 @@
 			<xsl:with-param name="closeWith" select="'End Class'"/>
 		</xsl:call-template>
 	</xsl:template>
+	<xsl:template match="plx:concatenate">
+		<xsl:param name="Indent"/>
+		<xsl:call-template name="RenderExpressionList">
+			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="BracketPair" select="''"/>
+			<xsl:with-param name="ListSeparator" select="' &amp; '"/>
+		</xsl:call-template>
+	</xsl:template>
 	<xsl:template match="plx:continue">
-		<!-- UNDONE: If the nearest enclosing iterator or loop is a loop
-			 and checkCondition is 'after' and a beforeLoop statement is
-			 specified, then we need to execute the beforeLoop statement
-			 before calling continue. -->
-		<xsl:for-each select="(ancestor::plx:loop | ancestor::plx:iterator)[1]">
-			<xsl:variable name="parentName" select="local-name()"/>
-			<xsl:choose>
-				<xsl:when test="$parentName='loop'">
-					<!-- This needs to be carefully kept in sync with plx:loop so
+		<xsl:param name="Indent"/>
+		<xsl:apply-templates select=".." mode="RenderContinue">
+			<xsl:with-param name="Indent" select="$Indent"/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="*" mode="RenderContinue">
+		<xsl:param name="Indent"/>
+		<xsl:apply-templates select=".." mode="RenderContinue">
+			<xsl:with-param name="Indent" select="$Indent"/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="plx:iterator" mode="RenderContinue">
+		<xsl:text>Continue For</xsl:text>
+	</xsl:template>
+	<xsl:template match="plx:loop" mode="RenderContinue">
+		<xsl:param name="Indent"/>
+		<!-- This needs to be carefully kept in sync with plx:loop so
 						 we match the correct loop type -->
-					<xsl:variable name="initialize" select="plx:initializeLoop/child::plx:*"/>
-					<xsl:variable name="condition" select="plx:condition/child::plx:*"/>
-					<xsl:variable name="beforeLoop" select="plx:beforeLoop/child::plx:*"/>
-					<xsl:choose>
-						<xsl:when test="@checkCondition='after' and $condition">
-							<xsl:text>Continue Do</xsl:text>
-						</xsl:when>
-						<xsl:otherwise>
-							<xsl:text>Continue While</xsl:text>
-						</xsl:otherwise>
-						<!-- UNDONE: Recognize patterns for VB's for loop. -->
-					</xsl:choose>
-				</xsl:when>
-				<xsl:when test="$parentName='iterator'">
-					<xsl:text>Continue For</xsl:text>
-				</xsl:when>
-			</xsl:choose>
-		</xsl:for-each>
+		<xsl:choose>
+			<xsl:when test="@checkCondition='after'">
+				<xsl:variable name="condition" select="plx:condition/child::plx:*"/>
+				<xsl:choose>
+					<xsl:when test="$condition">
+						<xsl:variable name="beforeLoop" select="plx:beforeLoop/child::plx:*"/>
+						<xsl:for-each select="$beforeLoop">
+							<xsl:call-template name="RenderElement">
+								<xsl:with-param name="Indent" select="$Indent"/>
+								<xsl:with-param name="Statement" select="true()"/>
+								<xsl:with-param name="SkipLeadingIndent" select="true()"/>
+							</xsl:call-template>
+						</xsl:for-each>
+						<xsl:text>Continue Do</xsl:text>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:text>Continue While</xsl:text>
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:text>Continue While</xsl:text>
+			</xsl:otherwise>
+			<!-- UNDONE: Recognize patterns for VB's for loop. -->
+		</xsl:choose>
 	</xsl:template>
 	<xsl:template match="plx:decrement">
 		<!-- UNDONE: Add operator precedence tables to the language info and
@@ -844,6 +861,11 @@
 			<xsl:with-param name="closeWith" select="'End Get'"/>
 		</xsl:call-template>
 	</xsl:template>
+	<xsl:template match="plx:goto">
+		<xsl:param name="Indent"/>
+		<xsl:text>GoTo </xsl:text>
+		<xsl:value-of select="@name"/>
+	</xsl:template>
 	<xsl:template match="plx:gotoCase">
 		<xsl:param name="LocalItemKey"/>
 		<xsl:param name="CaseLabels"/>
@@ -909,6 +931,11 @@
 			</xsl:with-param>
 			<xsl:with-param name="closeWith" select="'Next'"/>
 		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="plx:label">
+		<xsl:param name="Indent"/>
+		<xsl:value-of select="@name"/>
+		<xsl:text>:</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:local">
 		<xsl:param name="Indent"/>
@@ -1012,14 +1039,14 @@
 		<xsl:param name="StandardCloseWith"/>
 		<xsl:variable name="beforeLoop" select="plx:beforeLoop/child::plx:*"/>
 		<xsl:variable name="condition" select="plx:condition/child::plx:*"/>
-		<xsl:if test="$beforeLoop">
+		<xsl:for-each select="$beforeLoop">
 			<xsl:value-of select="$SingleIndent"/>
-			<xsl:apply-templates select="$beforeLoop">
-				<xsl:with-param name="Indent" select="concat($Indent,$SingleIndent)"/>
-			</xsl:apply-templates>
-			<xsl:value-of select="$NewLine"/>
-			<xsl:value-of select="$Indent"/>
-		</xsl:if>
+			<xsl:call-template name="RenderElement">
+				<xsl:with-param name="Indent" select="$Indent"/>
+				<xsl:with-param name="Statement" select="true()"/>
+				<xsl:with-param name="SkipLeadingIndent" select="true()"/>
+			</xsl:call-template>
+		</xsl:for-each>
 		<xsl:choose>
 			<xsl:when test="@checkCondition='after' and $condition">
 				<xsl:text>Loop While </xsl:text>
@@ -1570,7 +1597,15 @@
 		</xsl:choose>
 	</xsl:template>
 	<xsl:template match="plx:valueKeyword">
-		<xsl:text>Value</xsl:text>
+		<xsl:variable name="stringize" select="string(@stringize)"/>
+		<xsl:choose>
+			<xsl:when test="$stringize='1' or $stringize='true'">
+				<xsl:text>"Value"</xsl:text>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:text>Value</xsl:text>
+			</xsl:otherwise>
+		</xsl:choose>
 	</xsl:template>
 
 	<!-- Named templates -->
@@ -1585,6 +1620,50 @@
 			</xsl:call-template>
 		</xsl:if>
 	</xsl:template>
+	<xsl:template name="RenderAttribute">
+		<xsl:param name="Indent"/>
+		<xsl:variable name="rawAttributeName" select="@dataTypeName"/>
+		<xsl:variable name="attributeNameFragment">
+			<xsl:choose>
+				<xsl:when test="string-length($rawAttributeName)&gt;9 and contains($rawAttributeName,'Attribute')">
+					<xsl:choose>
+						<xsl:when test="substring-after($rawAttributeName,'Attribute')">
+							<xsl:value-of select="$rawAttributeName"/>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:value-of select="substring($rawAttributeName, 1, string-length($rawAttributeName)-9)"/>
+						</xsl:otherwise>
+					</xsl:choose>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:value-of select="$rawAttributeName"/>
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:variable>
+		<xsl:call-template name="RenderType">
+			<xsl:with-param name="DataTypeName" select="string($attributeNameFragment)"/>
+		</xsl:call-template>
+		<!-- Make sure any named arguments go last. This cannot be controlled 100% by the caller
+			 because passParamArray always comes after passParam. -->
+		<xsl:variable name="namedParameters" select="plx:passParam[plx:binaryOperator[@type='assignNamed']]"/>
+		<xsl:choose>
+			<xsl:when test="$namedParameters">
+				<xsl:variable name="reorderedPassParamsFragment">
+					<xsl:copy-of select="plx:passParam[not(plx:binaryOperator[@type='assignNamed'])]|plx:passParamArray/plx:passParam"/>
+					<xsl:copy-of select="$namedParameters"/>
+				</xsl:variable>
+				<xsl:call-template name="RenderPassParams">
+					<xsl:with-param name="Indent" select="$Indent"/>
+					<xsl:with-param name="PassParams" select="exsl:node-set($reorderedPassParamsFragment)/child::*"/>
+				</xsl:call-template>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:call-template name="RenderPassParams">
+					<xsl:with-param name="Indent" select="$Indent"/>
+				</xsl:call-template>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
 	<xsl:template name="RenderAttributes">
 		<xsl:param name="Indent"/>
 		<xsl:param name="Inline" select="false()"/>
@@ -1593,24 +1672,6 @@
 			<xsl:when test="$Inline">
 				<!-- Put them all in a single bracket -->
 				<xsl:for-each select="plx:attribute">
-					<xsl:variable name="rawAttributeName" select="@dataTypeName"/>
-					<xsl:variable name="attributeNameFragment">
-						<xsl:choose>
-							<xsl:when test="string-length($rawAttributeName)&gt;9 and contains($rawAttributeName,'Attribute')">
-								<xsl:choose>
-									<xsl:when test="substring-after($rawAttributeName,'Attribute')">
-										<xsl:value-of select="$rawAttributeName"/>
-									</xsl:when>
-									<xsl:otherwise>
-										<xsl:value-of select="substring($rawAttributeName, 1, string-length($rawAttributeName)-9)"/>
-									</xsl:otherwise>
-								</xsl:choose>
-							</xsl:when>
-							<xsl:otherwise>
-								<xsl:value-of select="$rawAttributeName"/>
-							</xsl:otherwise>
-						</xsl:choose>
-					</xsl:variable>
 					<xsl:choose>
 						<xsl:when test="position()=1">
 							<xsl:text>&lt;</xsl:text>
@@ -1620,10 +1681,7 @@
 						</xsl:otherwise>
 					</xsl:choose>
 					<xsl:value-of select="$Prefix"/>
-					<xsl:call-template name="RenderType">
-						<xsl:with-param name="DataTypeName" select="string($attributeNameFragment)"/>
-					</xsl:call-template>
-					<xsl:call-template name="RenderPassParams">
+					<xsl:call-template name="RenderAttribute">
 						<xsl:with-param name="Indent" select="$Indent"/>
 					</xsl:call-template>
 					<xsl:if test="position()=last()">
@@ -1633,30 +1691,9 @@
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:for-each select="plx:attribute">
-					<xsl:variable name="rawAttributeName" select="@dataTypeName"/>
-					<xsl:variable name="attributeNameFragment">
-						<xsl:choose>
-							<xsl:when test="string-length($rawAttributeName)&gt;9 and contains($rawAttributeName,'Attribute')">
-								<xsl:choose>
-									<xsl:when test="substring-after($rawAttributeName,'Attribute')">
-										<xsl:value-of select="$rawAttributeName"/>
-									</xsl:when>
-									<xsl:otherwise>
-										<xsl:value-of select="substring($rawAttributeName, 1, string-length($rawAttributeName)-9)"/>
-									</xsl:otherwise>
-								</xsl:choose>
-							</xsl:when>
-							<xsl:otherwise>
-								<xsl:value-of select="$rawAttributeName"/>
-							</xsl:otherwise>
-						</xsl:choose>
-					</xsl:variable>
 					<xsl:text>&lt;</xsl:text>
 					<xsl:value-of select="$Prefix"/>
-					<xsl:call-template name="RenderType">
-						<xsl:with-param name="DataTypeName" select="string($attributeNameFragment)"/>
-					</xsl:call-template>
-					<xsl:call-template name="RenderPassParams">
+					<xsl:call-template name="RenderAttribute">
 						<xsl:with-param name="Indent" select="$Indent"/>
 					</xsl:call-template>
 					<xsl:text>&gt;</xsl:text>
@@ -1682,24 +1719,15 @@
 	</xsl:template>
 	<xsl:template name="RenderArrayInitializer">
 		<xsl:param name="Indent"/>
-		<xsl:variable name="passParams" select="plx:passParam"/>
+		<xsl:variable name="nestedInitializers" select="plx:arrayInitializer"/>
 		<xsl:variable name="nextIndent" select="concat($Indent,$SingleIndent)"/>
-		<!-- We either get params or nested initializers, but not both -->
+		<!-- We either get nested expressions or nested initializers, but not both -->
 		<xsl:choose>
-			<xsl:when test="$passParams">
-				<xsl:call-template name="RenderPassParams">
-					<xsl:with-param name="Indent" select="$nextIndent"/>
-					<xsl:with-param name="PassParams" select="$passParams"/>
-					<xsl:with-param name="BracketPair" select="'{}'"/>
-					<xsl:with-param name="BeforeFirstItem" select="concat($NewLine,$nextIndent)"/>
-					<xsl:with-param name="ListSeparator" select="concat(',',$NewLine,$nextIndent)"/>
-				</xsl:call-template>
-			</xsl:when>
-			<xsl:otherwise>
+			<xsl:when test="$nestedInitializers">
 				<xsl:text>{</xsl:text>
-				<xsl:for-each select="plx:arrayInitializer">
+				<xsl:for-each select="$nestedInitializers">
 					<xsl:if test="position()!=1">
-						<xsl:text>, </xsl:text>
+						<xsl:text>, _</xsl:text>
 					</xsl:if>
 					<xsl:value-of select="$NewLine"/>
 					<xsl:value-of select="$nextIndent"/>
@@ -1708,6 +1736,14 @@
 					</xsl:call-template>
 				</xsl:for-each>
 				<xsl:text>}</xsl:text>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:call-template name="RenderExpressionList">
+					<xsl:with-param name="Indent" select="$nextIndent"/>
+					<xsl:with-param name="BracketPair" select="'{}'"/>
+					<xsl:with-param name="BeforeFirstItem" select="concat(' _',$NewLine,$nextIndent)"/>
+					<xsl:with-param name="ListSeparator" select="concat(', _',$NewLine,$nextIndent)"/>
+				</xsl:call-template>
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
@@ -1731,7 +1767,7 @@
 			<xsl:with-param name="PassTypeParams" select="plx:passMemberTypeParam"/>
 		</xsl:call-template>
 
-		<xsl:variable name="passParams" select="plx:passParam"/>
+		<xsl:variable name="passParams" select="plx:passParam | plx:passParamArray/plx:passParam"/>
 		<xsl:variable name="hasParams" select="boolean($passParams)"/>
 		<xsl:variable name="bracketPair">
 			<xsl:choose>
@@ -1782,6 +1818,28 @@
 		<xsl:if test="$Const='true' or $Const='1'">
 			<xsl:text>Const </xsl:text>
 		</xsl:if>
+	</xsl:template>
+	<xsl:template name="RenderExpressionList">
+		<xsl:param name="Indent"/>
+		<xsl:param name="Expressions" select="child::plx:*"/>
+		<xsl:param name="BracketPair" select="'()'"/>
+		<xsl:param name="ListSeparator" select="', '"/>
+		<xsl:param name="BeforeFirstItem" select="''"/>
+		<xsl:value-of select="substring($BracketPair,1,1)"/>
+		<xsl:for-each select="$Expressions">
+			<xsl:choose>
+				<xsl:when test="position()=1">
+					<xsl:value-of select="$BeforeFirstItem"/>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:value-of select="$ListSeparator"/>
+				</xsl:otherwise>
+			</xsl:choose>
+			<xsl:apply-templates select=".">
+				<xsl:with-param name="Indent" select="$Indent"/>
+			</xsl:apply-templates>
+		</xsl:for-each>
+		<xsl:value-of select="substring($BracketPair,2)"/>
 	</xsl:template>
 	<xsl:template name="RenderInterfaceMembers">
 		<xsl:param name="Indent"/>
@@ -1877,7 +1935,7 @@
 	</xsl:template>
 	<xsl:template name="RenderPassParams">
 		<xsl:param name="Indent"/>
-		<xsl:param name="PassParams" select="plx:passParam"/>
+		<xsl:param name="PassParams" select="plx:passParam | plx:passParamArray/plx:passParam"/>
 		<xsl:param name="BracketPair" select="'()'"/>
 		<xsl:param name="ListSeparator" select="', '"/>
 		<xsl:param name="BeforeFirstItem" select="''"/>
@@ -2045,6 +2103,7 @@
 							<xsl:when test="$rawTypeName='.date'">
 								<xsl:text>Date</xsl:text>
 							</xsl:when>
+							<xsl:when test="$rawTypeName='.unspecifiedTypeParam'"/>
 						</xsl:choose>
 					</xsl:when>
 					<xsl:otherwise>

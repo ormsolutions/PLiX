@@ -83,18 +83,21 @@ namespace Reflector
 				{
 					this.WriteAttribute("visibility", visibilityAttributeValue);
 				}
-				string modifierAttributeValue = "";
-				if (value.Abstract)
+				if (!(isInterface))
 				{
-					modifierAttributeValue = "abstract";
-				}
-				else if (value.Sealed && (elementName == "class"))
-				{
-					modifierAttributeValue = "sealed";
-				}
-				if (modifierAttributeValue.Length != 0)
-				{
-					this.WriteAttribute("modifier", modifierAttributeValue);
+					string modifierAttributeValue = "";
+					if (value.Abstract)
+					{
+						modifierAttributeValue = "abstract";
+					}
+					else if (value.Sealed && (elementName == "class"))
+					{
+						modifierAttributeValue = "sealed";
+					}
+					if (modifierAttributeValue.Length != 0)
+					{
+						this.WriteAttribute("modifier", modifierAttributeValue);
+					}
 				}
 				if (elementName == "enum")
 				{
@@ -121,7 +124,7 @@ namespace Reflector
 					{
 						if ((ownerGenericArguments != null) && ownerGenericArguments.Contains(GenericArgumentsItem))
 						{
-							break;
+							continue;
 						}
 						this.WriteElement("typeParam");
 						this.RenderGenericParameterDeclaration(GenericArgumentsItem);
@@ -151,6 +154,14 @@ namespace Reflector
 							this.RenderTypeReference(InterfacesItem);
 							this.WriteEndElement();
 						}
+						foreach (IFieldDeclaration FieldsItem in value.Fields)
+						{
+							this.Render(FieldsItem);
+						}
+						foreach (IPropertyDeclaration PropertiesItem in value.Properties)
+						{
+							this.Render(PropertiesItem, translateMethods, isInterface);
+						}
 						foreach (IEventDeclaration EventsItem in value.Events)
 						{
 							this.Render(EventsItem, translateMethods, isInterface);
@@ -162,14 +173,6 @@ namespace Reflector
 								continue;
 							}
 							this.Render(MethodsItem, translateMethods, isInterface);
-						}
-						foreach (IPropertyDeclaration PropertiesItem in value.Properties)
-						{
-							this.Render(PropertiesItem, translateMethods, isInterface);
-						}
-						foreach (IFieldDeclaration FieldsItem in value.Fields)
-						{
-							this.Render(FieldsItem);
 						}
 						foreach (ITypeDeclaration NestedTypesItem in value.NestedTypes)
 						{
@@ -270,12 +273,12 @@ namespace Reflector
 				this.WriteElement(elementName);
 				this.WriteAttribute("name", value.Name, true, false);
 				IMethodDeclaration referenceMethod = GetPropertyReferenceMethod(value);
+				if (referenceMethod != null)
+				{
+					this.RenderMethodVisibilityAttribute(referenceMethod);
+				}
 				if (!(isInterfaceMember))
 				{
-					if (referenceMethod != null)
-					{
-						this.RenderMethodVisibilityAttribute(referenceMethod);
-					}
 					if (referenceMethod != null)
 					{
 						this.RenderMethodModifierAttribute(referenceMethod);
@@ -327,12 +330,12 @@ namespace Reflector
 				this.WriteAttribute("name", value.Name, true, false);
 				IMethodDeclaration referenceMethod = GetEventReferenceMethod(value);
 				ITypeReference eventType = value.EventType;
+				if (referenceMethod != null)
+				{
+					this.RenderMethodVisibilityAttribute(referenceMethod);
+				}
 				if (!(isInterfaceMember))
 				{
-					if (referenceMethod != null)
-					{
-						this.RenderMethodVisibilityAttribute(referenceMethod);
-					}
 					if (referenceMethod != null)
 					{
 						this.RenderMethodModifierAttribute(referenceMethod);
@@ -370,7 +373,7 @@ namespace Reflector
 				{
 					if ((ownerGenericArguments != null) && ownerGenericArguments.Contains(eventTypeGenericArgumentsItem))
 					{
-						break;
+						continue;
 					}
 					this.WriteElement("passTypeParam");
 					this.RenderGenericArgument(eventTypeGenericArgumentsItem);
@@ -499,9 +502,9 @@ namespace Reflector
 					methodName = ".finalize";
 				}
 				this.WriteAttribute("name", methodName, true, false);
+				this.RenderMethodVisibilityAttribute(value);
 				if (!(isInterfaceMember))
 				{
-					this.RenderMethodVisibilityAttribute(value);
 					this.RenderMethodModifierAttribute(value);
 				}
 				this.RenderDocumentation(value);
@@ -523,7 +526,7 @@ namespace Reflector
 				{
 					if ((ownerGenericArguments != null) && ownerGenericArguments.Contains(GenericArgumentsItem))
 					{
-						break;
+						continue;
 					}
 					this.WriteElement("typeParam");
 					this.RenderGenericParameterDeclaration(GenericArgumentsItem);
@@ -1955,9 +1958,7 @@ namespace Reflector
 				}
 				else
 				{
-					this.WriteElement("passParam");
 					this.RenderExpression(value);
-					this.WriteEndElement();
 				}
 			}
 			private void RenderArrayInitializerExpression(IArrayInitializerExpression value)
@@ -2587,13 +2588,8 @@ namespace Reflector
 			}
 			private void RenderGenericMemberArguments(IGenericArgumentProvider value)
 			{
-				ITypeCollection ownerGenericArguments = value.GenericArguments;
 				foreach (IType GenericArgumentsItem in value.GenericArguments)
 				{
-					if ((ownerGenericArguments != null) && ownerGenericArguments.Contains(GenericArgumentsItem))
-					{
-						break;
-					}
 					this.WriteElement("passMemberTypeParam");
 					this.RenderGenericArgument(GenericArgumentsItem);
 					this.WriteEndElement();
@@ -3066,11 +3062,44 @@ namespace Reflector
 			{
 				this.WriteAttribute("name", value.Name, true, false);
 				IType parameterType = value.ParameterType;
+				ICustomAttributeCollection customAttributes = value.Attributes;
+				int paramsAttributeIndex = -1;
+				int outAttributeIndex = -1;
+				if (customAttributes.Count != 0)
+				{
+					int attributeIndex = 0;
+					foreach (Reflector.CodeModel.ICustomAttribute testCustomAttribute in customAttributes)
+					{
+						Reflector.CodeModel.ITypeReference attributeType = testCustomAttribute.Constructor.DeclaringType as Reflector.CodeModel.ITypeReference;
+						if (attributeType != null)
+						{
+							if ((attributeType.Name == "ParamArrayAttribute") && (attributeType.Namespace == "System"))
+							{
+								paramsAttributeIndex = attributeIndex;
+								break;
+							}
+							if ((attributeType.Name == "OutAttribute") && (attributeType.Namespace == "System.Runtime.InteropServices"))
+							{
+								outAttributeIndex = attributeIndex;
+								break;
+							}
+						}
+						++attributeIndex;
+					}
+				}
 				bool isReferenceType = parameterType is IReferenceType;
 				string typeAttributeValue = "";
-				if (isReferenceType)
+				if (outAttributeIndex != -1)
+				{
+					typeAttributeValue = "out";
+				}
+				else if (isReferenceType)
 				{
 					typeAttributeValue = "inOut";
+				}
+				else if (paramsAttributeIndex != -1)
+				{
+					typeAttributeValue = "params";
 				}
 				if (typeAttributeValue.Length != 0)
 				{
@@ -3080,9 +3109,15 @@ namespace Reflector
 				{
 					this.RenderType(parameterType);
 				}
-				foreach (ICustomAttribute AttributesItem in value.Attributes)
+				int customAttributeIndex = -1;
+				foreach (ICustomAttribute customAttributesItem in customAttributes)
 				{
-					this.RenderCustomAttribute(AttributesItem);
+					++customAttributeIndex;
+					if ((customAttributeIndex == paramsAttributeIndex) || (customAttributeIndex == outAttributeIndex))
+					{
+						continue;
+					}
+					this.RenderCustomAttribute(customAttributesItem);
 				}
 			}
 			private void RenderType(IType value)
@@ -3346,6 +3381,7 @@ namespace Reflector
 			private void RenderTypeReference(ITypeReference value)
 			{
 				this.RenderTypeReferenceWithoutGenerics(value);
+				bool isUnboundGeneric = value.GenericType == null;
 				IGenericArgumentProvider ownerGenericArgumentProvider = value.Owner as IGenericArgumentProvider;
 				ITypeCollection ownerGenericArguments = null;
 				if (ownerGenericArgumentProvider != null)
@@ -3360,7 +3396,14 @@ namespace Reflector
 				{
 					if ((ownerGenericArguments != null) && ownerGenericArguments.Contains(GenericArgumentsItem))
 					{
-						break;
+						continue;
+					}
+					if (isUnboundGeneric)
+					{
+						this.WriteElement("passTypeParam");
+						this.WriteAttribute("dataTypeName", ".unspecifiedTypeParam");
+						this.WriteEndElement();
+						continue;
 					}
 					this.WriteElement("passTypeParam");
 					this.RenderGenericArgument(GenericArgumentsItem);

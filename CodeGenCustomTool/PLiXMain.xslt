@@ -1592,7 +1592,13 @@
 	<xsl:template match="plx:callStatic | plx:callThis | plx:callNew" mode="CollectInline">
 		<xsl:param name="LocalItemKey"/>
 		<xsl:param name="ContextField"/>
-		<xsl:for-each select="plx:passParam | plx:arrayInitializer">
+		<xsl:for-each select="plx:arrayInitializer">
+			<xsl:apply-templates select="." mode="CollectInline">
+				<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'ai')"/>
+				<xsl:with-param name="ContextField" select="$ContextField"/>
+			</xsl:apply-templates>
+		</xsl:for-each>
+		<xsl:for-each select="plx:passParam | plx:passParamArray/plx:passParam">
 			<xsl:apply-templates select="child::*" mode="CollectInline">
 				<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_',position())"/>
 				<xsl:with-param name="ContextField" select="$ContextField"/>
@@ -1605,7 +1611,7 @@
 		<xsl:apply-templates select="plx:callObject/child::*" mode="CollectInline">
 			<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_0')"/>
 		</xsl:apply-templates>
-		<xsl:for-each select="plx:passParam">
+		<xsl:for-each select="plx:passParam | plx:passParamArray/plx:passParam">
 			<xsl:apply-templates select="child::*" mode="CollectInline">
 				<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_',position())"/>
 				<xsl:with-param name="ContextField" select="$ContextField"/>
@@ -1624,7 +1630,13 @@
 					<xsl:with-param name="Expansions" select="$Expansions"/>
 				</xsl:apply-templates>
 			</xsl:if>
-			<xsl:for-each select="plx:passParam | plx:arrayInitializer">
+			<xsl:for-each select="plx:arrayInitializer">
+				<xsl:apply-templates select="." mode="ReplaceInline">
+					<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'ai')"/>
+					<xsl:with-param name="Expansions" select="$Expansions"/>
+				</xsl:apply-templates>
+			</xsl:for-each>
+			<xsl:for-each select="plx:passParam | plx:passParamArray/plx:passParam">
 				<xsl:apply-templates select="." mode="ReplaceInline">
 					<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_', position())"/>
 					<xsl:with-param name="Expansions" select="$Expansions"/>
@@ -1632,29 +1644,26 @@
 			</xsl:for-each>
 		</xsl:copy>
 	</xsl:template>
-	<xsl:template match="plx:arrayInitializer" mode="CollectInline">
+	<xsl:template match="plx:arrayInitializer | plx:concatenate" mode="CollectInline">
 		<xsl:param name="LocalItemKey"/>
 		<xsl:param name="ContextField"/>
 		<xsl:for-each select="child::*">
-			<xsl:apply-templates select="child::*" mode="CollectInline">
+			<xsl:apply-templates select="." mode="CollectInline">
 				<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_',position())"/>
 				<xsl:with-param name="ContextField" select="$ContextField"/>
 			</xsl:apply-templates>
 		</xsl:for-each>
 	</xsl:template>
-	<xsl:template match="plx:arrayInitializer" mode="ReplaceInline">
+	<xsl:template match="plx:arrayInitializer | plx:concatenate" mode="ReplaceInline">
 		<xsl:param name="LocalItemKey"/>
 		<xsl:param name="Expansions"/>
 		<xsl:copy>
 			<xsl:copy-of select="@*"/>
 			<xsl:for-each select="child::*">
-				<xsl:copy>
-					<xsl:copy-of select="@*"/>
-					<xsl:apply-templates select="child::*" mode="ReplaceInline">
-						<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_', position())"/>
-						<xsl:with-param name="Expansions" select="$Expansions"/>
-					</xsl:apply-templates>
-				</xsl:copy>
+				<xsl:apply-templates select="." mode="ReplaceInline">
+					<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_', position())"/>
+					<xsl:with-param name="Expansions" select="$Expansions"/>
+				</xsl:apply-templates>
 			</xsl:for-each>
 		</xsl:copy>
 	</xsl:template>
@@ -1760,17 +1769,17 @@
 					<plxGen:surrogate>
 						<plx:loop>
 							<xsl:copy-of select="@checkCondition"/>
-							<xsl:if test="not($checkInlineExpansions)">
-								<xsl:copy-of select="$init"/>
-							</xsl:if>
-							<xsl:copy-of select="@checkCondition"/>
 							<xsl:if test="$init and not($initInlineExpansions)">
-								<xsl:copy-of select="$init"/>
+								<plx:initializeLoop>
+									<xsl:copy-of select="$init"/>
+								</plx:initializeLoop>
 							</xsl:if>
 							<xsl:if test="$check">
 								<xsl:choose>
 									<xsl:when test="not($checkInlineExpansions)">
-										<xsl:copy-of select="$check"/>
+										<plx:condition>
+											<xsl:copy-of select="$check"/>
+										</plx:condition>
 									</xsl:when>
 									<xsl:when test="$checkAfter">
 										<plx:condition>
@@ -1782,11 +1791,10 @@
 									</xsl:when>
 								</xsl:choose>
 							</xsl:if>
-							<xsl:if test="$check and not($checkInlineExpansions)">
-								<xsl:copy-of select="$check"/>
-							</xsl:if>
 							<xsl:if test="$incr and not($incrInlineExpansions)">
-								<xsl:copy-of select="$check"/>
+								<plx:beforeLoop>
+									<xsl:copy-of select="$incr"/>
+								</plx:beforeLoop>
 							</xsl:if>
 							<xsl:if test="$modifiedBody">
 								<xsl:if test="not($checkAfter) and $checkInlineExpansions">

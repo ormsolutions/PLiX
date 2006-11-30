@@ -886,9 +886,9 @@ namespace Reflector
 				{
 					visibility1 = MethodVisibility.Private;
 				}
-				if (visibility1 == MethodVisibility.PrivateScope)
+				if (visibility2 == MethodVisibility.PrivateScope)
 				{
-					visibility1 = MethodVisibility.Private;
+					visibility2 = MethodVisibility.Private;
 				}
 				if (visibility1 == visibility2)
 				{
