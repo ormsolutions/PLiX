@@ -113,13 +113,13 @@
 		<xsl:if test="$negate">
 			<xsl:text>!(</xsl:text>
 		</xsl:if>
-		<xsl:if test="local-name($left)='binaryOperator'">
+		<xsl:if test="$left[self::plx:binaryOperator|self::plx:inlineStatement]">
 			<xsl:text>(</xsl:text>
 		</xsl:if>
 		<xsl:apply-templates select="$left">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
-		<xsl:if test="local-name($left)='binaryOperator'">
+		<xsl:if test="$left[self::plx:binaryOperator|self::plx:inlineStatement]">
 			<xsl:text>)</xsl:text>
 		</xsl:if>
 		<xsl:choose>
@@ -200,13 +200,13 @@
 				<xsl:text> is </xsl:text>
 			</xsl:when>
 		</xsl:choose>
-		<xsl:if test="local-name($right)='binaryOperator'">
+		<xsl:if test="$right[self::plx:binaryOperator|self::plx:inlineStatement]">
 			<xsl:text>(</xsl:text>
 		</xsl:if>
 		<xsl:apply-templates select="$right">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
-		<xsl:if test="local-name($right)='binaryOperator'">
+		<xsl:if test="$right[self::plx:binaryOperator|self::plx:inlineStatement]">
 			<xsl:text>)</xsl:text>
 		</xsl:if>
 		<xsl:if test="$negate">
@@ -230,11 +230,11 @@
 		<xsl:variable name="callerNeedsParensFragment">
 			<xsl:for-each select="$caller">
 				<xsl:choose>
-					<xsl:when test="self::plx:cast|self::plx:binaryOperator|self::plx:unaryOperator|self::plx:callNew">
+					<xsl:when test="self::plx:cast|self::plx:binaryOperator|self::plx:unaryOperator|self::plx:callNew|self::plx:inlineStatement">
 						<xsl:text>1</xsl:text>
 					</xsl:when>
 					<xsl:when test="self::plx:expression and not(@parens='true' or @parens='1')">
-						<xsl:if test="plx:cast|plx:binaryOperator|plx:unaryOperator|plx:callNew">
+						<xsl:if test="plx:cast|plx:binaryOperator|plx:unaryOperator|plx:callNew|plx:inlineStatement">
 							<xsl:text>1</xsl:text>
 						</xsl:if>
 					</xsl:when>
@@ -330,6 +330,7 @@
 		<xsl:call-template name="RenderType"/>
 		<xsl:call-template name="RenderCallBody">
 			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Unqualified" select="@dataTypeName='.global'"/>
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:callThis">
@@ -402,7 +403,7 @@
 		<xsl:variable name="castTarget" select="child::plx:*[position()=last()]"/>
 		<xsl:variable name="castType" select="string(@type)"/>
 		<!-- UNDONE: Need more work on operator precedence -->
-		<xsl:variable name="extraParens" select="local-name($castTarget)='binaryOperator'"/>
+		<xsl:variable name="extraParens" select="$castTarget[self::plx:binaryOperator|self::plx:inlineStatement]"/>
 		<xsl:choose>
 			<xsl:when test="$castType='testCast'">
 				<xsl:if test="$extraParens">
@@ -499,14 +500,14 @@
 	</xsl:template>
 	<xsl:template match="plx:continue">
 		<xsl:param name="Indent"/>
-		<xsl:apply-templates select=".." mode="RenderBeforeLoopForContinue">
+		<xsl:apply-templates select="parent::plx:*" mode="RenderBeforeLoopForContinue">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
 		<xsl:text>continue</xsl:text>
 	</xsl:template>
 	<xsl:template match="*" mode="RenderBeforeLoopForContinue">
 		<xsl:param name="Indent"/>
-		<xsl:apply-templates select=".." mode="RenderBeforeLoopForContinue">
+		<xsl:apply-templates select="parent::plx:*" mode="RenderBeforeLoopForContinue">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
 	</xsl:template>
@@ -2290,6 +2291,7 @@
 								<xsl:text>System.DateTime</xsl:text>
 							</xsl:when>
 							<xsl:when test="$rawTypeName='.unspecifiedTypeParam'"/>
+							<xsl:when test="$rawTypeName='.global'"/>
 						</xsl:choose>
 					</xsl:when>
 					<xsl:otherwise>

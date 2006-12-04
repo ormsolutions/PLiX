@@ -617,6 +617,11 @@
 							<xs:documentation>A placeholder for a passTypeParam data type. Used with typeof.</xs:documentation>
 						</xs:annotation>
 					</xs:enumeration>
+					<xs:enumeration value=".global">
+						<xs:annotation>
+							<xs:documentation>A special type name for calling an unqualified method. Used for calling language-specific global functions.</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
 				</xs:restriction>
 			</xs:simpleType>
 		</xs:union>

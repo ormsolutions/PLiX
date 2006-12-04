@@ -219,10 +219,10 @@
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:break">
-		<xsl:apply-templates select=".." mode="RenderBreak"/>
+		<xsl:apply-templates select="parent::plx:*" mode="RenderBreak"/>
 	</xsl:template>
 	<xsl:template match="*" mode="RenderBreak">
-		<xsl:apply-templates select=".." mode="RenderBreak"/>
+		<xsl:apply-templates select="parent::plx:*" mode="RenderBreak"/>
 	</xsl:template>
 	<xsl:template match="plx:loop" mode="RenderBreak">
 		<!-- This needs to be carefully kept in sync with plx:loop so
@@ -355,6 +355,7 @@
 		<xsl:call-template name="RenderType"/>
 		<xsl:call-template name="RenderCallBody">
 			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Unqualified" select="@dataTypeName='.global'"/>
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:callThis">
@@ -485,13 +486,13 @@
 	</xsl:template>
 	<xsl:template match="plx:continue">
 		<xsl:param name="Indent"/>
-		<xsl:apply-templates select=".." mode="RenderContinue">
+		<xsl:apply-templates select="parent::plx:*" mode="RenderContinue">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
 	</xsl:template>
 	<xsl:template match="*" mode="RenderContinue">
 		<xsl:param name="Indent"/>
-		<xsl:apply-templates select=".." mode="RenderContinue">
+		<xsl:apply-templates select="parent::plx:*" mode="RenderContinue">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
 	</xsl:template>
@@ -2104,6 +2105,7 @@
 								<xsl:text>Date</xsl:text>
 							</xsl:when>
 							<xsl:when test="$rawTypeName='.unspecifiedTypeParam'"/>
+							<xsl:when test="$rawTypeName='.global'"/>
 						</xsl:choose>
 					</xsl:when>
 					<xsl:otherwise>

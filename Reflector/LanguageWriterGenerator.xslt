@@ -1242,6 +1242,7 @@
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="lw:defer" mode="ResolvedContext">
+		<xsl:param name="DocumentRoot"/>
 		<xsl:variable name="localName" select="string(@localName)"/>
 		<xsl:variable name="deferRender" select="@deferRender"/>
 		<xsl:variable name="delayEndElement" select="string(@delayEndElement)"/>
@@ -1303,7 +1304,9 @@
 							<xsl:element name="plx:{@delayEndElement}Keyword"/>
 						</plx:passParam>
 					</xsl:if>
-					<xsl:copy-of select="plx:passParam"/>
+					<xsl:apply-templates select="plx:passParam">
+						<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+					</xsl:apply-templates>
 				</plx:callThis>
 			</xsl:variable>
 			<xsl:choose>

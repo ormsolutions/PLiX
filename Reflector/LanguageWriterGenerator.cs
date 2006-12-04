@@ -647,15 +647,40 @@ namespace Reflector
 			{
 				string elementName = "attribute";
 				this.WriteElement(elementName);
-				IType attributeType = value.Constructor.DeclaringType;
+				IMethodReference ctorReference = value.Constructor;
+				IType attributeType = ctorReference.DeclaringType;
 				if (attributeType != null)
 				{
 					this.RenderType(attributeType);
 				}
-				foreach (IExpression ArgumentsItem in value.Arguments)
+				int argumentIndex = -1;
+				IExpressionCollection arguments = value.Arguments;
+				int lastArgumentIndex = arguments.Count - 1;
+				for (int i = lastArgumentIndex; i >= 0; --i)
 				{
+					if (arguments[i] is INamedArgumentExpression)
+					{
+						--lastArgumentIndex;
+					}
+				}
+				foreach (IExpression argumentsItem in arguments)
+				{
+					++argumentIndex;
+					if (argumentIndex == lastArgumentIndex)
+					{
+						bool argumentsItemDelayEndChildElement = false;
+						if (argumentsItem != null)
+						{
+							argumentsItemDelayEndChildElement = this.RenderArrayCreateExpressionAsParamArray(argumentsItem, true, ctorReference, argumentIndex, arguments);
+						}
+						if (argumentsItemDelayEndChildElement)
+						{
+							this.WriteEndElement();
+							break;
+						}
+					}
 					this.WriteElement("passParam");
-					this.RenderExpression(ArgumentsItem);
+					this.RenderExpression(argumentsItem);
 					this.WriteEndElement();
 				}
 				this.WriteEndElement();
@@ -1916,6 +1941,103 @@ namespace Reflector
 				}
 				this.WriteEndElement();
 			}
+			private bool RenderArrayCreateExpressionAsParamArray(IExpression value, bool delayEndElement, IExpression targetMethod, int argumentIndex, IExpressionCollection allArguments)
+			{
+				bool retVal = false;
+				IArrayCreateExpression arrayCreate = value as IArrayCreateExpression;
+				if (arrayCreate != null)
+				{
+					retVal = this.RenderArrayCreateExpressionAsParamArray(arrayCreate, true, targetMethod, argumentIndex, allArguments);
+				}
+				return retVal;
+			}
+			private bool RenderArrayCreateExpressionAsParamArray(IExpression value, bool delayEndElement, IPropertyReferenceExpression targetProperty, int argumentIndex, IExpressionCollection allArguments)
+			{
+				bool retVal = false;
+				IArrayCreateExpression arrayCreate = value as IArrayCreateExpression;
+				if (arrayCreate != null)
+				{
+					retVal = this.RenderArrayCreateExpressionAsParamArray(arrayCreate, true, targetProperty, argumentIndex, allArguments);
+				}
+				return retVal;
+			}
+			private bool RenderArrayCreateExpressionAsParamArray(IExpression value, bool delayEndElement, IMethodReference targetMethod, int argumentIndex, IExpressionCollection allArguments)
+			{
+				bool retVal = false;
+				IArrayCreateExpression arrayCreate = value as IArrayCreateExpression;
+				if (arrayCreate != null)
+				{
+					retVal = this.RenderArrayCreateExpressionAsParamArray(arrayCreate, true, targetMethod, argumentIndex, allArguments);
+				}
+				return retVal;
+			}
+			private bool RenderArrayCreateExpressionAsParamArray(IArrayCreateExpression value, bool delayEndElement, IExpression targetMethod, int argumentIndex, IExpressionCollection allArguments)
+			{
+				bool retVal = false;
+				IMethodReferenceExpression methodReferenceExpression = (IMethodReferenceExpression)targetMethod;
+				if (methodReferenceExpression != null)
+				{
+					retVal = this.RenderArrayCreateExpressionAsParamArray(value, true, methodReferenceExpression.Method, argumentIndex, allArguments);
+				}
+				return retVal;
+			}
+			private bool RenderArrayCreateExpressionAsParamArray(IArrayCreateExpression value, bool delayEndElement, IPropertyReferenceExpression targetProperty, int argumentIndex, IExpressionCollection allArguments)
+			{
+				bool retVal = false;
+				retVal = this.RenderArrayCreateExpressionAsParamArray(value, true, targetProperty.Property.Parameters, argumentIndex, allArguments);
+				return retVal;
+			}
+			private bool RenderArrayCreateExpressionAsParamArray(IArrayCreateExpression value, bool delayEndElement, IMethodReference targetMethod, int argumentIndex, IExpressionCollection allArguments)
+			{
+				bool retVal = false;
+				retVal = this.RenderArrayCreateExpressionAsParamArray(value, true, targetMethod.Resolve().Parameters, argumentIndex, allArguments);
+				return retVal;
+			}
+			private bool RenderArrayCreateExpressionAsParamArray(IArrayCreateExpression value, bool delayEndElement, IParameterDeclarationCollection parameters, int argumentIndex, IExpressionCollection allArguments)
+			{
+				bool retVal = false;
+				ICustomAttributeCollection parameterAttributes;
+				int parameterAttributesCount;
+				if (((value.Dimensions.Count == 1) && (value.Type is ITypeReference)) && (0 != (parameterAttributesCount = (parameterAttributes = parameters[argumentIndex].Resolve().Attributes).Count)))
+				{
+					for (int i = 0; i < parameterAttributesCount; ++i)
+					{
+						ITypeReference attributeType = parameterAttributes[i].Constructor.DeclaringType as ITypeReference;
+						if ((attributeType.Name == "ParamArrayAttribute") && (attributeType.Namespace == "System"))
+						{
+							retVal = true;
+							break;
+						}
+					}
+					if (retVal)
+					{
+						if (allArguments != null)
+						{
+							// If allArguments is provided, then we need to render all named arguments before the passParamArray to satisfy the PLiX schema
+							int allArgumentsCount = allArguments.Count;
+							for (int iNamedArgument = argumentIndex + 1; iNamedArgument < allArgumentsCount; ++iNamedArgument)
+							{
+								this.WriteElement("passParam");
+								this.RenderExpression(allArguments[iNamedArgument]);
+								this.WriteEndElement();
+							}
+						}
+						this.WriteElement("passParamArray");
+						this.RenderArrayCreateExpressionType(value);
+						IArrayInitializerExpression arrayInitializer = value.Initializer as IArrayInitializerExpression;
+						if (arrayInitializer != null)
+						{
+							foreach (IExpression arrayInitializerExpressionsItem in arrayInitializer.Expressions)
+							{
+								this.WriteElement("passParam");
+								this.RenderExpression(arrayInitializerExpressionsItem);
+								this.WriteEndElement();
+							}
+						}
+					}
+				}
+				return retVal;
+			}
 			private void RenderArrayCreateExpressionType(IArrayCreateExpression value)
 			{
 				this.RenderType(MockupArrayType(value.Type, value.Dimensions.Count));
@@ -2156,7 +2278,7 @@ namespace Reflector
 					elementName = "callThis";
 				}
 				this.WriteElement(elementName);
-				this.WriteAttribute("name", member.Name);
+				this.WriteAttribute("name", member.Name, member.ToString(), member);
 				this.WriteAttribute("type", "event");
 				if (staticCall)
 				{
@@ -2204,7 +2326,7 @@ namespace Reflector
 					elementName = "callThis";
 				}
 				this.WriteElement(elementName);
-				this.WriteAttribute("name", member.Name);
+				this.WriteAttribute("name", member.Name, member.ToString(), member);
 				this.WriteAttribute("type", "field");
 				if (staticCall)
 				{
@@ -2531,7 +2653,7 @@ namespace Reflector
 						memberName = ".implied";
 					}
 				}
-				this.WriteAttribute("name", memberName);
+				this.WriteAttribute("name", memberName, member.ToString(), member);
 				if (isDelegateInvoke)
 				{
 					this.WriteAttribute("type", "delegateCall");
@@ -2605,10 +2727,27 @@ namespace Reflector
 				}
 				if (MethodDelayEndChildElement)
 				{
-					foreach (IExpression ArgumentsItem in value.Arguments)
+					int argumentIndex = -1;
+					IExpressionCollection arguments = value.Arguments;
+					int lastArgumentIndex = arguments.Count - 1;
+					foreach (IExpression argumentsItem in arguments)
 					{
+						++argumentIndex;
+						if (argumentIndex == lastArgumentIndex)
+						{
+							bool argumentsItemDelayEndChildElement = false;
+							if (argumentsItem != null)
+							{
+								argumentsItemDelayEndChildElement = this.RenderArrayCreateExpressionAsParamArray(argumentsItem, true, MethodChild, argumentIndex, null);
+							}
+							if (argumentsItemDelayEndChildElement)
+							{
+								this.WriteEndElement();
+								break;
+							}
+						}
 						this.WriteElement("passParam");
-						this.RenderExpression(ArgumentsItem);
+						this.RenderExpression(argumentsItem);
 						this.WriteEndElement();
 					}
 					this.WriteEndElement();
@@ -2659,10 +2798,27 @@ namespace Reflector
 					this.RenderType(declaringType);
 				}
 				this.RenderGenericMemberArguments(ctorReference);
-				foreach (IExpression ArgumentsItem in value.Arguments)
+				int argumentIndex = -1;
+				IExpressionCollection arguments = value.Arguments;
+				int lastArgumentIndex = arguments.Count - 1;
+				foreach (IExpression argumentsItem in arguments)
 				{
+					++argumentIndex;
+					if (argumentIndex == lastArgumentIndex)
+					{
+						bool argumentsItemDelayEndChildElement = false;
+						if (argumentsItem != null)
+						{
+							argumentsItemDelayEndChildElement = this.RenderArrayCreateExpressionAsParamArray(argumentsItem, true, ctorReference, argumentIndex, null);
+						}
+						if (argumentsItemDelayEndChildElement)
+						{
+							this.WriteEndElement();
+							break;
+						}
+					}
 					this.WriteElement("passParam");
-					this.RenderExpression(ArgumentsItem);
+					this.RenderExpression(argumentsItem);
 					this.WriteEndElement();
 				}
 				this.WriteEndElement();
@@ -2708,10 +2864,27 @@ namespace Reflector
 				}
 				if (TargetDelayEndChildElement)
 				{
-					foreach (IExpression IndicesItem in value.Indices)
+					int argumentIndex = -1;
+					IExpressionCollection arguments = value.Indices;
+					int lastArgumentIndex = arguments.Count - 1;
+					foreach (IExpression argumentsItem in arguments)
 					{
+						++argumentIndex;
+						if (argumentIndex == lastArgumentIndex)
+						{
+							bool argumentsItemDelayEndChildElement = false;
+							if (argumentsItem != null)
+							{
+								argumentsItemDelayEndChildElement = this.RenderArrayCreateExpressionAsParamArray(argumentsItem, true, TargetChild, argumentIndex, null);
+							}
+							if (argumentsItemDelayEndChildElement)
+							{
+								this.WriteEndElement();
+								break;
+							}
+						}
 						this.WriteElement("passParam");
-						this.RenderExpression(IndicesItem);
+						this.RenderExpression(argumentsItem);
 						this.WriteEndElement();
 					}
 					this.WriteEndElement();
@@ -2745,12 +2918,12 @@ namespace Reflector
 				this.WriteElement(elementName);
 				if (isIndexer)
 				{
-					this.WriteAttribute("name", ".implied");
+					this.WriteAttribute("name", ".implied", member.ToString(), member);
 					this.WriteAttribute("type", "indexerCall");
 				}
 				else
 				{
-					this.WriteAttribute("name", member.Name);
+					this.WriteAttribute("name", member.Name, member.ToString(), member);
 					this.WriteAttribute("type", "property");
 				}
 				if (staticCall)
@@ -3068,9 +3241,9 @@ namespace Reflector
 				if (customAttributes.Count != 0)
 				{
 					int attributeIndex = 0;
-					foreach (Reflector.CodeModel.ICustomAttribute testCustomAttribute in customAttributes)
+					foreach (ICustomAttribute testCustomAttribute in customAttributes)
 					{
-						Reflector.CodeModel.ITypeReference attributeType = testCustomAttribute.Constructor.DeclaringType as Reflector.CodeModel.ITypeReference;
+						ITypeReference attributeType = testCustomAttribute.Constructor.DeclaringType as ITypeReference;
 						if (attributeType != null)
 						{
 							if ((attributeType.Name == "ParamArrayAttribute") && (attributeType.Namespace == "System"))
@@ -3155,6 +3328,22 @@ namespace Reflector
 								{
 									this.RenderReferenceType(AsIReferenceType);
 								}
+								else
+								{
+									IRequiredModifier AsIRequiredModifier = value as IRequiredModifier;
+									if (AsIRequiredModifier != null)
+									{
+										this.RenderRequiredModifierType(AsIRequiredModifier);
+									}
+									else
+									{
+										IOptionalModifier AsIOptionalModifier = value as IOptionalModifier;
+										if (AsIOptionalModifier != null)
+										{
+											this.RenderOptionalModifierType(AsIOptionalModifier);
+										}
+									}
+								}
 							}
 						}
 					}
@@ -3162,9 +3351,26 @@ namespace Reflector
 			}
 			private void RenderReferenceType(IReferenceType value)
 			{
-				if (value.ElementType != null)
+				IType elementType = value.ElementType;
+				if (elementType != null)
 				{
-					this.RenderType(value.ElementType);
+					this.RenderType(elementType);
+				}
+			}
+			private void RenderRequiredModifierType(IRequiredModifier value)
+			{
+				IType elementType = value.ElementType;
+				if (elementType != null)
+				{
+					this.RenderType(elementType);
+				}
+			}
+			private void RenderOptionalModifierType(IOptionalModifier value)
+			{
+				IType elementType = value.ElementType;
+				if (elementType != null)
+				{
+					this.RenderType(elementType);
 				}
 			}
 			private static bool IsVoidType(IType type)
