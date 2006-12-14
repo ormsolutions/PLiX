@@ -96,6 +96,9 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="AboutBox.ico" />
+    <None Include="PLiXPHP.xslt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSHARP.Targets" />
   <PropertyGroup Condition="">
