@@ -288,6 +288,7 @@
 		<xsl:param name="closeWith"/>
 		<xsl:param name="closeBlockCallback"/>
 		<xsl:param name="statementClose"/>
+		<xsl:param name="statementNotClosed"/>
 		<xsl:for-each select="exsl:node-set($defaultInfo)/child::*">
 			<xsl:copy>
 				<xsl:copy-of select="@*"/>
@@ -301,16 +302,25 @@
 						<xsl:value-of select="$closeWith"/>
 					</xsl:attribute>
 				</xsl:if>
-				<xsl:if test="$statementClose">
-					<xsl:attribute name="statementClose">
-						<xsl:value-of select="$statementClose"/>
-					</xsl:attribute>
-				</xsl:if>
-				<xsl:if test="$closeBlockCallback">
-					<xsl:attribute name="closeBlockCallback">
-						<xsl:value-of select="$closeBlockCallback"/>
-					</xsl:attribute>
-				</xsl:if>
+				<xsl:choose>
+					<xsl:when test="$statementNotClosed">
+						<xsl:attribute name="statementClose">
+							<xsl:value-of select="''"/>
+						</xsl:attribute>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:if test="$statementClose">
+							<xsl:attribute name="statementClose">
+								<xsl:value-of select="$statementClose"/>
+							</xsl:attribute>
+						</xsl:if>
+						<xsl:if test="$closeBlockCallback">
+							<xsl:attribute name="closeBlockCallback">
+								<xsl:value-of select="$closeBlockCallback"/>
+							</xsl:attribute>
+						</xsl:if>
+					</xsl:otherwise>
+				</xsl:choose>
 			</xsl:copy>
 		</xsl:for-each>
 	</xsl:template>
@@ -1410,6 +1420,9 @@
 	<xsl:template mode="IndentInfo" match="plx:case | plx:fallbackCase">
 		<plxGen:indentInfo style="nakedIndentedBlock"/>
 	</xsl:template>
+	<xsl:template mode="IndentInfo" match="plx:attribute[@type='assembly' or @type='module']">
+		<plxGen:indentInfo style="simple"/>
+	</xsl:template>
 	<xsl:template mode="IndentInfo" match="plx:condition | plx:initialize | plx:attribute | plx:arrayDescriptor | plx:passTypeParam | plx:passMemberTypeParam | plx:typeParam | plx:derivesFromClass | plx:implementsInterface | plx:interfaceMember | plx:param | plx:returns | plx:beforeLoop | plx:initializeLoop | plx:leadingInfo | plx:trailingInfo | plx:blockLeadingInfo | plx:blockTrailingInfo | plx:explicitDelegateType | plx:parametrizedDataTypeQualifier">
 		<plxGen:indentInfo style="blockDecorator"/>
 	</xsl:template>
@@ -1452,7 +1465,7 @@
 			<xsl:otherwise>
 				<!-- If an empty set is returned then recurse to continue to look
 				     for inline statements farther down. If inline items are expanded,
-						 then nested inline expansions are handled by recurse RenderElement
+						 then nested inline expansions are handled by recursive RenderElement
 						 calls on the expansions returned from this template. -->
 				<xsl:apply-templates select="child::*[last()]" mode="CollectInline">
 					<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'_1')"/>
@@ -1464,7 +1477,7 @@
 	<xsl:template match="*" mode="CollectInline">
 		<!-- Nothing to do, just block the automatic xsl recursive handling -->
 	</xsl:template>
-	<xsl:template match="*" mode="ReplaceInline">
+	<xsl:template match="*" mode="ReplaceInline" name="DefaultReplaceInline">
 		<xsl:param name="LocalItemKey"/>
 		<xsl:param name="Expansions"/>
 		<xsl:copy>
@@ -1528,7 +1541,7 @@
 			<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
 		</xsl:apply-templates>
 	</xsl:template>
-	<xsl:template match="plx:assign | plx:binaryOperator | plx:nullFallbackOperator | plx:attachEvent | plx:detachEvent" mode="CollectInline">
+	<xsl:template match="plx:assign | plx:nullFallbackOperator | plx:attachEvent | plx:detachEvent" mode="CollectInline">
 		<xsl:param name="LocalItemKey"/>
 		<xsl:param name="ContextField"/>
 		<xsl:apply-templates select="plx:left/child::*" mode="CollectInline">
@@ -1539,6 +1552,137 @@
 			<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'r')"/>
 			<xsl:with-param name="ContextField" select="$ContextField"/>
 		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="plx:binaryOperator" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="ContextField"/>
+		<xsl:variable name="isBooleanAnd" select="@type='booleanAnd'"/>
+		<xsl:variable name="isBooleanOr" select="@type='booleanOr'"/>
+		<xsl:choose>
+			<xsl:when test="$isBooleanAnd or $isBooleanOr">
+				<!-- Expansions on the right hand side need special consideration for short-circuiting -->
+				<xsl:variable name="rightExpansionFragment">
+					<!-- This is just a test to see if we get anything. There is currently no way to
+					stop CollectInline from returning data, and adding this support would be a lot of
+					extra checking for downstream templates, but we can make it lighter by not forwarding the context
+					field or key. Any expansion we do here will be reapplied as part of the normal
+					inline expansion of our expansions. -->
+					<xsl:apply-templates select="plx:right/child::*" mode="CollectInline">
+						<xsl:with-param name="LocalItemKey" select="''"/>
+					</xsl:apply-templates>
+				</xsl:variable>
+				<xsl:variable name="rightExpansion" select="exsl:node-set($rightExpansionFragment)/child::*"/>
+				<xsl:choose>
+					<xsl:when test="$rightExpansion">
+						<xsl:variable name="variableName" select="concat($GeneratedVariablePrefix,$LocalItemKey)"/>
+						<xsl:variable name="conditionFragment">
+							<plx:inlineStatement dataTypeName=".boolean">
+								<plx:conditionalOperator>
+									<plx:condition>
+										<xsl:copy-of select="plx:left/child::*"/>
+									</plx:condition>
+									<xsl:choose>
+										<xsl:when test="$isBooleanAnd">
+											<plx:left>
+												<xsl:copy-of select="plx:right/child::*"/>
+											</plx:left>
+											<plx:right>
+												<plx:falseKeyword/>
+											</plx:right>
+										</xsl:when>
+										<xsl:otherwise>
+											<plx:left>
+												<plx:trueKeyword/>
+											</plx:left>
+											<plx:right>
+												<xsl:copy-of select="plx:right/child::*"/>
+											</plx:right>
+										</xsl:otherwise>
+									</xsl:choose>
+								</plx:conditionalOperator>
+							</plx:inlineStatement>
+						</xsl:variable>
+						<plxGen:inlineExpansion key="{$LocalItemKey}">
+							<plxGen:expansion>
+								<xsl:choose>
+									<xsl:when test="$ContextField">
+										<plx:property name="{$variableName}" visibility="private">
+											<xsl:if test="$ContextField/@static='true'">
+												<xsl:attribute name="modifier">
+													<xsl:text>static</xsl:text>
+												</xsl:attribute>
+											</xsl:if>
+											<plx:returns dataTypeName=".boolean"/>
+											<plx:get>
+												<plx:return>
+													<xsl:copy-of select="$conditionFragment"/>
+												</plx:return>
+											</plx:get>
+										</plx:property>
+									</xsl:when>
+									<xsl:otherwise>
+										<plx:local name="{$variableName}" dataTypeName=".boolean">
+											<plx:initialize>
+												<xsl:copy-of select="$conditionFragment"/>
+											</plx:initialize>
+										</plx:local>
+									</xsl:otherwise>
+								</xsl:choose>
+							</plxGen:expansion>
+							<plxGen:surrogate>
+								<xsl:choose>
+									<xsl:when test="$ContextField">
+										<plx:callThis name="{$variableName}" type="property">
+											<xsl:if test="$ContextField/@static='true'">
+												<xsl:attribute name="accessor">
+													<xsl:text>static</xsl:text>
+												</xsl:attribute>
+											</xsl:if>
+										</plx:callThis>
+									</xsl:when>
+									<xsl:otherwise>
+										<plx:nameRef name="{$variableName}"/>
+									</xsl:otherwise>
+								</xsl:choose>
+							</plxGen:surrogate>
+						</plxGen:inlineExpansion>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:apply-templates select="plx:left/child::*" mode="CollectInline">
+							<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'l')"/>
+							<xsl:with-param name="ContextField" select="$ContextField"/>
+						</xsl:apply-templates>
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:when>
+			<xsl:otherwise>
+				<!-- Other operator types do not short circuit -->
+				<xsl:apply-templates select="plx:left/child::*" mode="CollectInline">
+					<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'l')"/>
+					<xsl:with-param name="ContextField" select="$ContextField"/>
+				</xsl:apply-templates>
+				<xsl:apply-templates select="plx:right/child::*" mode="CollectInline">
+					<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'r')"/>
+					<xsl:with-param name="ContextField" select="$ContextField"/>
+				</xsl:apply-templates>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+	<xsl:template match="plx:binaryOperator" mode="ReplaceInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="Expansions"/>
+		<xsl:variable name="inlineExpansion" select="$Expansions[@key=$LocalItemKey]"/>
+		<xsl:choose>
+			<xsl:when test="$inlineExpansion">
+				<xsl:copy-of select="$inlineExpansion/plxGen:surrogate/child::*"/>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:call-template name="DefaultReplaceInline">
+					<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+					<xsl:with-param name="Expansions" select="$Expansions"/>
+				</xsl:call-template>
+			</xsl:otherwise>
+		</xsl:choose>
 	</xsl:template>
 	<xsl:template match="plx:conditionalOperator" mode="CollectInline">
 		<xsl:param name="LocalItemKey"/>

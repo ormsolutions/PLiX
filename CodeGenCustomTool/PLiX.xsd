@@ -1696,7 +1696,7 @@
 				<xs:attributeGroup ref="procedureAttributes"/>
 				<xs:attribute name="implicitDelegateName" type="simpleNameType" use="optional">
 					<xs:annotation>
-						<xs:documentation>If an explicitDelegateType element is not provided, then automatically define a delegate with this name as a sibling member of the event (or as a sibling of the interface if the event is defined in an interface). If this attribute is not provided, then 'Handler' is appended to the event name.</xs:documentation>
+						<xs:documentation>If an explicitDelegateType element is not provided, then automatically define a delegate with this name as a sibling member of the event (or as a sibling of the interface if the event is defined in an interface). If this attribute is not provided, then 'EventHandler' is appended to the event name.</xs:documentation>
 					</xs:annotation>
 				</xs:attribute>
 			</xs:extension>

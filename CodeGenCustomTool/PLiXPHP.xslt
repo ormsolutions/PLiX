@@ -1690,7 +1690,7 @@ schemas:
 					 implemented to look like the operator, but we need to add the additional
 					 System.Runtime.CompilerServices.SpecialName attribute -->
 				<xsl:variable name="modifiedAttributesFragment">
-					<xsl:copy-of select="plx:attributes"/>
+					<xsl:copy-of select="plx:attribute"/>
 					<plx:attribute dataTypeName="SpecialName" dataTypeQualifier="System.Runtime.CompilerServices"/>
 				</xsl:variable>
 				<!--<xsl:for-each select="exsl:node-set($modifiedAttributesFragment)">

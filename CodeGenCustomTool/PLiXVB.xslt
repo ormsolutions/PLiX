@@ -67,6 +67,23 @@
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
 	</xsl:template>
+	<xsl:template match="plx:attribute">
+		<xsl:param name="Indent"/>
+		<xsl:text>&lt;</xsl:text>
+		<xsl:variable name="attributePrefix" select="string(@type)"/>
+		<xsl:choose>
+			<xsl:when test="$attributePrefix='assembly'">
+				<xsl:text>Assembly: </xsl:text>
+			</xsl:when>
+			<xsl:when test="$attributePrefix='module'">
+				<xsl:text>Module: </xsl:text>
+			</xsl:when>
+		</xsl:choose>
+		<xsl:call-template name="RenderAttribute">
+			<xsl:with-param name="Indent" select="$Indent"/>
+		</xsl:call-template>
+		<xsl:text>&gt;</xsl:text>
+	</xsl:template>
 	<xsl:template match="plx:autoDispose">
 		<xsl:param name="Indent"/>
 		<xsl:text>Using </xsl:text>
@@ -640,7 +657,6 @@
 		<xsl:variable name="explicitDelegate" select="plx:explicitDelegateType"/>
 		<xsl:variable name="name" select="@name"/>
 		
-		<!-- With an implicit delegate in place, get back to rendering the event itself -->
 		<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:call-template>
@@ -658,9 +674,10 @@
 			<xsl:when test="$explicitDelegate">
 				<xsl:text> As </xsl:text>
 				<xsl:for-each select="$explicitDelegate">
-					<xsl:call-template name="RenderType"/>
+					<xsl:call-template name="RenderType">
+						<xsl:with-param name="ExplicitPassTypeParams" select="following-sibling::plx:passTypeParam"/>
+					</xsl:call-template>
 				</xsl:for-each>
-				<xsl:call-template name="RenderPassTypeParams"/>
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:variable name="typeParams" select="plx:typeParam"/>
@@ -676,22 +693,303 @@
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:call-template>
 	</xsl:template>
-	<xsl:template match="plx:event" mode="IndentInfo">
+	<xsl:template match="plx:event[not(plx:onAdd)][not(parent::plx:interface)][plx:attribute[@type='implicitAccessorFunction' or @type='implicitField']]">
+		<xsl:param name="Indent"/>
+		<xsl:variable name="explicitDelegate" select="plx:explicitDelegateType"/>
+		<xsl:variable name="name" select="string(@name)"/>
+		<xsl:variable name="implicitDelegateName" select="string(@implicitDelegateName)"/>
+		<xsl:call-template name="RenderVisibility"/>
+		<xsl:call-template name="RenderProcedureModifier"/>
+		<xsl:text>Custom Event </xsl:text>
+		<xsl:value-of select="$name"/>
+		<xsl:text> As </xsl:text>
 		<xsl:choose>
-			<xsl:when test="plx:onAdd">
-				<xsl:call-template name="CustomizeIndentInfo">
-					<xsl:with-param name="defaultInfo">
-						<xsl:apply-imports/>
-					</xsl:with-param>
-					<!-- Ignored if the main template says this is a simple event, don't
-					 both to check for plx:onAdd -->
-					<xsl:with-param name="closeWith" select="'End Event'"/>
+			<xsl:when test="$explicitDelegate">
+				<xsl:for-each select="$explicitDelegate">
+					<xsl:call-template name="RenderType">
+						<xsl:with-param name="ExplicitPassTypeParams" select="following-sibling::plx:passTypeParam"/>
+					</xsl:call-template>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:variable name="passTypeParams" select="plx:passTypeParams"/>
+				<xsl:choose>
+					<xsl:when test="$implicitDelegateName">
+						<xsl:call-template name="RenderType">
+							<xsl:with-param name="DataTypeName" select="$implicitDelegateName"/>
+							<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+						</xsl:call-template>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:call-template name="RenderType">
+							<xsl:with-param name="DataTypeName" select="concat($name,'EventHandler')"/>
+							<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+						</xsl:call-template>
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+	<xsl:template match="plx:event[plx:onAdd]" mode="IndentInfo" priority=".6">
+		<xsl:call-template name="CustomizeIndentInfo">
+			<xsl:with-param name="defaultInfo">
+				<xsl:apply-imports/>
+			</xsl:with-param>
+			<!-- Ignored if the main template says this is a simple event -->
+			<xsl:with-param name="closeWith" select="'End Event'"/>
+		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="plx:event[not(parent::plx:interface)][plx:attribute[@type='implicitField' or @type='implicitAccessorFunction']]" mode="IndentInfo" priority=".55">
+		<xsl:call-template name="CustomizeIndentInfo">
+			<xsl:with-param name="defaultInfo">
+				<xsl:apply-imports/>
+			</xsl:with-param>
+			<xsl:with-param name="style" select="'blockMember'"/>
+			<xsl:with-param name="closeBlockCallback" select="true()"/>
+		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="plx:event" mode="CloseBlock">
+		<xsl:param name="Indent"/>
+		<!-- This is a very special case. We render a delegate, field, and custom event functions so that
+		we can properly place the attributes. Note that there is no way to render custom method
+		attributes on interfaces in VB, so we ignore this case (field attributes considered part of
+		the implementation, not the method signature, so they are never rendered on interfaces). -->
+		<xsl:variable name="explicitDelegate" select="plx:explicitDelegateType"/>
+		<xsl:variable name="name" select="string(@name)"/>
+		<xsl:variable name="isStatic" select="@modifier='static'"/>
+		<xsl:variable name="implicitDelegateName" select="string(@implicitDelegateName)"/>
+		<xsl:variable name="passTypeParams" select="plx:passTypeParams"/>
+		<xsl:variable name="methodAttributes" select="plx:attribute[@type='implicitAccessorFunction']"/>
+
+		<!-- Render the AddHandler, RemoveHandler, RaiseEvent methods -->
+		<xsl:choose>
+			<xsl:when test="$methodAttributes">
+				<xsl:value-of select="$SingleIndent"/>
+				<xsl:call-template name="RenderAttributes">
+					<xsl:with-param name="Indent" select="concat($Indent,$SingleIndent)"/>
+					<xsl:with-param name="TypeFilter" select="'implicitAccessorFunction'"/>
 				</xsl:call-template>
 			</xsl:when>
 			<xsl:otherwise>
-				<xsl:apply-imports/>
+				<xsl:value-of select="$SingleIndent"/>
 			</xsl:otherwise>
 		</xsl:choose>
+		<xsl:text>AddHandler(ByVal value As </xsl:text>
+		<xsl:choose>
+			<xsl:when test="$explicitDelegate">
+				<xsl:for-each select="$explicitDelegate">
+					<xsl:call-template name="RenderType">
+						<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+					</xsl:call-template>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:when test="$implicitDelegateName">
+				<xsl:call-template name="RenderType">
+					<xsl:with-param name="DataTypeName" select="$implicitDelegateName"/>
+					<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+				</xsl:call-template>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:call-template name="RenderType">
+					<xsl:with-param name="DataTypeName" select="concat($name,'EventHandler')"/>
+					<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+				</xsl:call-template>
+			</xsl:otherwise>
+		</xsl:choose>
+		<xsl:text>)</xsl:text>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:value-of select="$SingleIndent"/>
+		<xsl:value-of select="$SingleIndent"/>
+		<xsl:value-of select="$name"/>
+		<xsl:text>Event = DirectCast(System.Delegate.Combine(</xsl:text>
+		<xsl:value-of select="$name"/>
+		<xsl:text>Event, value), </xsl:text>
+		<xsl:choose>
+			<xsl:when test="$explicitDelegate">
+				<xsl:for-each select="$explicitDelegate">
+					<xsl:call-template name="RenderType">
+						<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+					</xsl:call-template>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:when test="$implicitDelegateName">
+				<xsl:call-template name="RenderType">
+					<xsl:with-param name="DataTypeName" select="$implicitDelegateName"/>
+					<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+				</xsl:call-template>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:call-template name="RenderType">
+					<xsl:with-param name="DataTypeName" select="concat($name,'EventHandler')"/>
+					<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+				</xsl:call-template>
+			</xsl:otherwise>
+		</xsl:choose>
+		<xsl:text>)</xsl:text>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:value-of select="$SingleIndent"/>
+		<xsl:text>End AddHandler</xsl:text>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:choose>
+			<xsl:when test="$methodAttributes">
+				<xsl:value-of select="$SingleIndent"/>
+				<xsl:call-template name="RenderAttributes">
+					<xsl:with-param name="Indent" select="concat($Indent,$SingleIndent)"/>
+					<xsl:with-param name="TypeFilter" select="'implicitAccessorFunction'"/>
+				</xsl:call-template>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:value-of select="$SingleIndent"/>
+			</xsl:otherwise>
+		</xsl:choose>
+		<xsl:text>RemoveHandler(ByVal value As </xsl:text>
+		<xsl:choose>
+			<xsl:when test="$explicitDelegate">
+				<xsl:for-each select="$explicitDelegate">
+					<xsl:call-template name="RenderType">
+						<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+					</xsl:call-template>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:when test="$implicitDelegateName">
+				<xsl:call-template name="RenderType">
+					<xsl:with-param name="DataTypeName" select="$implicitDelegateName"/>
+					<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+				</xsl:call-template>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:call-template name="RenderType">
+					<xsl:with-param name="DataTypeName" select="concat($name,'EventHandler')"/>
+					<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+				</xsl:call-template>
+			</xsl:otherwise>
+		</xsl:choose>
+		<xsl:text>)</xsl:text>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:value-of select="$SingleIndent"/>
+		<xsl:value-of select="$SingleIndent"/>
+		<xsl:value-of select="$name"/>
+		<xsl:text>Event = DirectCast(System.Delegate.Remove(</xsl:text>
+		<xsl:value-of select="$name"/>
+		<xsl:text>Event, value), </xsl:text>
+		<xsl:choose>
+			<xsl:when test="$explicitDelegate">
+				<xsl:for-each select="$explicitDelegate">
+					<xsl:call-template name="RenderType">
+						<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+					</xsl:call-template>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:when test="$implicitDelegateName">
+				<xsl:call-template name="RenderType">
+					<xsl:with-param name="DataTypeName" select="$implicitDelegateName"/>
+					<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+				</xsl:call-template>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:call-template name="RenderType">
+					<xsl:with-param name="DataTypeName" select="concat($name,'EventHandler')"/>
+					<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+				</xsl:call-template>
+			</xsl:otherwise>
+		</xsl:choose>
+		<xsl:text>)</xsl:text>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:value-of select="$SingleIndent"/>
+		<xsl:text>End RemoveHandler</xsl:text>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:value-of select="$SingleIndent"/>
+		<xsl:text>RaiseEvent</xsl:text>
+		<xsl:call-template name="RenderParams"/>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:value-of select="$SingleIndent"/>
+		<xsl:value-of select="$SingleIndent"/>
+		<xsl:value-of select="$name"/>
+		<xsl:text>Event(</xsl:text>
+		<xsl:for-each select="plx:param">
+			<xsl:if test="position()!=1">
+				<xsl:text>, </xsl:text>
+			</xsl:if>
+			<xsl:value-of select="@name"/>
+		</xsl:for-each>
+		<xsl:text>)</xsl:text>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:value-of select="$SingleIndent"/>
+		<xsl:text>End RaiseEvent</xsl:text>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:text>End Event</xsl:text>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+
+		<!-- Render the delegate and field as needed -->
+		<xsl:if test="not($explicitDelegate)">
+			<xsl:text><![CDATA[''' <summary>Delegate auto-generated by PLiX VB formatter</summary>]]></xsl:text>
+			<xsl:value-of select="$NewLine"/>
+			<xsl:value-of select="$Indent"/>
+			<xsl:call-template name="RenderVisibility"/>
+			<xsl:text>Delegate Sub </xsl:text>
+			<xsl:value-of select="@name"/>
+			<xsl:choose>
+				<xsl:when test="$implicitDelegateName">
+					<xsl:value-of select="$implicitDelegateName"/>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:value-of select="$name"/>
+					<xsl:text>EventHandler</xsl:text>
+				</xsl:otherwise>
+			</xsl:choose>
+			<xsl:call-template name="RenderTypeParams">
+				<xsl:with-param name="TypeParams" select="plx:typeParam"/>
+			</xsl:call-template>
+			<xsl:call-template name="RenderParams"/>
+			<xsl:value-of select="$NewLine"/>
+			<xsl:value-of select="$Indent"/>
+		</xsl:if>
+		<xsl:text><![CDATA[''' <summary>Field auto-generated by PLiX VB formatter</summary>]]></xsl:text>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:call-template name="RenderAttributes">
+			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="TypeFilter" select="'implicitField'"/>
+		</xsl:call-template>
+		<xsl:call-template name="RenderVisibility"/>
+		<xsl:if test="$isStatic">
+			<!-- Ignore modifiers other than static for the field, don't call RenderProcedureModifier -->
+			<xsl:text>Shared </xsl:text>
+		</xsl:if>
+		<xsl:value-of select="$name"/>
+		<xsl:text>Event As </xsl:text>
+		<xsl:choose>
+			<xsl:when test="$explicitDelegate">
+				<xsl:for-each select="$explicitDelegate">
+					<xsl:call-template name="RenderType">
+						<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+					</xsl:call-template>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:when test="$implicitDelegateName">
+				<xsl:call-template name="RenderType">
+					<xsl:with-param name="DataTypeName" select="$implicitDelegateName"/>
+					<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+				</xsl:call-template>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:call-template name="RenderType">
+					<xsl:with-param name="DataTypeName" select="concat($name,'EventHandler')"/>
+					<xsl:with-param name="ExplicitPassTypeParams" select="$passTypeParams"/>
+				</xsl:call-template>
+			</xsl:otherwise>
+		</xsl:choose>
+		<xsl:value-of select="$NewLine"/>
 	</xsl:template>
 	<xsl:template match="plx:expression">
 		<xsl:variable name="outputParens" select="@parens='true' or @parens='1'"/>
@@ -1089,7 +1387,12 @@
 		<xsl:text>Nothing</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:onAdd">
-		<xsl:text>AddHandler(ByVal Value As </xsl:text>
+		<xsl:text>AddHandler(</xsl:text>
+		<xsl:call-template name="RenderAttributes">
+			<xsl:with-param name="Inline" select="true()"/>
+			<xsl:with-param name="TypeFilter" select="'implicitValueParameter'"/>
+		</xsl:call-template>
+		<xsl:text>ByVal value As </xsl:text>
 		<xsl:for-each select="parent::plx:event/plx:explicitDelegateType">
 			<xsl:call-template name="RenderType">
 				<xsl:with-param name="ExplicitPassTypeParams" select="following-sibling::plx:passTypeParam"/>
@@ -1106,7 +1409,12 @@
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:onRemove">
-		<xsl:text>RemoveHandler(ByVal Value As </xsl:text>
+		<xsl:text>RemoveHandler(</xsl:text>
+		<xsl:call-template name="RenderAttributes">
+			<xsl:with-param name="Inline" select="true()"/>
+			<xsl:with-param name="TypeFilter" select="'implicitValueParameter'"/>
+		</xsl:call-template>
+		<xsl:text>ByVal value As </xsl:text>
 		<xsl:for-each select="parent::plx:event/plx:explicitDelegateType">
 			<xsl:call-template name="RenderType">
 				<xsl:with-param name="ExplicitPassTypeParams" select="following-sibling::plx:passTypeParam"/>
@@ -1248,7 +1556,7 @@
 					 implemented to look like the operator, but we need to add the additional
 					 System.Runtime.CompilerServices.SpecialName attribute -->
 				<xsl:variable name="modifiedAttributesFragment">
-					<xsl:copy-of select="plx:attributes"/>
+					<xsl:copy-of select="plx:attribute"/>
 					<plx:attribute dataTypeName="SpecialName" dataTypeQualifier="System.Runtime.CompilerServices"/>
 				</xsl:variable>
 				<xsl:for-each select="exsl:node-set($modifiedAttributesFragment)">
@@ -1463,7 +1771,12 @@
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:call-template>
 		<xsl:call-template name="RenderVisibility"/>
-		<xsl:text>Set(ByVal Value As </xsl:text>
+		<xsl:text>Set(</xsl:text>
+		<xsl:call-template name="RenderAttributes">
+			<xsl:with-param name="Inline" select="true()"/>
+			<xsl:with-param name="TypeFilter" select="'implicitValueParameter'"/>
+		</xsl:call-template>
+		<xsl:text>ByVal value As </xsl:text>
 		<xsl:for-each select="parent::plx:property/plx:returns">
 			<xsl:call-template name="RenderType"/>
 		</xsl:for-each>
@@ -1601,10 +1914,10 @@
 		<xsl:variable name="stringize" select="string(@stringize)"/>
 		<xsl:choose>
 			<xsl:when test="$stringize='1' or $stringize='true'">
-				<xsl:text>"Value"</xsl:text>
+				<xsl:text>"value"</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>
-				<xsl:text>Value</xsl:text>
+				<xsl:text>value</xsl:text>
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
@@ -1669,10 +1982,11 @@
 		<xsl:param name="Indent"/>
 		<xsl:param name="Inline" select="false()"/>
 		<xsl:param name="Prefix" select="''"/>
+		<xsl:param name="TypeFilter" select="''"/>
 		<xsl:choose>
 			<xsl:when test="$Inline">
 				<!-- Put them all in a single bracket -->
-				<xsl:for-each select="plx:attribute">
+				<xsl:for-each select="plx:attribute[@type=$TypeFilter]">
 					<xsl:choose>
 						<xsl:when test="position()=1">
 							<xsl:text>&lt;</xsl:text>
@@ -1691,7 +2005,7 @@
 				</xsl:for-each>
 			</xsl:when>
 			<xsl:otherwise>
-				<xsl:for-each select="plx:attribute">
+				<xsl:for-each select="plx:attribute[@type=$TypeFilter]">
 					<xsl:text>&lt;</xsl:text>
 					<xsl:value-of select="$Prefix"/>
 					<xsl:call-template name="RenderAttribute">
