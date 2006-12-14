@@ -143,6 +143,8 @@
 									DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
 								<File Id="PLiXVB.xslt" Name="PLiXVB.xsl" LongName="PLiXVB.xslt" src="..\CodeGenCustomTool\PLiXVB.xslt"
 									DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
+								<File Id="PLiXPHP.xslt" Name="PLiXPHP.xsl" LongName="PLiXPHP.xslt" src="..\CodeGenCustomTool\PLiXPHP.xslt"
+									DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
 							</Component>
 						</Directory>
 					</Directory>

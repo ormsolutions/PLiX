@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+﻿<?xml version="1.0" encoding="UTF-8" ?>
 <!--
 	Neumont PLiX (Programming Language in XML) Code Generator
 
@@ -376,7 +376,7 @@
 		<xsl:param name="Indent"/>
 		<xsl:param name="LocalItemKey"/>
 		<xsl:param name="CaseLabels"/>
-		<xsl:apply-templates select="*">
+		<xsl:apply-templates select="child::*[last()]">
 			<xsl:with-param name="Indent" select="$Indent"/>
 			<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
 			<xsl:with-param name="CaseLabels" select="$CaseLabels"/>

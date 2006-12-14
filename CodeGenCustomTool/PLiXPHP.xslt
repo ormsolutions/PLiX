@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <!--
 	Neumont PLiX (Programming Language in XML) Code Generator
 
@@ -11,6 +11,11 @@
 	the terms of this license.
 
 	You must not remove this notice, or any other, from this software.
+-->
+<!--
+input Test.xml
+output test.plix.xml
+schemas: 
 -->
 <xsl:stylesheet
 	version="1.0"
@@ -25,7 +30,9 @@
 		 has braces below the statement, Indent indents the
 		 braces one indent level, and Block puts the
 		 opening brace on the same line as the statement -->
-	<xsl:param name="BraceStyle" select="'C'"/>
+	<xsl:param name="BraceStyle" select="'Block'"/>
+	<xsl:param name="AutoVariablePrefix" select="'PLiXPHP'"/>
+	<xsl:param name="PartialBaseSuffix" select="'Base'"/>
 	<xsl:template match="*" mode="LanguageInfo">
 		<plxGen:languageInfo
 			defaultBlockClose="}}"
@@ -33,9 +40,10 @@
 			newLineBeforeBlockOpen="yes"
 			defaultStatementClose=";"
 			requireCaseLabels="no"
-			expandInlineStatements="no"
+			expandInlineStatements="yes"
+			autoVariablePrefix="{$AutoVariablePrefix}" 
 			comment="// "
-			docComment="/// ">
+			docComment="// ">
 			<xsl:choose>
 				<xsl:when test="$BraceStyle='Block'">
 					<xsl:attribute name="newLineBeforeBlockOpen">
@@ -73,24 +81,28 @@
 		<xsl:apply-templates select="plx:left/child::*">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
-		<xsl:text> = </xsl:text>
-		<xsl:apply-templates select="plx:right/child::*">
-			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:apply-templates>
+		<xsl:variable name="leftCall" select="child::plx:left/child::plx:*[self::plx:callInstance | self::plx:callThis | self::plx:callStatic]"/>
+		<xsl:if test="not($leftCall[@type='property' or @type='indexerCall'])">
+			<xsl:text> = </xsl:text>
+			<xsl:apply-templates select="plx:right/child::*">
+				<xsl:with-param name="Indent" select="$Indent"/>
+			</xsl:apply-templates>
+		</xsl:if>
 	</xsl:template>
 	<xsl:template match="plx:attachEvent">
 		<xsl:param name="Indent"/>
 		<xsl:apply-templates select="plx:left/child::*">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
-		<xsl:text> += </xsl:text>
+		<xsl:text>(</xsl:text>
 		<xsl:apply-templates select="plx:right/child::*">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
+		<xsl:text>)</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:autoDispose">
 		<xsl:param name="Indent"/>
-		<xsl:text>using (</xsl:text>
+		<xsl:text>using more stuff (</xsl:text>
 		<xsl:call-template name="RenderType"/>
 		<xsl:text> </xsl:text>
 		<xsl:value-of select="@localName"/>
@@ -101,6 +113,51 @@
 			</xsl:apply-templates>
 		</xsl:for-each>
 		<xsl:text>)</xsl:text>
+	</xsl:template>
+	<xsl:template match="plx:autoDispose" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:variable name="localName" select="@localName"/>
+		<xsl:variable name="rawTrySurrogateFragment">
+			<plx:try>
+				<xsl:copy-of select="child::*[not(self::plx:passTypeParam|self::plx:parametrizedDataTypeQualifier|self::plx:initialize)]"/>
+				<plx:finally>
+					<plx:branch>
+						<plx:condition>
+							<plx:binaryOperator type="identityInequality">
+								<plx:left>
+									<plx:nameRef name="{$localName}"/>
+								</plx:left>
+								<plx:right>
+									<plx:nullKeyword/>
+								</plx:right>
+							</plx:binaryOperator>
+						</plx:condition>
+						<plx:callInstance name="Dispose">
+							<plx:callObject>
+								<plx:nameRef name="{$localName}"/>
+							</plx:callObject>
+						</plx:callInstance>
+					</plx:branch>
+				</plx:finally>
+			</plx:try>
+		</xsl:variable>
+		<xsl:variable name="tryInlineExpansionFragment">
+			<!-- The returned inline expansion must not require an additional expansion. Do it here. -->
+			<xsl:apply-templates select="exsl:node-set($rawTrySurrogateFragment)/child::*" mode="CollectInline">
+				<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+			</xsl:apply-templates>
+		</xsl:variable>
+		<xsl:variable name="tryInlineExpansion" select="exsl:node-set($tryInlineExpansionFragment)/child::*"/>
+		<plxGen:inlineExpansion surrogatePreExpanded="true" childrenModified="true">
+			<plxGen:expansion>
+				<plx:local name="{$localName}">
+					<xsl:copy-of select="@dataTypeName|@dataTypeQualifier"/>
+					<xsl:copy-of select="plx:passTypeParam|plx:parametrizedDataTypeQualifier|plx:initialize"/>
+				</plx:local>
+				<xsl:copy-of select="$tryInlineExpansion/plxGen:expansion/child::*"/>
+			</plxGen:expansion>
+			<xsl:copy-of select="$tryInlineExpansion/plxGen:surrogate"/>
+		</plxGen:inlineExpansion>
 	</xsl:template>
 	<xsl:template match="plx:binaryOperator">
 		<xsl:param name="Indent"/>
@@ -113,13 +170,13 @@
 		<xsl:if test="$negate">
 			<xsl:text>!(</xsl:text>
 		</xsl:if>
-		<xsl:if test="$left[self::plx:binaryOperator|self::plx:inlineStatement]">
+		<xsl:if test="local-name($left)='binaryOperator'">
 			<xsl:text>(</xsl:text>
 		</xsl:if>
 		<xsl:apply-templates select="$left">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
-		<xsl:if test="$left[self::plx:binaryOperator|self::plx:inlineStatement]">
+		<xsl:if test="local-name($left)='binaryOperator'">
 			<xsl:text>)</xsl:text>
 		</xsl:if>
 		<xsl:choose>
@@ -193,20 +250,20 @@
 				<xsl:text> - </xsl:text>
 			</xsl:when>
 			<xsl:when test="$type='typeEquality'">
-				<xsl:text> is </xsl:text>
+				<xsl:text> instanceof </xsl:text>
 			</xsl:when>
 			<xsl:when test="$type='typeInequality'">
 				<!-- This whole expression is negated -->
 				<xsl:text> is </xsl:text>
 			</xsl:when>
 		</xsl:choose>
-		<xsl:if test="$right[self::plx:binaryOperator|self::plx:inlineStatement]">
+		<xsl:if test="local-name($right)='binaryOperator'">
 			<xsl:text>(</xsl:text>
 		</xsl:if>
 		<xsl:apply-templates select="$right">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
-		<xsl:if test="$right[self::plx:binaryOperator|self::plx:inlineStatement]">
+		<xsl:if test="local-name($right)='binaryOperator'">
 			<xsl:text>)</xsl:text>
 		</xsl:if>
 		<xsl:if test="$negate">
@@ -227,101 +284,138 @@
 	<xsl:template match="plx:callInstance">
 		<xsl:param name="Indent"/>
 		<xsl:variable name="caller" select="plx:callObject/child::*"/>
-		<xsl:variable name="callerNeedsParensFragment">
+		<!--<xsl:variable name="callerNeedsParensFragment">
 			<xsl:for-each select="$caller">
+				<xsl:variable name="tagName" select="local-name()"/>
 				<xsl:choose>
-					<xsl:when test="self::plx:cast|self::plx:binaryOperator|self::plx:unaryOperator|self::plx:callNew|self::plx:inlineStatement">
+					<xsl:when test="$tagName='cast' or $tagName='binaryOperator' or $tagName='unaryOperator' or $tagName='callNew'">
 						<xsl:text>1</xsl:text>
 					</xsl:when>
-					<xsl:when test="self::plx:expression and not(@parens='true' or @parens='1')">
-						<xsl:if test="plx:cast|plx:binaryOperator|plx:unaryOperator|plx:callNew|plx:inlineStatement">
+					<xsl:when test="$tagName='expression' and not(@parens='true' or @parens='1')">
+						<xsl:variable name="tagName2" select="local-name()"/>
+						<xsl:if test="$tagName2='cast' or $tagName2='binaryOperator' or $tagName2='unaryOperator' or $tagName2='callNew'">
 							<xsl:text>1</xsl:text>
 						</xsl:if>
 					</xsl:when>
 				</xsl:choose>
 			</xsl:for-each>
-		</xsl:variable>
-		<xsl:variable name="callerNeedsParens" select="string-length($callerNeedsParensFragment)"/>
-		<xsl:if test="$callerNeedsParens">
+		</xsl:variable>-->
+		<!--<xsl:variable name="callerNeedsParens" select="string-length($callerNeedsParensFragment)"/>-->
+		<!--<xsl:if test="$callerNeedsParens">
 			<xsl:text>(</xsl:text>
-		</xsl:if>
+		</xsl:if>-->
 		<xsl:apply-templates select="$caller">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
-		<xsl:if test="$callerNeedsParens">
+		<!--<xsl:if test="$callerNeedsParens">
 			<xsl:text>)</xsl:text>
-		</xsl:if>
+		</xsl:if>-->
+		<xsl:choose>
+			<xsl:when test="@type = 'delegateCall'">
+				<xsl:text>->Invoke</xsl:text>
+			</xsl:when>
+			<xsl:when test="@type = 'indexerCall'">
+				<xsl:choose>
+					<xsl:when test="parent::plx:left">
+						<xsl:text>->set_Item</xsl:text>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:text>->get_Item</xsl:text>
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:when>
+		</xsl:choose>
 		<xsl:call-template name="RenderCallBody">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:callNew">
 		<xsl:param name="Indent"/>
-		<xsl:text>new </xsl:text>
-		<xsl:call-template name="RenderType">
-			<xsl:with-param name="RenderArray" select="false()"/>
-		</xsl:call-template>
-		<xsl:variable name="arrayDescriptor" select="plx:arrayDescriptor"/>
-		<xsl:variable name="isSimpleArray" select="@dataTypeIsSimpleArray='true' or @dataTypeIsSimpleArray='1'"/>
 		<xsl:choose>
-			<xsl:when test="$arrayDescriptor or $isSimpleArray">
-				<xsl:variable name="initializer" select="plx:arrayInitializer"/>
+			<xsl:when test="@dataTypeIsSimpleArray = 'true'">
+				<xsl:text>/*</xsl:text>
+				<xsl:call-template name="RenderType">
+					<xsl:with-param name="RenderArray" select="false()"/>
+				</xsl:call-template>
+				<xsl:text>*/</xsl:text>
+				<xsl:text>array(</xsl:text>
+				<xsl:call-template name="RenderArrayInitializer">
+					<xsl:with-param name="Indent" select="$Indent"/>
+				</xsl:call-template>
+				<xsl:text>)</xsl:text>
+			</xsl:when>
+			<xsl:otherwise>
 				<xsl:choose>
-					<xsl:when test="$initializer">
-						<!-- If we have an array initializer, then ignore the passed in
-							 parameters and render the full array descriptor brackets -->
+					<xsl:when test="plx:arrayInitializer">
+						<xsl:text>array</xsl:text>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:text>new </xsl:text>
+						<xsl:call-template name="RenderType">
+							<xsl:with-param name="RenderArray" select="false()"/>
+						</xsl:call-template>
+					</xsl:otherwise>
+				</xsl:choose>
+				<xsl:variable name="arrayDescriptor" select="plx:arrayDescriptor"/>
+				<xsl:variable name="isSimpleArray" select="@dataTypeIsSimpleArray='true' or @dataTypeIsSimpleArray='1'"/>
+				<xsl:choose>
+					<xsl:when test="$arrayDescriptor or $isSimpleArray">
+						<xsl:variable name="initializer" select="plx:arrayInitializer"/>
 						<xsl:choose>
-							<xsl:when test="$arrayDescriptor">
-								<xsl:for-each select="$arrayDescriptor">
-									<xsl:call-template name="RenderArrayDescriptor"/>
+							<xsl:when test="$initializer">
+								<!-- If we have an array initializer, then ignore the passed in
+							 parameters and render the full array descriptor brackets -->
+								<xsl:choose>
+									<xsl:when test="$arrayDescriptor">
+										<xsl:for-each select="$arrayDescriptor">
+											<xsl:call-template name="RenderArrayDescriptor"/>
+										</xsl:for-each>
+									</xsl:when>
+								</xsl:choose>
+								<xsl:for-each select="$initializer">
+									<xsl:call-template name="RenderArrayInitializer">
+										<xsl:with-param name="Indent" select="$Indent"/>
+									</xsl:call-template>
 								</xsl:for-each>
 							</xsl:when>
 							<xsl:otherwise>
-								<xsl:text>[]</xsl:text>
-							</xsl:otherwise>
-						</xsl:choose>
-						<xsl:for-each select="$initializer">
-							<xsl:call-template name="RenderArrayInitializer">
-								<xsl:with-param name="Indent" select="$Indent"/>
-							</xsl:call-template>
-						</xsl:for-each>
-					</xsl:when>
-					<xsl:otherwise>
-						<!-- There is no initializer, so parameters are passed for the
+								<!-- There is no initializer, so parameters are passed for the
 							 first bound. We need the same number as parameters as the
 							 first array rank, and we get the array descriptor brackets
 							 for nested arrays. -->
-						<xsl:variable name="passParams" select="plx:passParam"/>
-						<xsl:call-template name="RenderPassParams">
-							<xsl:with-param name="Indent" select="$Indent"/>
-							<xsl:with-param name="PassParams" select="$passParams"/>
-							<xsl:with-param name="BracketPair" select="'[]'"/>
-						</xsl:call-template>
-						<xsl:choose>
-							<xsl:when test="$arrayDescriptor">
-								<xsl:for-each select="$arrayDescriptor">
-									<xsl:if test="@rank!=count($passParams)">
-										<xsl:message terminate="yes">The number of parameters must match the rank of the array if no initializer is specified.</xsl:message>
-									</xsl:if>
-									<xsl:for-each select="plx:arrayDescriptor">
-										<xsl:call-template name="RenderArrayDescriptor"/>
-									</xsl:for-each>
-								</xsl:for-each>
-							</xsl:when>
-							<xsl:otherwise>
-								<xsl:if test="1!=count($passParams)">
-									<xsl:message terminate="yes">The number of parameters must match the rank of the array if no initializer is specified.</xsl:message>
-								</xsl:if>
+								<xsl:variable name="passParams" select="plx:passParam"/>
+								<xsl:call-template name="RenderPassParams">
+									<xsl:with-param name="Indent" select="$Indent"/>
+									<xsl:with-param name="PassParams" select="$passParams"/>
+									<xsl:with-param name="BracketPair" select="'[]'"/>
+								</xsl:call-template>
+								<xsl:choose>
+									<xsl:when test="$arrayDescriptor">
+										<xsl:for-each select="$arrayDescriptor">
+											<xsl:if test="@rank!=count($passParams)">
+												<xsl:message terminate="yes">The number of parameters must match the rank of the array if no initializer is specified.</xsl:message>
+											</xsl:if>
+											<xsl:for-each select="plx:arrayDescriptor">
+												<xsl:call-template name="RenderArrayDescriptor"/>
+											</xsl:for-each>
+										</xsl:for-each>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:if test="1!=count($passParams)">
+											<xsl:message terminate="yes">The number of parameters must match the rank of the array if no initializer is specified.</xsl:message>
+										</xsl:if>
+									</xsl:otherwise>
+								</xsl:choose>
 							</xsl:otherwise>
 						</xsl:choose>
+					</xsl:when>
+					<xsl:otherwise>
+						<!-- Not an array constructor -->
+						<xsl:call-template name="RenderPassParams">
+							<xsl:with-param name="Indent" select="$Indent"/>
+						</xsl:call-template>
 					</xsl:otherwise>
 				</xsl:choose>
-			</xsl:when>
-			<xsl:otherwise>
-				<!-- Not an array constructor -->
-				<xsl:call-template name="RenderPassParams">
-					<xsl:with-param name="Indent" select="$Indent"/>
-				</xsl:call-template>
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
@@ -330,15 +424,18 @@
 		<xsl:call-template name="RenderType"/>
 		<xsl:call-template name="RenderCallBody">
 			<xsl:with-param name="Indent" select="$Indent"/>
-			<xsl:with-param name="Unqualified" select="@dataTypeName='.global'"/>
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:callThis">
 		<xsl:param name="Indent"/>
 		<xsl:variable name="accessor" select="@accessor"/>
+		<xsl:variable name="isConstructorInitializer" select="parent::plx:initialize[parent::plx:function]"/>
 		<xsl:choose>
 			<xsl:when test="$accessor='base'">
-				<xsl:text>base</xsl:text>
+				<xsl:text>parent</xsl:text>
+				<xsl:if test="$isConstructorInitializer">
+					<xsl:text>::__construct</xsl:text>
+				</xsl:if>
 			</xsl:when>
 			<xsl:when test="$accessor='explicitThis'">
 				<xsl:message terminate="yes">ExplicitThis calls are not supported by C#.</xsl:message>
@@ -347,12 +444,17 @@
 				<!-- Nothing to do, don't qualify -->
 			</xsl:when>
 			<xsl:otherwise>
-				<xsl:text>this</xsl:text>
+				<xsl:text>$this</xsl:text>
+				<xsl:if test="$isConstructorInitializer">
+					<!-- This construct implies overloading, but we need to generate
+					something to indicate an invalid PHP construct -->
+					<xsl:text>->__construct</xsl:text>
+				</xsl:if>
 			</xsl:otherwise>
 		</xsl:choose>
 		<xsl:call-template name="RenderCallBody">
 			<xsl:with-param name="Indent" select="$Indent"/>
-			<xsl:with-param name="Unqualified" select="$accessor='static'"/>
+			<xsl:with-param name="Unqualified" select="$accessor='static' or $isConstructorInitializer"/>
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:case">
@@ -398,12 +500,69 @@
 			<xsl:value-of select="$NewLine"/>
 		</xsl:if>
 	</xsl:template>
+	<xsl:template match="plx:cast[@type='testCast']" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:variable name="castTarget" select="child::plx:*[position()=last()]"/>
+		<xsl:choose>
+			<xsl:when test="$castTarget/self::plx:nameRef[not(@type) or (@type='local')]">
+				<xsl:apply-imports/>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:variable name="tempVariableName" select="concat($GeneratedVariablePrefix,$LocalItemKey,'ct')"/>
+				<xsl:variable name="dataTypeAttributes" select="@*[not(local-name()='type')]"/>
+				<xsl:variable name="dataTypeElements" select="plx:parametrizedDataTypeQualifier|plx:passTypeParam|plx:arrayDescriptor"/>
+				<plxGen:inlineExpansion surrogatePreExpanded="false" key="{$LocalItemKey}" >
+					<plxGen:expansion>
+						<plx:local name="{$tempVariableName}">
+							<xsl:copy-of select="$dataTypeAttributes"/>
+							<xsl:copy-of select="$dataTypeElements"/>
+							<plx:initialize>
+								<xsl:copy-of select="child::plx:*[position()=last()]"/>
+							</plx:initialize>
+						</plx:local>
+					</plxGen:expansion>
+					<plxGen:surrogate>
+						<plx:inlineStatement>
+							<xsl:copy-of select="$dataTypeAttributes"/>
+							<xsl:copy-of select="$dataTypeElements"/>
+							<plx:conditionalOperator>
+								<plx:condition>
+									<plx:binaryOperator type="typeEquality">
+										<plx:left>
+											<plx:nameRef name="{$tempVariableName}"/>
+										</plx:left>
+										<plx:right>
+											<plx:directTypeReference>
+												<xsl:copy-of select="$dataTypeAttributes"/>
+												<xsl:copy-of select="$dataTypeElements"/>
+											</plx:directTypeReference>
+										</plx:right>
+									</plx:binaryOperator>
+								</plx:condition>
+								<plx:left>
+									<plx:nameRef name="{$tempVariableName}"/>
+								</plx:left>
+								<plx:right>
+									<plx:nullKeyword/>
+								</plx:right>
+							</plx:conditionalOperator>
+						</plx:inlineStatement>
+					</plxGen:surrogate>
+				</plxGen:inlineExpansion>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+	<xsl:template match="plx:cast[@type='testCast']" mode="ReplaceInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="Expansions"/>
+		<xsl:copy-of select="$Expansions[@key=$LocalItemKey]/plxGen:surrogate/child::*"/>
+	</xsl:template>
 	<xsl:template match="plx:cast">
 		<xsl:param name="Indent"/>
 		<xsl:variable name="castTarget" select="child::plx:*[position()=last()]"/>
 		<xsl:variable name="castType" select="string(@type)"/>
 		<!-- UNDONE: Need more work on operator precedence -->
-		<xsl:variable name="extraParens" select="$castTarget[self::plx:binaryOperator|self::plx:inlineStatement]"/>
+		<xsl:variable name="extraParens" select="local-name($castTarget)='binaryOperator'"/>
 		<xsl:choose>
 			<xsl:when test="$castType='testCast'">
 				<xsl:if test="$extraParens">
@@ -415,15 +574,20 @@
 				<xsl:if test="$extraParens">
 					<xsl:text>)</xsl:text>
 				</xsl:if>
-				<xsl:text> as </xsl:text>
+				<xsl:text> instanceof </xsl:text>
 				<xsl:call-template name="RenderType"/>
+				<xsl:text> ? </xsl:text>
+				<xsl:apply-templates select="$castTarget">
+					<xsl:with-param name="Indent" select="$Indent"/>
+				</xsl:apply-templates>
+				<xsl:text> : null</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>
 				<!-- Handles exceptionCast, unbox, primitiveChecked, primitiveUnchecked -->
 				<!-- UNDONE: Distinguish primitiveChecked vs primitiveUnchecked cast -->
-				<xsl:text>(</xsl:text>
+				<xsl:text>/*(</xsl:text>
 				<xsl:call-template name="RenderType"/>
-				<xsl:text>)</xsl:text>
+				<xsl:text>)*/</xsl:text>
 				<xsl:if test="$extraParens">
 					<xsl:text>(</xsl:text>
 				</xsl:if>
@@ -437,12 +601,18 @@
 		</xsl:choose>
 	</xsl:template>
 	<xsl:template match="plx:catch">
+		<xsl:param name="LocalItemKey"/>
 		<xsl:text>catch (</xsl:text>
 		<xsl:call-template name="RenderType"/>
-		<xsl:if test="string(@localName)">
-			<xsl:text> </xsl:text>
-			<xsl:value-of select="@localName"/>
-		</xsl:if>
+		<xsl:text> $</xsl:text>
+		<xsl:choose>
+			<xsl:when test="@localName">
+				<xsl:value-of select="@localName"/>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:value-of select="concat($GeneratedVariablePrefix,$LocalItemKey,'ex')"/>
+			</xsl:otherwise>
+		</xsl:choose>
 		<xsl:text>)</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:class | plx:interface | plx:structure">
@@ -451,12 +621,84 @@
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:call-template>
 	</xsl:template>
-	<xsl:template match="plx:concatenate">
+	<xsl:template match="plx:class | plx:interface | plx:structure" mode="IndentInfo">
+		<xsl:choose>
+			<xsl:when test="@partial='true' or @partial='1'">
+				<xsl:call-template name="CustomizeIndentInfo">
+					<xsl:with-param name="defaultInfo">
+						<xsl:apply-imports/>
+					</xsl:with-param>
+					<xsl:with-param name="closeBlockCallback" select="true()"/>
+				</xsl:call-template>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:apply-imports/>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+	<xsl:template match="plx:class | plx:interface | plx:structure" mode="CloseBlock">
 		<xsl:param name="Indent"/>
-		<xsl:text>string.Concat</xsl:text>
-		<xsl:call-template name="RenderExpressionList">
-			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>
+		<xsl:param name="StandardCloseWith"/>
+		<xsl:value-of select="$StandardCloseWith"/>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:variable name="pseudoClass">
+			<xsl:variable name="ctors" select="plx:function[@name='.construct']"/>
+			<xsl:copy>
+				<xsl:copy-of select="@*[local-name()!='partial']"/>
+				<plx:derivesFromClass dataTypeName="{@name}{$PartialBaseSuffix}"/>
+				<xsl:for-each select="$ctors">
+					<xsl:copy>
+						<xsl:copy-of select="@*"/>
+						<plx:initialize>
+							<plx:callThis name=".implied" accessor="base">
+								<xsl:for-each select="plx:param">
+									<plx:passParam>
+										<plx:nameRef name="{@name}" type="parameter"/>
+									</plx:passParam>
+								</xsl:for-each>
+							</plx:callThis>
+						</plx:initialize>
+					</xsl:copy>
+				</xsl:for-each>
+			</xsl:copy>
+		</xsl:variable>
+		<xsl:value-of select="$Indent"/>
+		<xsl:text>if (!class_exists('</xsl:text>
+		<xsl:value-of select="@name"/>
+		<xsl:text>'))</xsl:text>
+		<xsl:choose>
+			<xsl:when test="$BraceStyle='Block'">
+				<xsl:text> {</xsl:text>
+				<xsl:value-of select="$NewLine"/>
+			</xsl:when>
+			<xsl:when test="$BraceStyle='C'">
+				<xsl:value-of select="$NewLine"/>
+				<xsl:value-of select="$Indent"/>
+				<xsl:text>{</xsl:text>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:value-of select="$NewLine"/>
+				<xsl:value-of select="$Indent"/>
+				<xsl:value-of select="$SingleIndent"/>
+				<xsl:text>{</xsl:text>
+			</xsl:otherwise>
+		</xsl:choose>
+		<xsl:for-each select="exsl:node-set($pseudoClass)/child::*">
+			<xsl:call-template name="RenderElement">
+				<xsl:with-param name="Indent" select="concat($Indent,$SingleIndent)"/>
+			</xsl:call-template>
+		</xsl:for-each>
+		<xsl:choose>
+			<xsl:when test="$BraceStyle='Block' or $BraceStyle='C'">
+				<xsl:value-of select="$Indent"/>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:value-of select="$Indent"/>
+				<xsl:value-of select="$SingleIndent"/>
+			</xsl:otherwise>
+		</xsl:choose>
+		<xsl:text>}</xsl:text>
+		<xsl:value-of select="$NewLine"/>
 	</xsl:template>
 	<xsl:template match="plx:conditionalOperator">
 		<xsl:param name="Indent"/>
@@ -498,46 +740,20 @@
 			<xsl:text>)</xsl:text>
 		</xsl:if>
 	</xsl:template>
-	<xsl:template match="plx:continue">
+	<xsl:template match="plx:concatenate">
 		<xsl:param name="Indent"/>
-		<xsl:apply-templates select="parent::plx:*" mode="RenderBeforeLoopForContinue">
+		<xsl:call-template name="RenderExpressionList">
 			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:apply-templates>
-		<xsl:text>continue</xsl:text>
-	</xsl:template>
-	<xsl:template match="*" mode="RenderBeforeLoopForContinue">
-		<xsl:param name="Indent"/>
-		<xsl:apply-templates select="parent::plx:*" mode="RenderBeforeLoopForContinue">
-			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:apply-templates>
-	</xsl:template>
-	<xsl:template match="plx:iterator" mode="RenderBeforeLoopForContinue">
-		<!-- We hit an iterator before a loop, the continue applies to this iterator, not a loop-->
-	</xsl:template>
-	<xsl:template match="plx:label">
-		<xsl:param name="Indent"/>
-		<xsl:value-of select="@name"/>
-	</xsl:template>
-	<xsl:template match="plx:label" mode="IndentInfo">
-		<xsl:call-template name="CustomizeIndentInfo">
-			<xsl:with-param name="defaultInfo">
-				<xsl:apply-imports/>
-			</xsl:with-param>
-			<xsl:with-param name="statementClose" select="':'"/>
+			<xsl:with-param name="BracketPair" select="''"/>
+			<xsl:with-param name="ListSeparator" select="'.'"/>
 		</xsl:call-template>
 	</xsl:template>
-	<xsl:template match="plx:loop" mode="RenderBeforeLoopForContinue">
-		<xsl:param name="Indent"/>
-		<xsl:variable name="beforeLoopContents" select="self::*[@checkCondition='after'][plx:condition/child::*]/plx:beforeLoop/child::*"/>
-		<xsl:if test="$beforeLoopContents">
-			<xsl:for-each select="$beforeLoopContents">
-				<xsl:call-template name="RenderElement">
-					<xsl:with-param name="Indent" select="$Indent"/>
-					<xsl:with-param name="Statement" select="true()"/>
-					<xsl:with-param name="SkipLeadingIndent" select="true()"/>
-				</xsl:call-template>
-			</xsl:for-each>
-		</xsl:if>
+	<xsl:template match="plx:continue">
+		<!-- UNDONE: If the nearest enclosing iterator or loop is a loop
+			 and checkCondition is 'after' and a beforeLoop statement is
+			 specified, then we need to execute the beforeLoop statement
+			 before calling continue. -->
+		<xsl:text>continue</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:decrement">
 		<!-- UNDONE: Add operator precedence tables to the language info and
@@ -560,21 +776,21 @@
 	<xsl:template match="plx:delegate">
 		<xsl:param name="Indent"/>
 		<xsl:variable name="returns" select="plx:returns"/>
-		<xsl:call-template name="RenderAttributes">
+		<!--<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>
-		<xsl:if test="$returns">
+		</xsl:call-template>-->
+		<!--<xsl:if test="$returns">
 			<xsl:for-each select="$returns">
 				<xsl:call-template name="RenderAttributes">
 					<xsl:with-param name="Indent" select="$Indent"/>
 					<xsl:with-param name="Prefix" select="'returns:'"/>
 				</xsl:call-template>
 			</xsl:for-each>
-		</xsl:if>
+		</xsl:if>-->
 		<xsl:call-template name="RenderVisibility"/>
 		<xsl:call-template name="RenderReplacesName"/>
-		<xsl:text>delegate </xsl:text>
-		<xsl:choose>
+		<xsl:text>class </xsl:text>
+		<!--<xsl:choose>
 			<xsl:when test="$returns">
 				<xsl:for-each select="$returns">
 					<xsl:call-template name="RenderType"/>
@@ -584,8 +800,9 @@
 			<xsl:otherwise>
 				<xsl:text>void </xsl:text>
 			</xsl:otherwise>
-		</xsl:choose>
+		</xsl:choose>-->
 		<xsl:value-of select="@name"/>
+		<xsl:text> extends Delegate</xsl:text>
 		<xsl:variable name="typeParams" select="plx:typeParam"/>
 		<xsl:if test="$typeParams">
 			<xsl:call-template name="RenderTypeParams">
@@ -605,10 +822,11 @@
 		<xsl:apply-templates select="plx:left/child::*">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
-		<xsl:text> -= </xsl:text>
+		<xsl:text>(</xsl:text>
 		<xsl:apply-templates select="plx:right/child::*">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:apply-templates>
+		<xsl:text>)</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:directTypeReference">
 		<xsl:call-template name="RenderType"/>
@@ -618,12 +836,14 @@
 		<xsl:call-template name="RenderTypeDefinition">
 			<xsl:with-param name="Indent" select="$Indent"/>
 		</xsl:call-template>
+		<xsl:text> /* enum */</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:enumItem">
 		<xsl:param name="Indent"/>
-		<xsl:call-template name="RenderAttributes">
+		<!--<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>
+		</xsl:call-template>-->
+		<xsl:text>const </xsl:text>
 		<xsl:value-of select="@name"/>
 		<xsl:for-each select="plx:initialize">
 			<xsl:text> = </xsl:text>
@@ -637,7 +857,7 @@
 			<xsl:with-param name="defaultInfo">
 				<xsl:apply-imports/>
 			</xsl:with-param>
-			<xsl:with-param name="statementClose" select="','"/>
+			<xsl:with-param name="statementClose" select="';'"/>
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:event">
@@ -682,9 +902,9 @@
 		</xsl:if>
 
 		<!-- With an implicit delegate in place, get back to rendering the event itself -->
-		<xsl:call-template name="RenderAttributes">
+		<!--<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>
+		</xsl:call-template>-->
 		<xsl:if test="not($isSimpleExplicitImplementation)">
 			<xsl:if test="not(parent::plx:interface)">
 				<xsl:call-template name="RenderVisibility"/>
@@ -729,20 +949,13 @@
 		<xsl:value-of select="$name"/>
 	</xsl:template>
 	<xsl:template match="plx:event" mode="IndentInfo">
-		<xsl:variable name="interfaceMembers" select="plx:interfaceMember"/>
-		<xsl:choose>
-			<xsl:when test="$interfaceMembers and not(@visibility='privateInterfaceMember' and not(@modifier='static') and count($interfaceMembers)=1 and @name=$interfaceMembers[1]/@memberName and plx:onAdd and plx:onRemove)">
-				<xsl:call-template name="CustomizeIndentInfo">
-					<xsl:with-param name="defaultInfo">
-						<xsl:apply-imports/>
-					</xsl:with-param>
-					<xsl:with-param name="closeBlockCallback" select="true()"/>
-				</xsl:call-template>
-			</xsl:when>
-			<xsl:otherwise>
+		<xsl:call-template name="CustomizeIndentInfo">
+			<xsl:with-param name="defaultInfo">
 				<xsl:apply-imports/>
-			</xsl:otherwise>
-		</xsl:choose>
+			</xsl:with-param>
+			<xsl:with-param name="style" select="'nakedBlock'"/>
+			<xsl:with-param name="closeBlockCallback" select="true()"/>
+		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:event" mode="CloseBlock">
 		<xsl:param name="Indent"/>
@@ -865,17 +1078,22 @@
 	</xsl:template>
 	<xsl:template match="plx:field">
 		<xsl:param name="Indent"/>
-		<xsl:call-template name="RenderAttributes">
+		<!--<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>
-		<xsl:call-template name="RenderVisibility"/>
-		<xsl:call-template name="RenderStatic"/>
-		<xsl:call-template name="RenderVolatile"/>
-		<xsl:call-template name="RenderReplacesName"/>
-		<xsl:call-template name="RenderConst"/>
-		<xsl:call-template name="RenderReadOnly"/>
-		<xsl:call-template name="RenderType"/>
-		<xsl:text> </xsl:text>
+		</xsl:call-template>-->
+		<xsl:choose>
+			<xsl:when test="@const">
+				<xsl:call-template name="RenderConst"/>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:call-template name="RenderVisibility"/>
+				<xsl:call-template name="RenderStatic"/>
+				<xsl:call-template name="RenderReplacesName"/>
+				<xsl:call-template name="RenderReadOnly"/>
+				<!--<xsl:call-template name="RenderType"/>-->
+				<xsl:text>$</xsl:text>
+			</xsl:otherwise>
+		</xsl:choose>
 		<xsl:value-of select="@name"/>
 		<xsl:for-each select="plx:initialize">
 			<xsl:text> = </xsl:text>
@@ -889,9 +1107,6 @@
 	</xsl:template>
 	<xsl:template match="plx:function">
 		<xsl:param name="Indent"/>
-		<xsl:call-template name="RenderAttributes">
-			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>
 		<xsl:variable name="name" select="@name"/>
 		<xsl:choose>
 			<xsl:when test="starts-with($name,'.')">
@@ -909,20 +1124,14 @@
 				</xsl:variable>
 				<xsl:choose>
 					<xsl:when test="$name='.construct'">
-						<xsl:choose>
-							<xsl:when test="@modifier='static'">
-								<!-- Ignore modifiers other than static, don't call RenderProcedureModifier -->
-								<xsl:text>static </xsl:text>
-							</xsl:when>
-							<xsl:otherwise>
-								<xsl:call-template name="RenderVisibility"/>
-							</xsl:otherwise>
-						</xsl:choose>
+						<xsl:call-template name="RenderVisibility"/>
 						<xsl:if test="@modifier='static'">
+							<!-- Ignore modifiers other than static, don't call RenderProcedureModifier -->
+							<xsl:text>static </xsl:text>
 						</xsl:if>
-						<xsl:value-of select="$className"/>
+						<xsl:text>function __construct</xsl:text>
 						<xsl:call-template name="RenderParams"/>
-						<xsl:for-each select="plx:initialize/child::plx:callThis">
+						<!--<xsl:for-each select="plx:initialize/child::plx:callThis">
 							<xsl:value-of select="$NewLine"/>
 							<xsl:value-of select="$Indent"/>
 							<xsl:value-of select="$SingleIndent"/>
@@ -930,38 +1139,44 @@
 							<xsl:apply-templates select=".">
 								<xsl:with-param name="Indent" select="concat($Indent,$SingleIndent)"/>
 							</xsl:apply-templates>
-						</xsl:for-each>
+						</xsl:for-each>-->
 					</xsl:when>
 					<xsl:when test="$name='.finalize'">
-						<xsl:text>~</xsl:text>
-						<xsl:value-of select="$className"/>
-						<xsl:text>()</xsl:text>
+						<xsl:text>function __destruct()</xsl:text>
+						<!--<xsl:value-of select="$className"/>
+						<xsl:text>()</xsl:text>-->
 					</xsl:when>
 				</xsl:choose>
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:variable name="returns" select="plx:returns"/>
-				<xsl:if test="$returns">
+				<!--<xsl:if test="$returns">
 					<xsl:for-each select="$returns">
 						<xsl:call-template name="RenderAttributes">
 							<xsl:with-param name="Indent" select="$Indent"/>
 							<xsl:with-param name="Prefix" select="'returns:'"/>
 						</xsl:call-template>
 					</xsl:for-each>
-				</xsl:if>
+				</xsl:if>-->
 				<xsl:variable name="isSimpleExplicitImplementation"
 					select="@visibility='privateInterfaceMember' and not(@modifier='static') and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName"/>
 				<xsl:if test="not($isSimpleExplicitImplementation)">
 					<xsl:if test="not(parent::plx:interface)">
-						<xsl:call-template name="RenderVisibility"/>
-						<xsl:call-template name="RenderProcedureModifier"/>
-						<xsl:if test="@modifier='static' and plx:attribute[@dataTypeName='DllImport' or @dataTypeName='DllImportAttribute'][not(@dataTypeQualifier) or @dataTypeQualifier='System.Runtime.InteropServices']">
-							<xsl:text>extern </xsl:text>
-						</xsl:if>
+						<xsl:choose>
+							<xsl:when test="not(@visibility='public') and plx:interfaceMember[current()/@name=@memberName]">
+								<xsl:call-template name="RenderVisibility">
+									<xsl:with-param name="Visibility" select="'public'"/>
+								</xsl:call-template>
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:call-template name="RenderVisibility"/>
+							</xsl:otherwise>
+						</xsl:choose>
 					</xsl:if>
+					<xsl:call-template name="RenderProcedureModifier"/>
 					<xsl:call-template name="RenderReplacesName"/>
 				</xsl:if>
-				<xsl:choose>
+				<!--<xsl:choose>
 					<xsl:when test="$returns">
 						<xsl:for-each select="$returns">
 							<xsl:call-template name="RenderType"/>
@@ -971,13 +1186,14 @@
 					<xsl:otherwise>
 						<xsl:text>void </xsl:text>
 					</xsl:otherwise>
-				</xsl:choose>
+				</xsl:choose>-->
 				<xsl:if test="$isSimpleExplicitImplementation">
 					<xsl:for-each select="plx:interfaceMember">
 						<xsl:call-template name="RenderType"/>
 					</xsl:for-each>
 					<xsl:text>.</xsl:text>
 				</xsl:if>
+				<xsl:text>function </xsl:text>
 				<xsl:value-of select="@name"/>
 				<xsl:variable name="typeParams" select="plx:typeParam"/>
 				<xsl:if test="$typeParams">
@@ -998,20 +1214,12 @@
 	<xsl:template match="plx:function" mode="IndentInfo">
 		<xsl:variable name="interfaceMembers" select="plx:interfaceMember"/>
 		<xsl:choose>
-			<xsl:when test="$interfaceMembers and not(@visibility='privateInterfaceMember' and not(@modifier='static') and count($interfaceMembers)=1 and @name=$interfaceMembers[1]/@memberName)">
+			<xsl:when test="$interfaceMembers[not(@memberName=current()/@name)] and not(@visibility='privateInterfaceMember' and not(@modifier='static') and count($interfaceMembers)=1 and @name=$interfaceMembers[1]/@memberName)">
 				<xsl:call-template name="CustomizeIndentInfo">
 					<xsl:with-param name="defaultInfo">
 						<xsl:apply-imports/>
 					</xsl:with-param>
 					<xsl:with-param name="closeBlockCallback" select="true()"/>
-				</xsl:call-template>
-			</xsl:when>
-			<xsl:when test="@modifier='static' and plx:attribute[@dataTypeName='DllImport' or @dataTypeName='DllImportAttribute'][not(@dataTypeQualifier) or @dataTypeQualifier='System.Runtime.InteropServices']">
-				<xsl:call-template name="CustomizeIndentInfo">
-					<xsl:with-param name="defaultInfo">
-						<xsl:apply-imports/>
-					</xsl:with-param>
-					<xsl:with-param name="style" select="'simpleMember'"/>
 				</xsl:call-template>
 			</xsl:when>
 			<xsl:otherwise>
@@ -1038,17 +1246,21 @@
 				<xsl:variable name="contextReturns" select="plx:returns"/>
 				<xsl:variable name="contextParams" select="plx:param"/>
 				<xsl:variable name="contextTypeParams" select="plx:typeParam"/>
-				<xsl:for-each select="plx:interfaceMember">
+				<xsl:for-each select="plx:interfaceMember[not(@memberName=current()/@name)]">
 					<xsl:variable name="memberName" select="@memberName"/>
 					<xsl:if test="$contextIsStatic or $memberName!=$contextName or $contextVisibility!='public'">
 						<xsl:variable name="privateImplFragment">
-							<xsl:variable name="typeName">
-								<xsl:call-template name="RenderType"/>
-							</xsl:variable>
 							<!-- This isn't schema tested. Ignore warnings. -->
-							<plx:function name="{$typeName}.{$memberName}">
+							<plx:function name="{$memberName}" visibility="public">
 								<xsl:copy-of select="$contextTypeParams"/>
 								<xsl:copy-of select="$contextParams"/>
+								<plx:comment>
+									<xsl:text>Implements '</xsl:text>
+									<xsl:value-of select="$memberName"/>
+									<xsl:text>' for '</xsl:text>
+									<xsl:call-template name="RenderType"/>
+									<xsl:text>'</xsl:text>
+								</plx:comment>
 								<xsl:variable name="forwardCall">
 									<plx:callThis name="{$contextName}">
 										<xsl:if test="$contextIsStatic">
@@ -1099,16 +1311,58 @@
 	</xsl:template>
 	<xsl:template match="plx:get">
 		<xsl:param name="Indent"/>
-		<xsl:call-template name="RenderAttributes">
-			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>
-		<xsl:call-template name="RenderVisibility"/>
-		<xsl:text>get</xsl:text>
-	</xsl:template>
-	<xsl:template match="plx:goto">
-		<xsl:param name="Indent"/>
-		<xsl:text>goto </xsl:text>
-		<xsl:value-of select="@name"/>
+		<xsl:for-each select="..">
+			<xsl:variable name="returns" select="plx:returns"/>
+			<xsl:variable name="isSimpleExplicitImplementation"
+				select="@visibility='privateInterfaceMember' and not(@modifier='static') and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName"/>
+			<xsl:if test="not($isSimpleExplicitImplementation)">
+				<xsl:if test="not(parent::plx:interface)">
+					<xsl:call-template name="RenderVisibility"/>
+					<xsl:call-template name="RenderProcedureModifier"/>
+				</xsl:if>
+				<xsl:call-template name="RenderReplacesName"/>
+			</xsl:if>
+			<xsl:text>function get</xsl:text>
+			<xsl:variable name="name" select="@name"/>
+			<xsl:variable name="isIndexer" select="parent::plx:*/@defaultMember=$name"/>
+			<xsl:choose>
+				<xsl:when test="$isIndexer">
+					<xsl:text>this</xsl:text>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:if test="$isSimpleExplicitImplementation">
+						<xsl:for-each select="plx:interfaceMember">
+							<xsl:call-template name="RenderType"/>
+						</xsl:for-each>
+						<xsl:text>.</xsl:text>
+					</xsl:if>
+					<xsl:value-of select="$name"/>
+				</xsl:otherwise>
+			</xsl:choose>
+			<xsl:variable name="typeParams" select="plx:typeParam"/>
+			<xsl:if test="$typeParams">
+				<xsl:call-template name="RenderTypeParams">
+					<xsl:with-param name="TypeParams" select="$typeParams"/>
+				</xsl:call-template>
+			</xsl:if>
+			<xsl:choose>
+				<xsl:when test="plx:param">
+					<xsl:call-template name="RenderParams">
+						<xsl:with-param name="BracketPair" select="'()'"/>
+						<xsl:with-param name="RenderEmptyBrackets" select="$isIndexer"/>
+					</xsl:call-template>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:if test="$typeParams">
+						<xsl:call-template name="RenderTypeParamConstraints">
+							<xsl:with-param name="TypeParams" select="$typeParams"/>
+							<xsl:with-param name="Indent" select="$Indent"/>
+						</xsl:call-template>
+					</xsl:if>
+					<xsl:text>()</xsl:text>
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:for-each>
 	</xsl:template>
 	<xsl:template match="plx:gotoCase">
 		<xsl:param name="Indent"/>
@@ -1130,6 +1384,23 @@
 			<xsl:text>++</xsl:text>
 		</xsl:if>
 	</xsl:template>
+	<xsl:template match="plx:function/plx:initialize">
+		<xsl:param name="Indent"/>
+		<xsl:for-each select="child::*">
+			<xsl:call-template name="RenderElement">
+				<!--<xsl:with-param name="Indent" select="$Indent"/>-->
+				<xsl:with-param name="Statement" select="false()"/>
+			</xsl:call-template>
+		</xsl:for-each>
+	</xsl:template>
+	<xsl:template match="plx:function/plx:initialize" mode="IndentInfo">
+		<xsl:call-template name="CustomizeIndentInfo">
+			<xsl:with-param name="defaultInfo">
+				<xsl:apply-imports/>
+			</xsl:with-param>
+			<xsl:with-param name="style" select="'simple'"/>
+		</xsl:call-template>
+	</xsl:template>
 	<xsl:template match="plx:iterator">
 		<xsl:param name="Indent"/>
 		<xsl:text>foreach (</xsl:text>
@@ -1147,15 +1418,22 @@
 	<xsl:template match="plx:local">
 		<xsl:param name="Indent"/>
 		<xsl:call-template name="RenderConst"/>
-		<xsl:call-template name="RenderType"/>
-		<xsl:text> </xsl:text>
+		<!--<xsl:call-template name="RenderType"/>-->
+		<xsl:text>$</xsl:text>
 		<xsl:value-of select="@name"/>
-		<xsl:for-each select="plx:initialize">
-			<xsl:text> = </xsl:text>
-			<xsl:apply-templates select="child::*">
-				<xsl:with-param name="Indent" select="$Indent"/>
-			</xsl:apply-templates>
-		</xsl:for-each>
+		<xsl:choose>
+			<xsl:when test="plx:initialize">
+				<xsl:for-each select="plx:initialize">
+					<xsl:text> = </xsl:text>
+					<xsl:apply-templates select="child::*">
+						<xsl:with-param name="Indent" select="$Indent"/>
+					</xsl:apply-templates>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:text> = null</xsl:text>
+			</xsl:otherwise>
+		</xsl:choose>
 	</xsl:template>
 	<xsl:template match="plx:lock">
 		<xsl:param name="Indent"/>
@@ -1264,11 +1542,16 @@
 		<xsl:value-of select="$NewLine"/>
 	</xsl:template>
 	<xsl:template match="plx:nameRef">
+		<xsl:text>$</xsl:text>
 		<xsl:value-of select="@name"/>
 	</xsl:template>
-	<xsl:template match="plx:namespace">
-		<xsl:text>namespace </xsl:text>
-		<xsl:value-of select="@name"/>
+	<xsl:template match="plx:namespace" mode="IndentInfo">
+		<xsl:call-template name="CustomizeIndentInfo">
+			<xsl:with-param name="defaultInfo">
+				<xsl:apply-imports/>
+			</xsl:with-param>
+			<xsl:with-param name="style" select="'nakedBlock'"/>
+		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:namespaceImport">
 		<xsl:text>using </xsl:text>
@@ -1410,25 +1693,25 @@
 					<xsl:copy-of select="plx:attributes"/>
 					<plx:attribute dataTypeName="SpecialName" dataTypeQualifier="System.Runtime.CompilerServices"/>
 				</xsl:variable>
-				<xsl:for-each select="exsl:node-set($modifiedAttributesFragment)">
+				<!--<xsl:for-each select="exsl:node-set($modifiedAttributesFragment)">
 					<xsl:call-template name="RenderAttributes">
 						<xsl:with-param name="Indent" select="$Indent"/>
 					</xsl:call-template>
-				</xsl:for-each>
+				</xsl:for-each>-->
 			</xsl:when>
-			<xsl:otherwise>
+			<!--<xsl:otherwise>
 				<xsl:call-template name="RenderAttributes">
 					<xsl:with-param name="Indent" select="$Indent"/>
 				</xsl:call-template>
-			</xsl:otherwise>
+			</xsl:otherwise>-->
 		</xsl:choose>
 		<xsl:variable name="returns" select="plx:returns"/>
-		<xsl:for-each select="$returns">
+		<!--<xsl:for-each select="$returns">
 			<xsl:call-template name="RenderAttributes">
 				<xsl:with-param name="Indent" select="$Indent"/>
 				<xsl:with-param name="Prefix" select="'returns:'"/>
 			</xsl:call-template>
-		</xsl:for-each>
+		</xsl:for-each>-->
 		<xsl:text>public static </xsl:text>
 		<xsl:call-template name="RenderReplacesName"/>
 		<xsl:if test="starts-with($operatorName, 'cast.')">
@@ -1448,10 +1731,20 @@
 		<xsl:call-template name="RenderParams"/>
 	</xsl:template>
 	<xsl:template match="plx:onAdd">
-		<xsl:text>add</xsl:text>
+		<xsl:call-template name="RenderVisibility">
+			<xsl:with-param name="Visibility" select="../@visibility"/>
+		</xsl:call-template>
+		<xsl:text>function add</xsl:text>
+		<xsl:value-of select="../@name"/>
+		<xsl:text>($value)</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:onRemove">
-		<xsl:text>remove</xsl:text>
+		<xsl:call-template name="RenderVisibility">
+			<xsl:with-param name="Visibility" select="../@visibility"/>
+		</xsl:call-template>
+		<xsl:text>function remove</xsl:text>
+		<xsl:value-of select="../@name"/>
+		<xsl:text>($value)</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:pragma">
 		<xsl:variable name="type" select="string(@type)"/>
@@ -1510,16 +1803,16 @@
 	</xsl:template>
 	<xsl:template match="plx:property">
 		<xsl:param name="Indent"/>
-		<xsl:call-template name="RenderAttributes">
+		<!--<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>
+		</xsl:call-template>-->
 		<xsl:variable name="returns" select="plx:returns"/>
-		<xsl:for-each select="$returns">
+		<!--<xsl:for-each select="$returns">
 			<xsl:call-template name="RenderAttributes">
 				<xsl:with-param name="Indent" select="$Indent"/>
 				<xsl:with-param name="Prefix" select="'returns:'"/>
 			</xsl:call-template>
-		</xsl:for-each>
+		</xsl:for-each>-->
 		<xsl:variable name="isSimpleExplicitImplementation"
 			select="@visibility='privateInterfaceMember' and not(@modifier='static') and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName"/>
 		<xsl:if test="not($isSimpleExplicitImplementation)">
@@ -1567,7 +1860,13 @@
 		</xsl:if>
 	</xsl:template>
 	<xsl:template match="plx:property" mode="IndentInfo">
-		<xsl:variable name="interfaceMembers" select="plx:interfaceMember"/>
+		<xsl:call-template name="CustomizeIndentInfo">
+			<xsl:with-param name="defaultInfo">
+				<xsl:apply-imports/>
+			</xsl:with-param>
+			<xsl:with-param name="style" select="'nakedBlock'"/>
+		</xsl:call-template>
+		<!--<xsl:variable name="interfaceMembers" select="plx:interfaceMember"/>
 		<xsl:choose>
 			<xsl:when test="$interfaceMembers and not(@visibility='privateInterfaceMember' and not(@modifier='static') and count($interfaceMembers)=1 and @name=$interfaceMembers[1]/@memberName)">
 				<xsl:call-template name="CustomizeIndentInfo">
@@ -1580,7 +1879,7 @@
 			<xsl:otherwise>
 				<xsl:apply-imports/>
 			</xsl:otherwise>
-		</xsl:choose>
+		</xsl:choose>-->
 	</xsl:template>
 	<xsl:template match="plx:property" mode="CloseBlock">
 		<xsl:param name="Indent"/>
@@ -1681,11 +1980,60 @@
 	</xsl:template>
 	<xsl:template match="plx:set">
 		<xsl:param name="Indent"/>
-		<xsl:call-template name="RenderAttributes">
-			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>
-		<xsl:call-template name="RenderVisibility"/>
-		<xsl:text>set</xsl:text>
+		<xsl:for-each select="..">
+			<xsl:variable name="returns" select="plx:returns"/>
+			<xsl:variable name="isSimpleExplicitImplementation"
+				select="@visibility='privateInterfaceMember' and not(@modifier='static') and count(plx:interfaceMember)=1 and @name=plx:interfaceMember/@memberName"/>
+			<xsl:if test="not($isSimpleExplicitImplementation)">
+				<xsl:if test="not(parent::plx:interface)">
+					<xsl:call-template name="RenderVisibility"/>
+					<xsl:call-template name="RenderProcedureModifier"/>
+				</xsl:if>
+				<xsl:call-template name="RenderReplacesName"/>
+			</xsl:if>
+			<xsl:text>function set</xsl:text>
+			<xsl:variable name="name" select="@name"/>
+			<xsl:variable name="isIndexer" select="parent::plx:*/@defaultMember=$name"/>
+			<xsl:choose>
+				<xsl:when test="$isIndexer">
+					<xsl:text>this</xsl:text>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:if test="$isSimpleExplicitImplementation">
+						<xsl:for-each select="plx:interfaceMember">
+							<xsl:call-template name="RenderType"/>
+						</xsl:for-each>
+						<xsl:text>.</xsl:text>
+					</xsl:if>
+					<xsl:value-of select="$name"/>
+				</xsl:otherwise>
+			</xsl:choose>
+			<xsl:variable name="typeParams" select="plx:typeParam"/>
+			<xsl:if test="$typeParams">
+				<xsl:call-template name="RenderTypeParams">
+					<xsl:with-param name="TypeParams" select="$typeParams"/>
+				</xsl:call-template>
+			</xsl:if>
+			<xsl:variable name="valueParamFragment">
+				<plx:param name="value">
+					<xsl:for-each select="plx:returns">
+						<xsl:copy-of select="@dataTypeName|@dataTypeQualifier|@dataTypeIsSimpleArray"/>
+						<xsl:copy-of select="child::*"/>
+					</xsl:for-each>
+				</plx:param>
+			</xsl:variable>
+			<xsl:call-template name="RenderParams">
+				<xsl:with-param name="BracketPair" select="'()'"/>
+				<xsl:with-param name="RenderEmptyBrackets" select="$isIndexer"/>
+				<xsl:with-param name="ExtraParams" select="exsl:node-set($valueParamFragment)/child::*"/>
+			</xsl:call-template>
+			<xsl:if test="$typeParams">
+				<xsl:call-template name="RenderTypeParamConstraints">
+					<xsl:with-param name="TypeParams" select="$typeParams"/>
+					<xsl:with-param name="Indent" select="$Indent"/>
+				</xsl:call-template>
+			</xsl:if>
+		</xsl:for-each>
 	</xsl:template>
 	<xsl:template match="plx:string">
 		<xsl:variable name="rawValue">
@@ -1711,7 +2059,7 @@
 		<xsl:text>)</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:thisKeyword">
-		<xsl:text>this</xsl:text>
+		<xsl:text>$this</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:throw">
 		<xsl:param name="Indent"/>
@@ -1730,7 +2078,7 @@
 		<xsl:text>try</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:typeOf">
-		<xsl:text>typeof(</xsl:text>
+		<xsl:text>gettype(</xsl:text>
 		<xsl:call-template name="RenderType"/>
 		<xsl:text>)</xsl:text>
 	</xsl:template>
@@ -1797,25 +2145,13 @@
 				<xsl:text>0x</xsl:text>
 				<xsl:value-of select="$data"/>
 			</xsl:when>
-			<xsl:when test="$type='r4'">
-				<xsl:value-of select="$data"/>
-				<xsl:text>F</xsl:text>
-			</xsl:when>
 			<xsl:otherwise>
 				<xsl:value-of select="$data"/>
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
 	<xsl:template match="plx:valueKeyword">
-		<xsl:variable name="stringize" select="string(@stringize)"/>
-		<xsl:choose>
-			<xsl:when test="$stringize='1' or $stringize='true'">
-				<xsl:text>"value"</xsl:text>
-			</xsl:when>
-			<xsl:otherwise>
-				<xsl:text>value</xsl:text>
-			</xsl:otherwise>
-		</xsl:choose>
+		<xsl:text>value</xsl:text>
 	</xsl:template>
 
 	<!-- Named templates -->
@@ -1830,57 +2166,15 @@
 			</xsl:call-template>
 		</xsl:if>
 	</xsl:template>
-	<xsl:template name="RenderAttribute">
-		<xsl:param name="Indent"/>
-		<xsl:variable name="rawAttributeName" select="@dataTypeName"/>
-		<xsl:variable name="attributeNameFragment">
-			<xsl:choose>
-				<xsl:when test="string-length($rawAttributeName)&gt;9 and contains($rawAttributeName,'Attribute')">
-					<xsl:choose>
-						<xsl:when test="substring-after($rawAttributeName,'Attribute')">
-							<xsl:value-of select="$rawAttributeName"/>
-						</xsl:when>
-						<xsl:otherwise>
-							<xsl:value-of select="substring($rawAttributeName, 1, string-length($rawAttributeName)-9)"/>
-						</xsl:otherwise>
-					</xsl:choose>
-				</xsl:when>
-				<xsl:otherwise>
-					<xsl:value-of select="$rawAttributeName"/>
-				</xsl:otherwise>
-			</xsl:choose>
-		</xsl:variable>
-		<xsl:call-template name="RenderType">
-			<xsl:with-param name="DataTypeName" select="string($attributeNameFragment)"/>
-		</xsl:call-template>
-		<!-- Make sure any named arguments go last. This cannot be controlled 100% by the caller
-			 because passParamArray always comes after passParam. -->
-		<xsl:variable name="namedParameters" select="plx:passParam[plx:binaryOperator[@type='assignNamed']]"/>
-		<xsl:choose>
-			<xsl:when test="$namedParameters">
-				<xsl:variable name="reorderedPassParamsFragment">
-					<xsl:copy-of select="plx:passParam[not(plx:binaryOperator[@type='assignNamed'])]|plx:passParamArray/plx:passParam"/>
-					<xsl:copy-of select="$namedParameters"/>
-				</xsl:variable>
-				<xsl:call-template name="RenderPassParams">
-					<xsl:with-param name="Indent" select="$Indent"/>
-					<xsl:with-param name="PassParams" select="exsl:node-set($reorderedPassParamsFragment)/child::*"/>
-				</xsl:call-template>
-			</xsl:when>
-			<xsl:otherwise>
-				<xsl:call-template name="RenderPassParams">
-					<xsl:with-param name="Indent" select="$Indent"/>
-				</xsl:call-template>
-			</xsl:otherwise>
-		</xsl:choose>
-	</xsl:template>
-	<xsl:template name="RenderAttributes">
-		<xsl:param name="Indent"/>
+	<!--<xsl:template name="RenderAttributes">-->
+	<!--<xsl:param name="Indent"/>
 		<xsl:param name="Inline" select="false()"/>
 		<xsl:param name="Prefix" select="''"/>
 		<xsl:choose>
 			<xsl:when test="$Inline">
-				<!-- Put them all in a single bracket -->
+				-->
+	<!-- Put them all in a single bracket -->
+	<!--
 				<xsl:for-each select="plx:attribute">
 					<xsl:choose>
 						<xsl:when test="position()=1">
@@ -1891,7 +2185,8 @@
 						</xsl:otherwise>
 					</xsl:choose>
 					<xsl:value-of select="$Prefix"/>
-					<xsl:call-template name="RenderAttribute">
+					<xsl:call-template name="RenderType"/>
+					<xsl:call-template name="RenderPassParams">
 						<xsl:with-param name="Indent" select="$Indent"/>
 					</xsl:call-template>
 					<xsl:if test="position()=last()">
@@ -1903,7 +2198,8 @@
 				<xsl:for-each select="plx:attribute">
 					<xsl:text>[</xsl:text>
 					<xsl:value-of select="$Prefix"/>
-					<xsl:call-template name="RenderAttribute">
+					<xsl:call-template name="RenderType"/>
+					<xsl:call-template name="RenderPassParams">
 						<xsl:with-param name="Indent" select="$Indent"/>
 					</xsl:call-template>
 					<xsl:text>]</xsl:text>
@@ -1911,8 +2207,8 @@
 					<xsl:value-of select="$Indent"/>
 				</xsl:for-each>
 			</xsl:otherwise>
-		</xsl:choose>
-	</xsl:template>
+		</xsl:choose>-->
+	<!--</xsl:template>-->
 	<xsl:template name="RenderArrayDescriptor">
 		<xsl:text>[</xsl:text>
 		<xsl:if test="@rank &gt; 1">
@@ -1933,7 +2229,6 @@
 		<!-- We either get nested expressions or nested initializers, but not both -->
 		<xsl:choose>
 			<xsl:when test="$nestedInitializers">
-				<xsl:text>{</xsl:text>
 				<xsl:for-each select="$nestedInitializers">
 					<xsl:if test="position()!=1">
 						<xsl:text>, </xsl:text>
@@ -1944,13 +2239,12 @@
 						<xsl:with-param name="Indent" select="$nextIndent"/>
 					</xsl:call-template>
 				</xsl:for-each>
-				<xsl:text>}</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:call-template name="RenderExpressionList">
 					<xsl:with-param name="Indent" select="$nextIndent"/>
-					<xsl:with-param name="BracketPair" select="'{}'"/>
-					<xsl:with-param name="BeforeFirstItem" select="concat($NewLine,$nextIndent)"/>
+					<xsl:with-param name="BracketPair" select="''"/>
+					<xsl:with-param name="BeforeFirstItem" select="$SingleIndent"/>
 					<xsl:with-param name="ListSeparator" select="concat(',',$NewLine,$nextIndent)"/>
 				</xsl:call-template>
 			</xsl:otherwise>
@@ -1963,32 +2257,82 @@
 		<xsl:param name="Unqualified" select="false()"/>
 		<!-- Render the name -->
 		<xsl:variable name="callType" select="string(@type)"/>
-		<xsl:variable name="isIndexer" select="$callType='indexerCall' or $callType='arrayIndexer'"/>
+		<xsl:variable name="isIndexer" select="$callType='arrayIndexer'"/>
+		<xsl:variable name="leftOfAssign" select="parent::plx:left[parent::plx:assign]"/>
 		<xsl:if test="not(@name='.implied') and not($isIndexer)">
-			<xsl:if test="not($Unqualified)">
-				<xsl:text>.</xsl:text>
+			<xsl:choose>
+				<xsl:when test="$callType = 'methodReference'">
+					<xsl:text>,"</xsl:text>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:if test="not($Unqualified)">
+						<xsl:choose>
+							<xsl:when test="@dataTypeName='.global'"></xsl:when>
+							<xsl:when test="self::plx:callStatic or @accessor='base'">
+								<xsl:text>::</xsl:text>
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:text>-></xsl:text>
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:if>
+				</xsl:otherwise>
+			</xsl:choose>
+			<xsl:choose>
+				<xsl:when test="$callType = 'property'">
+					<xsl:choose>
+						<xsl:when test="$leftOfAssign">
+							<xsl:text>set</xsl:text>
+							<xsl:value-of select="@name"/>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:text>get</xsl:text>
+							<xsl:value-of select="@name"/>
+						</xsl:otherwise>
+					</xsl:choose>
+				</xsl:when>
+				<xsl:when test="$callType = 'field' and self::plx:callStatic">
+					<xsl:if test="@dataTypeName!='.global'">
+						<xsl:text>$</xsl:text>
+					</xsl:if>
+					<xsl:value-of select="@name"/>
+				</xsl:when>
+				<xsl:when test="$callType='event'">
+					<xsl:choose>
+						<xsl:when test="ancestor::plx:detachEvent">
+							<xsl:text>remove</xsl:text>
+							<xsl:value-of select="@name"/>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:text>add</xsl:text>
+							<xsl:value-of select="@name"/>
+						</xsl:otherwise>
+					</xsl:choose>
+
+					<!--<xsl:text>add</xsl:text>
+					<xsl:value-of select="@name"/>-->
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:value-of select="@name"/>
+				</xsl:otherwise>
+			</xsl:choose>
+			<xsl:if test="$callType = 'methodReference'">
+				<xsl:text>"</xsl:text>
 			</xsl:if>
-			<xsl:value-of select="@name"/>
 		</xsl:if>
 		<!-- Add member type params -->
 		<xsl:call-template name="RenderPassTypeParams">
 			<xsl:with-param name="PassTypeParams" select="plx:passMemberTypeParam"/>
 		</xsl:call-template>
-
-		<xsl:variable name="passParams" select="plx:passParam|plx:passParamArray/plx:passParam"/>
-		<xsl:variable name="hasParams" select="boolean($passParams)"/>
+		<xsl:variable name="passParams" select="plx:passParam|plx:passParamArray"/>
+		<xsl:variable name="hasParams" select="boolean($passParams) or ($leftOfAssign and ($callType='property' or $callType='indexerCall'))"/>
 		<xsl:variable name="bracketPair">
 			<xsl:choose>
-				<xsl:when test="$callType='methodCall' or $callType='delegateCall' or string-length($callType)=0">
+				<xsl:when test="$callType='indexerCall' or $callType='property' or $callType='methodCall' or $callType='delegateCall' or string-length($callType)=0">
 					<xsl:text>()</xsl:text>
 				</xsl:when>
 				<xsl:when test="$isIndexer">
 					<xsl:text>[]</xsl:text>
-				</xsl:when>
-				<xsl:when test="$callType='property'">
-					<xsl:if test="$hasParams">
-						<xsl:text>[]</xsl:text>
-					</xsl:if>
 				</xsl:when>
 				<!-- field, event, methodReference handled with silence-->
 				<!-- UNDONE: fireStandardEvent, fireCustomEvent -->
@@ -1997,11 +2341,24 @@
 		<xsl:if test="$bracketPair">
 			<xsl:choose>
 				<xsl:when test="$hasParams">
-					<xsl:call-template name="RenderPassParams">
-						<xsl:with-param name="Indent" select="$Indent"/>
-						<xsl:with-param name="PassParams" select="$passParams"/>
-						<xsl:with-param name="BracketPair" select="$bracketPair"/>
-					</xsl:call-template>
+					<xsl:choose>
+						<xsl:when test="$leftOfAssign and ($callType='indexerCall' or $callType='property')">
+							<xsl:call-template name="RenderPassParams">
+								<xsl:with-param name="Indent" select="$Indent"/>
+								<xsl:with-param name="PassParams" select="$passParams"/>
+								<xsl:with-param name="ExtraParam" select="$leftOfAssign/following-sibling::plx:right[1]/child::*"/>
+								<xsl:with-param name="BracketPair" select="$bracketPair"/>
+							</xsl:call-template>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:call-template name="RenderPassParams">
+								<xsl:with-param name="Indent" select="$Indent"/>
+								<xsl:with-param name="PassParams" select="$passParams"/>
+								<xsl:with-param name="BracketPair" select="$bracketPair"/>
+							</xsl:call-template>
+						</xsl:otherwise>
+					</xsl:choose>
+
 				</xsl:when>
 				<xsl:otherwise>
 					<xsl:value-of select="$bracketPair"/>
@@ -2013,7 +2370,7 @@
 		<xsl:param name="Modifier" select="@modifier"/>
 		<xsl:choose>
 			<xsl:when test="$Modifier='sealed'">
-				<xsl:text>sealed </xsl:text>
+				<xsl:text>final </xsl:text>
 			</xsl:when>
 			<xsl:when test="$Modifier='abstract'">
 				<xsl:text>abstract </xsl:text>
@@ -2054,47 +2411,59 @@
 	<xsl:template name="RenderParams">
 		<xsl:param name="BracketPair" select="'()'"/>
 		<xsl:param name="RenderEmptyBrackets" select="true()"/>
-		<xsl:variable name="params" select="plx:param"/>
+		<xsl:param name="ExtraParams" />
 		<xsl:choose>
-			<xsl:when test="$params">
-				<xsl:value-of select="substring($BracketPair,1,1)"/>
-				<xsl:for-each select="$params">
-					<xsl:if test="position()!=1">
-						<xsl:text>, </xsl:text>
-					</xsl:if>
-					<xsl:call-template name="RenderAttributes">
-						<xsl:with-param name="Inline" select="true()"/>
+			<xsl:when test="$ExtraParams">
+				<xsl:variable name="allParamsFragment">
+					<xsl:copy-of select="plx:param"/>
+					<xsl:copy-of select="$ExtraParams"/>
+				</xsl:variable>
+				<xsl:for-each select="exsl:node-set($allParamsFragment)">
+					<xsl:call-template name="RenderParams">
+						<xsl:with-param name="BracketPair" select="$BracketPair"/>
+						<xsl:with-param name="RenderEmptyBrackets" select="$RenderEmptyBrackets"/>
 					</xsl:call-template>
-					<xsl:variable name="type" select="string(@type)"/>
-					<xsl:if test="string-length($type)">
-						<xsl:choose>
-							<xsl:when test="$type='inOut'">
-								<xsl:text>ref </xsl:text>
-							</xsl:when>
-							<xsl:when test="$type='out'">
-								<xsl:text>out </xsl:text>
-							</xsl:when>
-							<xsl:when test="$type='params'">
-								<xsl:text>params </xsl:text>
-							</xsl:when>
-						</xsl:choose>
-					</xsl:if>
-					<xsl:call-template name="RenderType"/>
-					<xsl:text> </xsl:text>
-					<xsl:value-of select="@name"/>
 				</xsl:for-each>
-				<xsl:value-of select="substring($BracketPair,2,1)"/>
 			</xsl:when>
-			<xsl:when test="$RenderEmptyBrackets">
-				<xsl:value-of select="$BracketPair"/>
-			</xsl:when>
+			<xsl:otherwise>
+				<xsl:variable name="params" select="plx:param"/>
+				<xsl:choose>
+					<xsl:when test="$params">
+						<xsl:value-of select="substring($BracketPair,1,1)"/>
+						<xsl:for-each select="$params">
+							<xsl:if test="position()!=1">
+								<xsl:text>, </xsl:text>
+							</xsl:if>
+							<!--<xsl:call-template name="RenderAttributes">
+						<xsl:with-param name="Inline" select="true()"/>
+					</xsl:call-template>-->
+							<xsl:variable name="type" select="string(@type)"/>
+							<xsl:call-template name="RenderType"/>
+							<xsl:text> </xsl:text>
+							<xsl:if test="string-length($type)">
+								<xsl:choose>
+									<xsl:when test="$type='inOut'">
+										<xsl:text>&amp;</xsl:text>
+									</xsl:when>
+									<xsl:when test="$type='out'">
+										<xsl:text>&amp;</xsl:text>
+									</xsl:when>
+									<!--<xsl:when test="$type='params'">
+										<xsl:text>params </xsl:text>
+									</xsl:when>-->
+								</xsl:choose>
+							</xsl:if>
+							<xsl:text>$</xsl:text>
+							<xsl:value-of select="@name"/>
+						</xsl:for-each>
+						<xsl:value-of select="substring($BracketPair,2,1)"/>
+					</xsl:when>
+					<xsl:when test="$RenderEmptyBrackets">
+						<xsl:value-of select="$BracketPair"/>
+					</xsl:when>
+				</xsl:choose>
+			</xsl:otherwise>
 		</xsl:choose>
-	</xsl:template>
-	<xsl:template name="RenderPartial">
-		<xsl:param name="Partial" select="@partial"/>
-		<xsl:if test="$Partial='true' or $Partial='1'">
-			<xsl:text>partial </xsl:text>
-		</xsl:if>
 	</xsl:template>
 	<xsl:template name="RenderPassTypeParams">
 		<xsl:param name="PassTypeParams" select="plx:passTypeParam"/>
@@ -2111,32 +2480,57 @@
 	</xsl:template>
 	<xsl:template name="RenderPassParams">
 		<xsl:param name="Indent"/>
-		<xsl:param name="PassParams" select="plx:passParam|plx:passParamArray/plx:passParam"/>
+		<xsl:param name="PassParams" select="plx:passParam|plx:passParamArray"/>
+		<xsl:param name="ExtraParam"/>
 		<xsl:param name="BracketPair" select="'()'"/>
 		<xsl:param name="ListSeparator" select="', '"/>
 		<xsl:param name="BeforeFirstItem" select="''"/>
 		<xsl:value-of select="substring($BracketPair,1,1)"/>
 		<xsl:for-each select="$PassParams">
 			<xsl:choose>
-				<xsl:when test="position()=1">
-					<xsl:value-of select="$BeforeFirstItem"/>
+				<xsl:when test="self::plx:passParamArray">
+					<xsl:choose>
+						<xsl:when test="position()=1">
+							<xsl:value-of select="$BeforeFirstItem"/>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:value-of select="$ListSeparator"/>
+						</xsl:otherwise>
+					</xsl:choose>
+					<xsl:text>array</xsl:text>
+					<xsl:call-template name="RenderPassParams">
+						<xsl:with-param name="PassParams" select="plx:passParam"/>
+					</xsl:call-template>
+					<xsl:text></xsl:text>
 				</xsl:when>
 				<xsl:otherwise>
-					<xsl:value-of select="$ListSeparator"/>
+					<xsl:choose>
+						<xsl:when test="position()=1">
+							<xsl:value-of select="$BeforeFirstItem"/>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:value-of select="$ListSeparator"/>
+						</xsl:otherwise>
+					</xsl:choose>
+					<xsl:apply-templates select="child::*">
+						<xsl:with-param name="Indent" select="$Indent"/>
+					</xsl:apply-templates>
 				</xsl:otherwise>
 			</xsl:choose>
+		</xsl:for-each>
+		<xsl:if test="$ExtraParam">
 			<xsl:choose>
-				<xsl:when test="@type='inOut'">
-					<xsl:text>ref </xsl:text>
+				<xsl:when test="$PassParams">
+					<xsl:value-of select="$ListSeparator"/>
 				</xsl:when>
-				<xsl:when test="@type='out'">
-					<xsl:text>out </xsl:text>
-				</xsl:when>
+				<xsl:otherwise>
+					<xsl:value-of select="$BeforeFirstItem"/>
+				</xsl:otherwise>
 			</xsl:choose>
-			<xsl:apply-templates select="child::*">
+			<xsl:apply-templates select="exsl:node-set($ExtraParam)">
 				<xsl:with-param name="Indent" select="$Indent"/>
 			</xsl:apply-templates>
-		</xsl:for-each>
+		</xsl:if>
 		<xsl:value-of select="substring($BracketPair,2)"/>
 	</xsl:template>
 	<xsl:template name="RenderProcedureModifier">
@@ -2145,28 +2539,28 @@
 			<xsl:when test="$modifier='static'">
 				<xsl:text>static </xsl:text>
 			</xsl:when>
-			<xsl:when test="$modifier='virtual'">
+			<!--<xsl:when test="$modifier='virtual'">
 				<xsl:text>virtual </xsl:text>
-			</xsl:when>
+			</xsl:when>-->
 			<xsl:when test="$modifier='abstract'">
 				<xsl:text>abstract </xsl:text>
 			</xsl:when>
-			<xsl:when test="$modifier='override'">
+			<!--<xsl:when test="$modifier='override'">
 				<xsl:text>override </xsl:text>
-			</xsl:when>
+			</xsl:when>-->
 			<xsl:when test="$modifier='sealedOverride'">
-				<xsl:text>sealed override </xsl:text>
+				<xsl:text>final </xsl:text>
 			</xsl:when>
 			<xsl:when test="$modifier='abstractOverride'">
-				<xsl:text>abstract override </xsl:text>
+				<xsl:text>abstract </xsl:text>
 			</xsl:when>
 		</xsl:choose>
 	</xsl:template>
 	<xsl:template name="RenderReadOnly">
 		<xsl:param name="ReadOnly" select="@readOnly"/>
-		<xsl:if test="$ReadOnly='true' or $ReadOnly='1'">
+		<!--<xsl:if test="$ReadOnly='true' or $ReadOnly='1'">
 			<xsl:text>readonly </xsl:text>
-		</xsl:if>
+		</xsl:if>-->
 	</xsl:template>
 	<xsl:template name="RenderReplacesName">
 		<xsl:param name="ReplacesName" select="@replacesName"/>
@@ -2188,9 +2582,19 @@
 				<xsl:choose>
 					<xsl:when test="'&quot;'=substring($String,1,1)">
 						<xsl:if test="$AddQuotes">
-							<xsl:text>@&quot;</xsl:text>
+							<xsl:text>&quot;</xsl:text>
 						</xsl:if>
 						<xsl:text>&quot;&quot;</xsl:text>
+						<xsl:call-template name="RenderString">
+							<xsl:with-param name="String" select="substring($String,2)"/>
+							<xsl:with-param name="AddQuotes" select="false()"/>
+						</xsl:call-template>
+					</xsl:when>
+					<xsl:when test="'\'=substring($String,1,1)">
+						<xsl:if test="$AddQuotes">
+							<xsl:text>&quot;</xsl:text>
+						</xsl:if>
+						<xsl:text>\\</xsl:text>
 						<xsl:call-template name="RenderString">
 							<xsl:with-param name="String" select="substring($String,2)"/>
 							<xsl:with-param name="AddQuotes" select="false()"/>
@@ -2201,10 +2605,10 @@
 						<xsl:choose>
 							<xsl:when test="string-length($before)">
 								<xsl:if test="$AddQuotes">
-									<xsl:text>@&quot;</xsl:text>
+									<xsl:text>&quot;</xsl:text>
 								</xsl:if>
 								<xsl:value-of select="$before"/>
-								<xsl:text>&quot;&quot;</xsl:text>
+								<xsl:text>\&quot;</xsl:text>
 								<xsl:call-template name="RenderString">
 									<xsl:with-param name="String" select="substring($String,string-length($before)+2)"/>
 									<xsl:with-param name="AddQuotes" select="false()"/>
@@ -2235,10 +2639,45 @@
 	<xsl:template name="RenderType">
 		<xsl:param name="RenderArray" select="true()"/>
 		<xsl:param name="DataTypeName" select="@dataTypeName"/>
-		<xsl:variable name="rawTypeName" select="$DataTypeName"/>
+		<xsl:variable name="rawTypeName" select="@dataTypeName"/>
 		<xsl:choose>
+			<xsl:when test="self::plx:param or parent::plx:property">
+				<xsl:choose>
+					<xsl:when test="@dataTypeIsSimpleArray">
+						<xsl:text>/*array*/</xsl:text>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:choose>
+							<xsl:when test="starts-with($rawTypeName,'.')">
+								<xsl:text>/*</xsl:text>
+								<!--<xsl:value-of select="@dataTypeName"/>-->
+								<xsl:call-template name="RenderRawType">
+									<xsl:with-param name="rawTypeName" select="$rawTypeName"/>
+								</xsl:call-template>
+								<xsl:text>*/</xsl:text>
+							</xsl:when>
+							<xsl:otherwise>
+								<!--<xsl:value-of select="@dataTypeName"/>-->
+								<xsl:call-template name="RenderRawType">
+									<xsl:with-param name="rawTypeName" select="$rawTypeName"/>
+								</xsl:call-template>
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:when>
+			<xsl:otherwise>
+				<!--<xsl:value-of select="@dataTypeName"/>-->
+				<xsl:call-template name="RenderRawType">
+					<xsl:with-param name="rawTypeName" select="$rawTypeName"/>
+				</xsl:call-template>
+			</xsl:otherwise>
+		</xsl:choose>
+		<!--<xsl:choose>
 			<xsl:when test="string-length($rawTypeName)">
-				<!-- Spit the name for the raw type -->
+				-->
+		<!-- Spit the name for the raw type -->
+		<!--
 				<xsl:choose>
 					<xsl:when test="starts-with($rawTypeName,'.')">
 						<xsl:choose>
@@ -2290,8 +2729,6 @@
 							<xsl:when test="$rawTypeName='.date'">
 								<xsl:text>System.DateTime</xsl:text>
 							</xsl:when>
-							<xsl:when test="$rawTypeName='.unspecifiedTypeParam'"/>
-							<xsl:when test="$rawTypeName='.global'"/>
 						</xsl:choose>
 					</xsl:when>
 					<xsl:otherwise>
@@ -2300,7 +2737,9 @@
 							<xsl:when test="$parametrizedQualifier">
 								<xsl:for-each select="$parametrizedQualifier">
 									<xsl:call-template name="RenderType">
-										<!-- No reason to check for an array here -->
+										-->
+		<!-- No reason to check for an array here -->
+		<!--
 										<xsl:with-param name="RenderArray" select="false()"/>
 									</xsl:call-template>
 								</xsl:for-each>
@@ -2359,10 +2798,12 @@
 													<xsl:when test="$rawTypeName='String'">
 														<xsl:text>string</xsl:text>
 													</xsl:when>
-													<!-- No primitive type for DateTime in C#, but leave as copy/paste reference -->
-													<!--<xsl:when test="$rawTypeName='DateTime'">
+													-->
+		<!-- No primitive type for DateTime in C#, but leave as copy/paste reference -->
+		<!--
+													<xsl:when test="$rawTypeName='DateTime'">
 												<xsl:text></xsl:text>
-											</xsl:when>-->
+											</xsl:when>
 													<xsl:otherwise>
 														<xsl:text>System.</xsl:text>
 														<xsl:value-of select="$rawTypeName"/>
@@ -2385,11 +2826,15 @@
 					</xsl:otherwise>
 				</xsl:choose>
 
-				<!-- Deal with any type parameters -->
+				-->
+		<!-- Deal with any type parameters -->
+		<!--
 				<xsl:call-template name="RenderPassTypeParams"/>
 
 				<xsl:if test="$RenderArray">
-					<!-- Deal with array definitions. The explicit descriptor trumps the @dataTypeIsSimpleArray attribute -->
+					-->
+		<!-- Deal with array definitions. The explicit descriptor trumps the @dataTypeIsSimpleArray attribute -->
+		<!--
 					<xsl:variable name="arrayDescriptor" select="plx:arrayDescriptor"/>
 					<xsl:choose>
 						<xsl:when test="$arrayDescriptor">
@@ -2406,21 +2851,92 @@
 			<xsl:otherwise>
 				<xsl:text>void</xsl:text>
 			</xsl:otherwise>
+		</xsl:choose>-->
+	</xsl:template>
+	<xsl:template name="RenderRawType">
+		<xsl:param name="RenderArray" select="true()"/>
+		<xsl:variable name="rawTypeName" select="@dataTypeName"/>
+		<xsl:choose>
+			<xsl:when test="$rawTypeName='.i1'">
+				<xsl:text>sbyte</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.i2'">
+				<xsl:text>short</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.i4'">
+				<xsl:text>int</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.i8'">
+				<xsl:text>long</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.u1'">
+				<xsl:text>byte</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.u2'">
+				<xsl:text>ushort</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.u4'">
+				<xsl:text>uint</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.u8'">
+				<xsl:text>ulong</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.r4'">
+				<xsl:text>float</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.r8'">
+				<xsl:text>double</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.char'">
+				<xsl:text>char</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.decimal'">
+				<xsl:text>decimal</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.object'">
+				<xsl:text>object</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.boolean'">
+				<xsl:text>bool</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.string'">
+				<xsl:text>string</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.date'">
+				<xsl:text>System.DateTime</xsl:text>
+			</xsl:when>
+			<xsl:when test="$rawTypeName='.global'">
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:value-of select="$rawTypeName"/>
+			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
 	<xsl:template name="RenderTypeDefinition">
 		<xsl:param name="Indent"/>
 		<xsl:param name="TypeKeyword" select="local-name()"/>
-		<xsl:call-template name="RenderAttributes">
+		<!--<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>
-		<xsl:call-template name="RenderVisibility"/>
+		</xsl:call-template>-->
+		<!--<xsl:call-template name="RenderVisibility"/>-->
 		<xsl:call-template name="RenderReplacesName"/>
 		<xsl:call-template name="RenderClassModifier"/>
-		<xsl:call-template name="RenderPartial"/>
-		<xsl:value-of select="$TypeKeyword"/>
+		<!--<xsl:call-template name="RenderPartial">
+			<xsl:with-param name="className" select="@name"/>
+		</xsl:call-template>-->
+		<xsl:choose>
+			<xsl:when test="$TypeKeyword = 'enum'">
+				<xsl:text>final class</xsl:text>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:value-of select="$TypeKeyword"/>
+			</xsl:otherwise>
+		</xsl:choose>
 		<xsl:text> </xsl:text>
 		<xsl:value-of select="@name"/>
+		<xsl:if test="@partial = 'true' or @partial='1'">
+			<xsl:value-of select="$PartialBaseSuffix"/>
+		</xsl:if>
 		<xsl:variable name="typeParams" select="plx:typeParam"/>
 		<xsl:if test="$typeParams">
 			<xsl:call-template name="RenderTypeParams">
@@ -2429,21 +2945,19 @@
 		</xsl:if>
 		<xsl:variable name="baseClass" select="plx:derivesFromClass"/>
 		<xsl:if test="$baseClass">
-			<xsl:text> : </xsl:text>
+			<xsl:text> extends </xsl:text>
 			<xsl:for-each select="$baseClass">
 				<xsl:call-template name="RenderType"/>
 			</xsl:for-each>
 		</xsl:if>
+		<xsl:if test="plx:implementsInterface">
+			<xsl:text> implements </xsl:text>
+		</xsl:if>
 		<xsl:for-each select="plx:implementsInterface">
-			<xsl:choose>
-				<xsl:when test="position()!=1 or $baseClass">
-					<xsl:text>, </xsl:text>
-				</xsl:when>
-				<xsl:otherwise>
-					<xsl:text> : </xsl:text>
-				</xsl:otherwise>
-			</xsl:choose>
 			<xsl:call-template name="RenderType"/>
+			<xsl:if test="position()!= last()">
+				<xsl:text>, </xsl:text>
+			</xsl:if>
 		</xsl:for-each>
 		<xsl:if test="$typeParams">
 			<xsl:call-template name="RenderTypeParamConstraints">
@@ -2539,26 +3053,19 @@
 					<xsl:text>protected </xsl:text>
 				</xsl:when>
 				<xsl:when test="$Visibility='internal'">
-					<xsl:text>internal </xsl:text>
+					<xsl:text>public </xsl:text>
 				</xsl:when>
 				<xsl:when test="$Visibility='protectedOrInternal'">
-					<xsl:text>protected internal </xsl:text>
+					<xsl:text>protected </xsl:text>
 				</xsl:when>
 				<xsl:when test="$Visibility='protectedAndInternal'">
 					<!-- C# won't do the and protected, but enforce internal -->
-					<xsl:text>internal </xsl:text>
+					<xsl:text>protected </xsl:text>
 				</xsl:when>
 				<!-- deferToPartial and privateInterfaceMember are not rendered -->
 			</xsl:choose>
 		</xsl:if>
 	</xsl:template>
-	<xsl:template name="RenderVolatile">
-		<xsl:param name="Volatile" select="@volatile"/>
-		<xsl:if test="$Volatile='true' or $Volatile='1'">
-			<xsl:text>volatile </xsl:text>
-		</xsl:if>
-	</xsl:template>
-
 	<!-- Templates to calculate if a block of code can reach the end or not. This
 		 can never be 100% robust (plix is a formatter, not a compiler, and doesn't recognize
 		 things like goto jump targets or code that is conditionally compiled), but
@@ -2756,5 +3263,109 @@
 				<xsl:with-param name="IgnoreGotoCase" select="$IgnoreGotoCase"/>
 			</xsl:apply-templates>
 		</xsl:if>
+	</xsl:template>
+	<!-- Inline expansion templates -->
+	<xsl:template match="plx:increment|plx:decrement|plx:conditionalOperator" mode="ExpandInline">
+		<!-- Leave this empty. Support all inline expansion except plx:nullFallbackOperator -->
+	</xsl:template>
+	<xsl:template match="plx:assign" mode="ExpandInline">
+		<xsl:if test="plx:left/child::*[self::plx:callInstance | self::plx:callStatic | self::plx:callThis][@type='property']">
+			<xsl:apply-imports/>
+		</xsl:if>
+	</xsl:template>
+	<xsl:template match="plx:try" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:variable name="finallyContents" select="plx:finally/child::*"/>
+		<xsl:if test="$finallyContents">
+			<xsl:variable name="catchBlocks" select="plx:catch|plx:fallbackCatch"/>
+			<xsl:variable name="otherChildren" select="child::*[not(self::plx:catch|self::plx:fallbackCatch|self::plx:finally)]"/>
+			<xsl:variable name="startedFinallyVariableName" select="concat($GeneratedVariablePrefix,$LocalItemKey,'sf')"/>
+			<xsl:variable name="fallbackCatchVariableName" select="concat($GeneratedVariablePrefix,$LocalItemKey,'cv')"/>
+			<plxGen:inlineExpansion surrogatePreExpanded="true" childrenModified="true">
+				<plxGen:expansion>
+					<plx:local name="{$startedFinallyVariableName}" dataTypeName=".boolean">
+						<plx:initialize>
+							<plx:falseKeyword/>
+						</plx:initialize>
+					</plx:local>
+				</plxGen:expansion>
+				<plxGen:surrogate>
+					<xsl:variable name="newCatchBlock">
+						<plx:catch dataTypeName="Exception" localName="{$fallbackCatchVariableName}">
+							<plx:branch>
+								<plx:condition>
+									<plx:unaryOperator type="booleanNot">
+										<plx:nameRef name="{$startedFinallyVariableName}"/>
+									</plx:unaryOperator>
+								</plx:condition>
+								<xsl:copy-of select="$finallyContents"/>
+							</plx:branch>
+							<plx:throw>
+								<plx:nameRef name="{$fallbackCatchVariableName}"/>
+							</plx:throw>
+						</plx:catch>
+					</xsl:variable>
+					<xsl:variable name="runFinally">
+						<plx:assign>
+							<plx:left>
+								<plx:nameRef name="{$startedFinallyVariableName}"/>
+							</plx:left>
+							<plx:right>
+								<plx:trueKeyword/>
+							</plx:right>
+						</plx:assign>
+						<xsl:copy-of select="$finallyContents"/>
+					</xsl:variable>
+					<xsl:choose>
+						<xsl:when test="$catchBlocks">
+							<plx:try>
+								<plx:try>
+									<xsl:apply-templates select="$otherChildren"  mode="AddBeforeReturnCode">
+										<xsl:with-param name="BeforeReturnCode" select="$runFinally"/>
+									</xsl:apply-templates>
+									<xsl:copy-of select="$runFinally"/>
+									<xsl:apply-templates select="$catchBlocks"  mode="AddBeforeReturnCode">
+										<xsl:with-param name="BeforeReturnCode" select="$runFinally"/>
+									</xsl:apply-templates>
+								</plx:try>
+								<xsl:copy-of select="$newCatchBlock"/>
+							</plx:try>
+						</xsl:when>
+						<xsl:otherwise>
+							<!-- No catch blocks, move the finally contents into a catch -->
+							<plx:try>
+								<xsl:apply-templates select="$otherChildren"  mode="AddBeforeReturnCode">
+									<xsl:with-param name="BeforeReturnCode" select="$runFinally"/>
+								</xsl:apply-templates>
+								<xsl:copy-of select="$runFinally"/>
+								<xsl:copy-of select="$newCatchBlock"/>
+							</plx:try>
+						</xsl:otherwise>
+					</xsl:choose>
+				</plxGen:surrogate>
+			</plxGen:inlineExpansion>
+		</xsl:if>
+	</xsl:template>
+	<xsl:template match="*" mode="AddBeforeReturnCode">
+		<xsl:param name="BeforeReturnCode"/>
+		<xsl:copy>
+			<xsl:copy-of select="@*"/>
+			<xsl:apply-templates select="node()" mode="AddBeforeReturnCode">
+				<xsl:with-param name="BeforeReturnCode" select="$BeforeReturnCode"/>
+			</xsl:apply-templates>
+		</xsl:copy>
+	</xsl:template>
+	<xsl:template match="plx:return" mode="AddBeforeReturnCode">
+		<xsl:param name="BeforeReturnCode"/>
+		<xsl:copy-of select="$BeforeReturnCode"/>
+		<xsl:copy-of select="."/>
+	</xsl:template>
+	<xsl:template match="plx:root" mode="TopLevel">
+		<xsl:param name="Indent"/>
+		<xsl:text>&lt;?php</xsl:text>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:value-of select="$Indent"/>
+		<xsl:apply-imports/>
+		<xsl:text>?&gt;</xsl:text>
 	</xsl:template>
 </xsl:stylesheet>

@@ -58,6 +58,7 @@ xcopy /Y /D /Q "%rootPath%%outDir%PlixSettings.xml" "%plixXML%"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixMain.xslt" "%plixXML%\Formatters"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixCS.xslt" "%plixXML%Formatters"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixVB.xslt" "%plixXML%Formatters"
+xcopy /Y /D /Q "%rootPath%%outDir%PlixPHP.xslt" "%plixXML%Formatters"
 xcopy /Y /D /Q "%rootPath%..\Setup\PLiXSchemaCatalog.xml" "%envPath%Xml\Schemas"
 
 CALL:_InstallCustomTool "8.0"
