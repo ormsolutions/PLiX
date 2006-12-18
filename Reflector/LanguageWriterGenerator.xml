@@ -16,6 +16,7 @@
 		<CopyrightLine>\**************************************************************************/</CopyrightLine>
 	</Copyright>
 	<handler name="Render" valueDataType="ITypeDeclaration" elementName="class">
+		<plx:param name="renderBody" dataTypeName=".boolean"/>
 		<plx:param name="translateMethods" dataTypeName=".boolean"/>
 		<!-- Initialize the baseType variable and determine the type of the declaration -->
 		<local name="baseType" type="ITypeReference" property="BaseType"/>
@@ -190,7 +191,11 @@
 					</plx:right>
 				</plx:binaryOperator>
 			</plx:condition>
-			<defer deferRender="RenderEnum"/>
+			<defer deferRender="RenderEnum">
+				<plx:passParam>
+					<plx:nameRef name="renderBody" type="parameter"/>
+				</plx:passParam>
+			</defer>
 		</plx:branch>
 		<plx:fallbackBranch>
 			<defer deferRender="RenderDocumentation"/>
@@ -229,59 +234,67 @@
 					</typeReference>
 				</plx:branch>
 				<collection collectionProperty="Interfaces" itemDataType="ITypeReference" renderItem="RenderTypeReference" elementName="implementsInterface"/>
-				<collection collectionProperty="Fields" itemDataType="IFieldDeclaration" renderItem="Render"/>
-				<collection collectionProperty="Properties" itemDataType="IPropertyDeclaration" renderItem="Render">
-					<plx:passParam>
-						<plx:nameRef name="translateMethods" type="parameter"/>
-					</plx:passParam>
-					<plx:passParam>
-						<plx:nameRef name="isInterface"/>
-					</plx:passParam>
-				</collection>
-				<collection collectionProperty="Events" itemDataType="IEventDeclaration" renderItem="Render">
-					<plx:passParam>
-						<plx:nameRef name="translateMethods" type="parameter"/>
-					</plx:passParam>
-					<plx:passParam>
-						<plx:nameRef name="isInterface"/>
-					</plx:passParam>
-				</collection>
-				<collection collectionProperty="Methods" itemDataType="IMethodDeclaration" renderItem="Render">
-					<plx:passParam>
-						<plx:nameRef name="translateMethods" type="parameter"/>
-					</plx:passParam>
-					<plx:passParam>
-						<plx:nameRef name="isInterface"/>
-					</plx:passParam>
-					<plx:branch>
-						<plx:condition>
-							<plx:binaryOperator type="booleanAnd">
-								<plx:left>
-									<plx:callInstance name="SpecialName" type="property">
-										<plx:callObject>
-											<plx:nameRef name="MethodsItem"/>
-										</plx:callObject>
-									</plx:callInstance>
-								</plx:left>
-								<plx:right>
-									<plx:unaryOperator type="booleanNot">
-										<plx:callInstance name="RuntimeSpecialName" type="property">
+				<plx:branch>
+					<plx:condition>
+						<plx:nameRef name="renderBody" type="parameter"/>
+					</plx:condition>
+					<collection collectionProperty="Fields" itemDataType="IFieldDeclaration" renderItem="Render"/>
+					<collection collectionProperty="Properties" itemDataType="IPropertyDeclaration" renderItem="Render">
+						<plx:passParam>
+							<plx:nameRef name="translateMethods" type="parameter"/>
+						</plx:passParam>
+						<plx:passParam>
+							<plx:nameRef name="isInterface"/>
+						</plx:passParam>
+					</collection>
+					<collection collectionProperty="Events" itemDataType="IEventDeclaration" renderItem="Render">
+						<plx:passParam>
+							<plx:nameRef name="translateMethods" type="parameter"/>
+						</plx:passParam>
+						<plx:passParam>
+							<plx:nameRef name="isInterface"/>
+						</plx:passParam>
+					</collection>
+					<collection collectionProperty="Methods" itemDataType="IMethodDeclaration" renderItem="Render">
+						<plx:passParam>
+							<plx:nameRef name="translateMethods" type="parameter"/>
+						</plx:passParam>
+						<plx:passParam>
+							<plx:nameRef name="isInterface"/>
+						</plx:passParam>
+						<plx:branch>
+							<plx:condition>
+								<plx:binaryOperator type="booleanAnd">
+									<plx:left>
+										<plx:callInstance name="SpecialName" type="property">
 											<plx:callObject>
 												<plx:nameRef name="MethodsItem"/>
 											</plx:callObject>
 										</plx:callInstance>
-									</plx:unaryOperator>
-								</plx:right>
-							</plx:binaryOperator>
-						</plx:condition>
-						<plx:continue/>
-					</plx:branch>
-				</collection>
-				<collection collectionProperty="NestedTypes" itemDataType="ITypeDeclaration" renderItem="Render">
-					<plx:passParam>
-						<plx:nameRef name="translateMethods" type="parameter"/>
-					</plx:passParam>
-				</collection>
+									</plx:left>
+									<plx:right>
+										<plx:unaryOperator type="booleanNot">
+											<plx:callInstance name="RuntimeSpecialName" type="property">
+												<plx:callObject>
+													<plx:nameRef name="MethodsItem"/>
+												</plx:callObject>
+											</plx:callInstance>
+										</plx:unaryOperator>
+									</plx:right>
+								</plx:binaryOperator>
+							</plx:condition>
+							<plx:continue/>
+						</plx:branch>
+					</collection>
+					<collection collectionProperty="NestedTypes" itemDataType="ITypeDeclaration" renderItem="Render">
+						<plx:passParam>
+							<plx:trueKeyword/>
+						</plx:passParam>
+						<plx:passParam>
+							<plx:nameRef name="translateMethods" type="parameter"/>
+						</plx:passParam>
+					</collection>
+				</plx:branch>
 			</plx:fallbackBranch>
 		</plx:fallbackBranch>
 	</handler>
@@ -484,6 +497,80 @@
 				<plx:nameRef name="translateMethods" type="parameter"/>
 			</plx:passParam>
 		</child>
+	</handler>
+	<handler name="Render" valueDataType="INamespace" elementName="namespace">
+		<plx:param name="renderBody" dataTypeName=".boolean"/>
+		<plx:param name="translateMethods" dataTypeName=".boolean"/>
+		<commonConstruct ref="NameDeclarationAttribute"/>
+		<plx:branch>
+			<plx:condition>
+				<plx:nameRef name="renderBody" type="parameter"/>
+			</plx:condition>
+			<collection collectionProperty="Types" itemDataType="ITypeDeclaration" renderItem="Render">
+				<plx:passParam>
+					<plx:trueKeyword/>
+				</plx:passParam>
+				<plx:passParam>
+					<plx:nameRef name="translateMethods" type="parameter"/>
+				</plx:passParam>
+			</collection>
+		</plx:branch>
+	</handler>
+	<handler name="Render" valueDataType="IModule" elementName="root">
+		<comment>
+			<text style="RawCommentSettings">
+				<plx:string>Module </plx:string>
+			</text>
+			<text style="RenderRaw AsDeclaration" property="Name"/>
+		</comment>
+		<collection collectionProperty="Attributes" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute">
+			<plx:passParam>
+				<plx:callStatic dataTypeName="CustomAttributeTarget" name="Module" type="field"/>
+			</plx:passParam>
+		</collection>
+	</handler>
+	<handler name="Render" valueDataType="IAssembly" elementName="root">
+		<comment>
+			<text style="RawCommentSettings">
+				<plx:string>Assembly </plx:string>
+			</text>
+			<text style="RenderRaw AsDeclaration" property="Name"/>
+			<text style="RawCommentSettings">
+				<plx:string>, Version </plx:string>
+			</text>
+			<local name="version" type="Version" property="Version"/>
+			<text style="RawCommentSettings">
+				<plx:callInstance name="ToString">
+					<plx:callObject>
+						<plx:nameRef name="version"/>
+					</plx:callObject>
+					<plx:passParam>
+						<plx:value data="4" type="i4"/>
+					</plx:passParam>
+				</plx:callInstance>
+			</text>
+		</comment>
+		<collection collectionProperty="Attributes" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute">
+			<plx:passParam>
+				<plx:callStatic dataTypeName="CustomAttributeTarget" name="Assembly" type="field"/>
+			</plx:passParam>
+		</collection>
+	</handler>
+	<handler name="Render" valueDataType="IAssemblyReference" elementName="root">
+		<comment>
+			<text style="RawCommentSettings">
+				<plx:string>Assembly Reference </plx:string>
+			</text>
+			<text style="RenderRaw AsDeclaration" property="Name"/>
+		</comment>
+	</handler>
+	<handler name="Render" valueDataType="IModuleReference" elementName="root">
+		<comment>
+			<text style="RawCommentSettings">
+				<plx:string>Module Reference </plx:string>
+			</text>
+			<text style="RenderRaw AsDeclaration" property="Name"/>
+		</comment>
 	</handler>
 	<handler name="RenderAccessorMethod" valueDataType="IMethodReference">
 		<plx:param name="referenceMethod" dataTypeName="IMethodDeclaration"/>
@@ -1105,7 +1192,35 @@
 			</conditionMap>
 		</attributeConditionalMap>
 	</handler>
-	<handler name="RenderCustomAttribute" valueDataType="ICustomAttribute" elementName="attribute">
+	<handler name="RenderCustomAttribute" valueDataType="ICustomAttribute">
+		<defer deferRender="RenderCustomAttribute">
+			<plx:passParam>
+				<plx:callStatic dataTypeName="CustomAttributeTarget" name="None" type="field"/>
+			</plx:passParam>
+		</defer>
+	</handler>
+	<handler name="RenderCustomAttribute" valueDataType="ICustomAttribute">
+		<plx:param name="attributeTarget" dataTypeName="CustomAttributeTarget"/>
+		<plx:branch>
+			<plx:condition>
+				<plx:callThis name="myShowCustomAttributes" type="field"/>
+			</plx:condition>
+			<defer deferRender="RenderCustomAttributeUnfiltered">
+				<plx:passParam>
+					<plx:nameRef name="attributeTarget" type="parameter"/>
+				</plx:passParam>
+			</defer>
+		</plx:branch>
+	</handler>
+	<handler name="RenderCustomAttributeUnfiltered" valueDataType="ICustomAttribute" elementName="attribute">
+		<plx:param name="attributeTarget" dataTypeName="CustomAttributeTarget"/>
+		<attributeSwitchMap parameterName="attributeTarget" valueDataType="CustomAttributeTarget" attributeName="type">
+			<attributeCaseMap value="Assembly" attributeValue="assembly"/>
+			<attributeCaseMap value="Module" attributeValue="module"/>
+			<attributeCaseMap value="ImplicitField" attributeValue="implicitField"/>
+			<attributeCaseMap value="ImplicitAccessorFunction" attributeValue="implicitAccessorFunction"/>
+			<attributeCaseMap value="ImplicitValueParameter" attributeValue="implicitValueParameter"/>
+		</attributeSwitchMap>
 		<local name="ctorReference" type="IMethodReference" property="Constructor"/>
 		<local name="attributeType" type="IType" property="DeclaringType" propertyOf="ctorReference"/>
 		<typeReference>
@@ -1440,23 +1555,14 @@
 				</plx:condition>
 				<element name="leadingInfo">
 					<element name="docComment">
-						<plx:callThis name="WriteText">
-							<plx:passParam>
-								<plx:nameRef name="documentation"/>
-							</plx:passParam>
-							<plx:passParam>
-								<plx:trueKeyword/>
-							</plx:passParam>
-							<plx:passParam>
-								<plx:trueKeyword/>
-							</plx:passParam>
-						</plx:callThis>
+						<text style="RawCommentSettings" localName="documentation"/>
 					</element>
 				</element>
 			</plx:branch>
 		</plx:branch>
 	</handler>
 	<handler name="RenderEnum" valueDataType="ITypeDeclaration">
+		<plx:param name="renderBody" dataTypeName=".boolean"/>
 		<local name="fields" type="IFieldDeclarationCollection" property="Fields"/>
 		<plx:iterator localName="testField" dataTypeName="IFieldDeclaration">
 			<plx:initialize>
@@ -1523,9 +1629,14 @@
 				</plx:branch>
 			</plx:branch>
 		</plx:iterator>
-		<defer deferRender="RenderDocumentation"/>
-		<collection collectionProperty="Attributes" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute"/>
-		<collection localName="fields"  itemDataType="IFieldDeclaration" renderItem="RenderEnumField"/>
+		<plx:branch>
+			<plx:condition>
+				<plx:nameRef name="renderBody" type="parameter"/>
+			</plx:condition>
+			<defer deferRender="RenderDocumentation"/>
+			<collection collectionProperty="Attributes" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute"/>
+			<collection localName="fields"  itemDataType="IFieldDeclaration" renderItem="RenderEnumField"/>
+		</plx:branch>
 	</handler>
 	<handler name="RenderEnumField" valueDataType="IFieldDeclaration">
 		<plx:branch>
@@ -2763,11 +2874,7 @@
 				<plx:condition>
 					<plx:nameRef name="isSpecialValue"/>
 				</plx:condition>
-				<plx:callThis name="WriteText">
-					<plx:passParam>
-						<plx:nameRef name="xmlValue"/>
-					</plx:passParam>
-				</plx:callThis>
+				<text style="LiteralStringSettings" localName="xmlValue"/>
 			</plx:branch>
 			<plx:fallbackBranch>
 				<attribute name="data" emphasis="literal">

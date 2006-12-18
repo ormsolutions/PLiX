@@ -267,6 +267,9 @@
 							</plx:callObject>
 						</plx:callInstance>
 					</xsl:when>
+					<xsl:when test="string(@parameterName)">
+						<plx:nameRef name="{@parameterName}" type="parameter"/>
+					</xsl:when>
 					<xsl:otherwise>
 						<plx:nameRef name="{@localName}"/>
 					</xsl:otherwise>
@@ -768,6 +771,86 @@
 			<xsl:copy-of select="plx:passParam"/>
 		</plx:callThis>
 	</xsl:template>
+	<xsl:template match="lw:text">
+		<xsl:param name="DocumentRoot"/>
+		<xsl:call-template name="ResolveContextAttributes">
+			<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="lw:text" mode="ResolvedContext">
+		<xsl:param name="DocumentRoot"/>
+		<plx:callThis name="WriteText">
+			<plx:passParam>
+				<xsl:choose>
+					<xsl:when test="string(@property)">
+						<plx:callInstance name="{@property}" type="property">
+							<plx:callObject>
+								<xsl:choose>
+									<xsl:when test="string(@propertyOf)">
+										<plx:nameRef name="{@propertyOf}"/>
+									</xsl:when>
+									<xsl:otherwise>
+										<plx:nameRef name="value" type="parameter"/>
+									</xsl:otherwise>
+								</xsl:choose>
+							</plx:callObject>
+						</plx:callInstance>
+					</xsl:when>
+					<xsl:when test="string(@localName)">
+						<plx:nameRef name="{@localName}"/>
+					</xsl:when>
+					<xsl:when test="string(@parameterName)">
+						<plx:nameRef name="{@parameterName}" type="parameter"/>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:apply-templates select="*">
+							<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+						</xsl:apply-templates>
+					</xsl:otherwise>
+				</xsl:choose>
+			</plx:passParam>
+			<plx:passParam>
+				<xsl:call-template name="OrTogetherEnumValues">
+					<xsl:with-param name="EnumType" select="'WriteTextOptions'"/>
+					<xsl:with-param name="Values" select="normalize-space(@style)"/>
+				</xsl:call-template>
+			</plx:passParam>
+		</plx:callThis>
+	</xsl:template>
+	<xsl:template name="OrTogetherEnumValues">
+		<xsl:param name="EnumType"/>
+		<xsl:param name="Values"/>
+		<xsl:variable name="remainder" select="substring-after($Values, ' ')"/>
+		<xsl:variable name="currentValueFragment">
+			<xsl:choose>
+				<xsl:when test="$remainder">
+					<xsl:value-of select="substring-before($Values, ' ')"/>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:value-of select="$Values"/>
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:variable>
+		<xsl:variable name="currentValue" select="string($currentValueFragment)"/>
+		<xsl:choose>
+			<xsl:when test="$remainder">
+				<plx:binaryOperator type="bitwiseOr">
+					<plx:left>
+						<plx:callStatic dataTypeName="{$EnumType}" name="{$currentValue}" type="field"/>
+					</plx:left>
+					<plx:right>
+						<xsl:call-template name="OrTogetherEnumValues">
+							<xsl:with-param name="EnumType" select="$EnumType"/>
+							<xsl:with-param name="Values" select="$remainder"/>
+						</xsl:call-template>
+					</plx:right>
+				</plx:binaryOperator>
+			</xsl:when>
+			<xsl:otherwise>
+				<plx:callStatic dataTypeName="{$EnumType}" name="{$currentValue}" type="field"/>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
 	<xsl:template match="lw:element">
 		<xsl:param name="DocumentRoot"/>
 		<xsl:call-template name="ResolveContextAttributes">
@@ -786,6 +869,20 @@
 				<plx:string data="{@name}"/>
 			</plx:passParam>
 		</plx:callThis>
+		<xsl:apply-templates select="*">
+			<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+		</xsl:apply-templates>
+		<plx:callThis name="WriteEndElement"/>
+	</xsl:template>
+	<xsl:template match="lw:comment">
+		<xsl:param name="DocumentRoot"/>
+		<xsl:call-template name="ResolveContextAttributes">
+			<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="lw:comment" mode="ResolvedContext">
+		<xsl:param name="DocumentRoot"/>
+		<plx:callThis name="WriteXmlComment"/>
 		<xsl:apply-templates select="*">
 			<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
 		</xsl:apply-templates>

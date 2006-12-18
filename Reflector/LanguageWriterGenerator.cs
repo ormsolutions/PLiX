@@ -24,7 +24,7 @@ namespace Reflector
 	{
 		private partial class PLiXLanguageWriter
 		{
-			private void Render(ITypeDeclaration value, bool translateMethods)
+			private void Render(ITypeDeclaration value, bool renderBody, bool translateMethods)
 			{
 				string elementName = "class";
 				ITypeReference baseType = value.BaseType;
@@ -101,7 +101,7 @@ namespace Reflector
 				}
 				if (elementName == "enum")
 				{
-					this.RenderEnum(value);
+					this.RenderEnum(value, renderBody);
 				}
 				else
 				{
@@ -154,29 +154,32 @@ namespace Reflector
 							this.RenderTypeReference(InterfacesItem);
 							this.WriteEndElement();
 						}
-						foreach (IFieldDeclaration FieldsItem in value.Fields)
+						if (renderBody)
 						{
-							this.Render(FieldsItem);
-						}
-						foreach (IPropertyDeclaration PropertiesItem in value.Properties)
-						{
-							this.Render(PropertiesItem, translateMethods, isInterface);
-						}
-						foreach (IEventDeclaration EventsItem in value.Events)
-						{
-							this.Render(EventsItem, translateMethods, isInterface);
-						}
-						foreach (IMethodDeclaration MethodsItem in value.Methods)
-						{
-							if (MethodsItem.SpecialName && !(MethodsItem.RuntimeSpecialName))
+							foreach (IFieldDeclaration FieldsItem in value.Fields)
 							{
-								continue;
+								this.Render(FieldsItem);
 							}
-							this.Render(MethodsItem, translateMethods, isInterface);
-						}
-						foreach (ITypeDeclaration NestedTypesItem in value.NestedTypes)
-						{
-							this.Render(NestedTypesItem, translateMethods);
+							foreach (IPropertyDeclaration PropertiesItem in value.Properties)
+							{
+								this.Render(PropertiesItem, translateMethods, isInterface);
+							}
+							foreach (IEventDeclaration EventsItem in value.Events)
+							{
+								this.Render(EventsItem, translateMethods, isInterface);
+							}
+							foreach (IMethodDeclaration MethodsItem in value.Methods)
+							{
+								if (MethodsItem.SpecialName && !(MethodsItem.RuntimeSpecialName))
+								{
+									continue;
+								}
+								this.Render(MethodsItem, translateMethods, isInterface);
+							}
+							foreach (ITypeDeclaration NestedTypesItem in value.NestedTypes)
+							{
+								this.Render(NestedTypesItem, true, translateMethods);
+							}
 						}
 					}
 				}
@@ -400,6 +403,71 @@ namespace Reflector
 					this.RenderAccessorMethod(InvokeMethodChild, null, translateMethods);
 					this.WriteEndElement();
 				}
+				this.WriteEndElement();
+			}
+			private void Render(INamespace value, bool renderBody, bool translateMethods)
+			{
+				string elementName = "namespace";
+				this.WriteElement(elementName);
+				this.WriteAttribute("name", value.Name, true, false);
+				if (renderBody)
+				{
+					foreach (ITypeDeclaration TypesItem in value.Types)
+					{
+						this.Render(TypesItem, true, translateMethods);
+					}
+				}
+				this.WriteEndElement();
+			}
+			private void Render(IModule value)
+			{
+				string elementName = "root";
+				this.WriteElement(elementName);
+				this.WriteXmlComment();
+				this.WriteText("Module ", WriteTextOptions.RawCommentSettings);
+				this.WriteText(value.Name, WriteTextOptions.RenderRaw | WriteTextOptions.AsDeclaration);
+				this.WriteEndElement();
+				foreach (ICustomAttribute AttributesItem in value.Attributes)
+				{
+					this.RenderCustomAttribute(AttributesItem, CustomAttributeTarget.Module);
+				}
+				this.WriteEndElement();
+			}
+			private void Render(IAssembly value)
+			{
+				string elementName = "root";
+				this.WriteElement(elementName);
+				this.WriteXmlComment();
+				this.WriteText("Assembly ", WriteTextOptions.RawCommentSettings);
+				this.WriteText(value.Name, WriteTextOptions.RenderRaw | WriteTextOptions.AsDeclaration);
+				this.WriteText(", Version ", WriteTextOptions.RawCommentSettings);
+				Version version = value.Version;
+				this.WriteText(version.ToString(4), WriteTextOptions.RawCommentSettings);
+				this.WriteEndElement();
+				foreach (ICustomAttribute AttributesItem in value.Attributes)
+				{
+					this.RenderCustomAttribute(AttributesItem, CustomAttributeTarget.Assembly);
+				}
+				this.WriteEndElement();
+			}
+			private void Render(IAssemblyReference value)
+			{
+				string elementName = "root";
+				this.WriteElement(elementName);
+				this.WriteXmlComment();
+				this.WriteText("Assembly Reference ", WriteTextOptions.RawCommentSettings);
+				this.WriteText(value.Name, WriteTextOptions.RenderRaw | WriteTextOptions.AsDeclaration);
+				this.WriteEndElement();
+				this.WriteEndElement();
+			}
+			private void Render(IModuleReference value)
+			{
+				string elementName = "root";
+				this.WriteElement(elementName);
+				this.WriteXmlComment();
+				this.WriteText("Module Reference ", WriteTextOptions.RawCommentSettings);
+				this.WriteText(value.Name, WriteTextOptions.RenderRaw | WriteTextOptions.AsDeclaration);
+				this.WriteEndElement();
 				this.WriteEndElement();
 			}
 			private void RenderAccessorMethod(IMethodReference value, IMethodDeclaration referenceMethod, bool translateMethod)
@@ -645,8 +713,42 @@ namespace Reflector
 			}
 			private void RenderCustomAttribute(ICustomAttribute value)
 			{
+				this.RenderCustomAttribute(value, CustomAttributeTarget.None);
+			}
+			private void RenderCustomAttribute(ICustomAttribute value, CustomAttributeTarget attributeTarget)
+			{
+				if (this.myShowCustomAttributes)
+				{
+					this.RenderCustomAttributeUnfiltered(value, attributeTarget);
+				}
+			}
+			private void RenderCustomAttributeUnfiltered(ICustomAttribute value, CustomAttributeTarget attributeTarget)
+			{
 				string elementName = "attribute";
 				this.WriteElement(elementName);
+				string typeAttributeValue = "";
+				switch (attributeTarget)
+				{
+					case CustomAttributeTarget.Assembly:
+						typeAttributeValue = "assembly";
+						break;
+					case CustomAttributeTarget.Module:
+						typeAttributeValue = "module";
+						break;
+					case CustomAttributeTarget.ImplicitField:
+						typeAttributeValue = "implicitField";
+						break;
+					case CustomAttributeTarget.ImplicitAccessorFunction:
+						typeAttributeValue = "implicitAccessorFunction";
+						break;
+					case CustomAttributeTarget.ImplicitValueParameter:
+						typeAttributeValue = "implicitValueParameter";
+						break;
+				}
+				if (typeAttributeValue.Length != 0)
+				{
+					this.WriteAttribute("type", typeAttributeValue);
+				}
 				IMethodReference ctorReference = value.Constructor;
 				IType attributeType = ctorReference.DeclaringType;
 				if (attributeType != null)
@@ -1033,13 +1135,13 @@ namespace Reflector
 					{
 						this.WriteElement("leadingInfo");
 						this.WriteElement("docComment");
-						this.WriteText(documentation, true, true);
+						this.WriteText(documentation, WriteTextOptions.RawCommentSettings);
 						this.WriteEndElement();
 						this.WriteEndElement();
 					}
 				}
 			}
-			private void RenderEnum(ITypeDeclaration value)
+			private void RenderEnum(ITypeDeclaration value, bool renderBody)
 			{
 				IFieldDeclarationCollection fields = value.Fields;
 				foreach (IFieldDeclaration testField in fields)
@@ -1058,14 +1160,17 @@ namespace Reflector
 						}
 					}
 				}
-				this.RenderDocumentation(value);
-				foreach (ICustomAttribute AttributesItem in value.Attributes)
+				if (renderBody)
 				{
-					this.RenderCustomAttribute(AttributesItem);
-				}
-				foreach (IFieldDeclaration fieldsItem in fields)
-				{
-					this.RenderEnumField(fieldsItem);
+					this.RenderDocumentation(value);
+					foreach (ICustomAttribute AttributesItem in value.Attributes)
+					{
+						this.RenderCustomAttribute(AttributesItem);
+					}
+					foreach (IFieldDeclaration fieldsItem in fields)
+					{
+						this.RenderEnumField(fieldsItem);
+					}
 				}
 			}
 			private void RenderEnumField(IFieldDeclaration value)
@@ -2441,7 +2546,7 @@ namespace Reflector
 				{
 					if (isSpecialValue)
 					{
-						this.WriteText(xmlValue);
+						this.WriteText(xmlValue, WriteTextOptions.LiteralStringSettings);
 					}
 					else
 					{

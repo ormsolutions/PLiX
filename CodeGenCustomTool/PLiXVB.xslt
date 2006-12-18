@@ -961,7 +961,7 @@
 			<xsl:with-param name="Indent" select="$Indent"/>
 			<xsl:with-param name="TypeFilter" select="'implicitField'"/>
 		</xsl:call-template>
-		<xsl:call-template name="RenderVisibility"/>
+		<xsl:text>Private </xsl:text>
 		<xsl:if test="$isStatic">
 			<!-- Ignore modifiers other than static for the field, don't call RenderProcedureModifier -->
 			<xsl:text>Shared </xsl:text>

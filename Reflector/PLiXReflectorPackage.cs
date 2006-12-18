@@ -33,9 +33,9 @@ namespace Reflector
 		/// </summary>
 		bool FullyExpandTypeDeclarations { get;}
 		/// <summary>
-		/// Return true to show documentation comments. Wrapper for Reflector's LanguageWriter/ShowDocumentation option.
+		/// Return true to include method implementations as part of a namespace declaration
 		/// </summary>
-		bool ShowDocumentation { get;}
+		bool FullyExpandNamespaceDeclarations { get;}
 	}
 	/// <summary>
 	/// Starting point for a Reflector class
@@ -47,20 +47,18 @@ namespace Reflector
 		{
 			#region Member Variables
 			private IConfiguration myConfiguration;
-			private IConfiguration myLanguageWriterConfiguration;
 			private string myExampleLanguageName;
 			private int myExampleLanguageIndex;
 			private ILanguage myExampleLanguage;
 			private bool myFullyExpandTypeDeclarations;
 			private bool myFullyExpandCurrentTypeDeclaration;
+			private bool myFullyExpandCurrentNamespaceDeclaration;
 			private PLiXLanguagePackage myPackage;
 			#endregion // Member Variables
 			#region Constants
 			private const string ConfigurationSection = "PLiXLanguage";
 			private const string ExampleLanguageValueName = "ExampleLanguage";
-			private const string FullExpandTypeDeclarationsValueName = "FullyExpandTypeDeclarations";
-			private const string LanguageWriterConfigurationSection = "LanguageWriter";
-			private const string ShowDocumentationValueName = "ShowDocumentation";
+			private const string FullyExpandTypeDeclarationsValueName = "FullyExpandTypeDeclarations";
 			#endregion // Constants
 			#region Constructors
 			/// <summary>
@@ -72,10 +70,9 @@ namespace Reflector
 				myPackage = package;
 				IConfigurationManager configManager = (IConfigurationManager)package.myServiceProvider.GetService(typeof(IConfigurationManager));
 				myConfiguration = configManager[ConfigurationSection];
-				myLanguageWriterConfiguration = configManager[LanguageWriterConfigurationSection];
 
 				myExampleLanguageName = myConfiguration.GetProperty(ExampleLanguageValueName, "C#");
-				myFullyExpandTypeDeclarations = 0 == string.Compare(myConfiguration.GetProperty(FullExpandTypeDeclarationsValueName, "false"), "true", StringComparison.CurrentCultureIgnoreCase);
+				myFullyExpandTypeDeclarations = 0 == string.Compare(myConfiguration.GetProperty(FullyExpandTypeDeclarationsValueName, "false"), "true", StringComparison.CurrentCultureIgnoreCase);
 			}
 			#endregion // Constructors
 			#region IPLiXConfiguration Implementation
@@ -161,24 +158,24 @@ namespace Reflector
 					if (value != myFullyExpandTypeDeclarations)
 					{
 						myFullyExpandTypeDeclarations = value;
-						myConfiguration.SetProperty(FullExpandTypeDeclarationsValueName, value ? "true" : "false");
+						myConfiguration.SetProperty(FullyExpandTypeDeclarationsValueName, value ? "true" : "false");
 						if (value && myFullyExpandCurrentTypeDeclaration)
 						{
 							// No refresh is necessary, we already have the correct state
 							myFullyExpandCurrentTypeDeclaration = false;
 						}
-						else
+						else if (myPackage.myAssemblyBrowser.ActiveItem is ITypeDeclaration)
 						{
 							RefreshCurrentSelection();
 						}
 					}
 				}
 			}
-			public bool ShowDocumentation
+			public bool FullyExpandNamespaceDeclarations
 			{
 				get
 				{
-					return myLanguageWriterConfiguration.GetProperty(ShowDocumentationValueName, "false") == "true";
+					return myFullyExpandCurrentNamespaceDeclaration && myPackage.myAssemblyBrowser.ActiveItem == myPackage.myLastActiveItem;
 				}
 			}
 			public bool FullyExpandCurrentTypeDeclaration
@@ -192,6 +189,24 @@ namespace Reflector
 					if (value != myFullyExpandCurrentTypeDeclaration)
 					{
 						myFullyExpandCurrentTypeDeclaration = value;
+						if (value)
+						{
+							RefreshCurrentSelection();
+						}
+					}
+				}
+			}
+			public bool FullyExpandCurrentNamespaceDeclaration
+			{
+				get
+				{
+					return myFullyExpandCurrentNamespaceDeclaration;
+				}
+				set
+				{
+					if (value != myFullyExpandCurrentNamespaceDeclaration)
+					{
+						myFullyExpandCurrentNamespaceDeclaration = value;
 						if (value)
 						{
 							RefreshCurrentSelection();
@@ -218,7 +233,8 @@ namespace Reflector
 		private ICommandBarMenu myTopMenu;
 		private ICommandBarMenu myExampleLanguageMenu;
 		private ICommandBarItem myExpandCurrentTypeDeclarationButton;
-		private ICommandBarCheckBox myFullExpandTypeDeclarationsCheckBox;
+		private ICommandBarItem myExpandCurrentNamespaceDeclarationButton;
+		private ICommandBarCheckBox myFullyExpandTypeDeclarationsCheckBox;
 		private IPLiXConfiguration myConfiguration;
 		private object myLastActiveItem;
 		#endregion // Member Variables
@@ -250,8 +266,9 @@ namespace Reflector
 			ICommandBarItemCollection menuItems = topMenu.Items;
 			myExampleLanguageMenu = menuItems.AddMenu("PLiXExampleLanguage", "&Example Language");
 			menuItems.AddSeparator();
+			myExpandCurrentNamespaceDeclarationButton = menuItems.AddButton("E&xpand Current Namespace Declaration", new EventHandler(OnExpandCurrentNamespaceDeclaration));
 			myExpandCurrentTypeDeclarationButton = menuItems.AddButton("E&xpand Current Type Declaration", new EventHandler(OnExpandCurrentTypeDeclaration));
-			(myFullExpandTypeDeclarationsCheckBox = menuItems.AddCheckBox("Ex&pand All Type Declarations")).Click += new EventHandler(OnFullyExpandTypeDeclarationsChanged);
+			(myFullyExpandTypeDeclarationsCheckBox = menuItems.AddCheckBox("Ex&pand All Type Declarations")).Click += new EventHandler(OnFullyExpandTypeDeclarationsChanged);
 			myTopMenu = topMenu;
 		}
 		void IPackage.Unload()
@@ -274,7 +291,9 @@ namespace Reflector
 		/// </summary>
 		void OnActiveItemChanged(object sender, EventArgs e)
 		{
-			((PLiXConfiguration)myConfiguration).FullyExpandCurrentTypeDeclaration = false;
+			PLiXConfiguration plixConfig = (PLiXConfiguration)myConfiguration;
+			plixConfig.FullyExpandCurrentTypeDeclaration = false;
+			plixConfig.FullyExpandCurrentNamespaceDeclaration = false;
 			// Reflector does not have an ActiveItemChanging event, so this event handler
 			// fires after some other windows are already updated, causing the 'expand current type'
 			// setting to be stickier than it should be. To handle this, we track the active item
@@ -292,11 +311,31 @@ namespace Reflector
 			ICommandBarItemCollection exampleItems = myExampleLanguageMenu.Items;
 			ILanguageCollection languages = myLanguageManager.Languages;
 			ILanguage selectedLanguage = myConfiguration.ExampleLanguage;
-			bool alreadyExpandedCurrentType = ((PLiXConfiguration)myConfiguration).FullyExpandCurrentTypeDeclaration;
+			PLiXConfiguration plixConfig = (PLiXConfiguration)myConfiguration;
+			object activeItem = myAssemblyBrowser.ActiveItem;
+			bool activeItemIsTypeDeclaration = activeItem is ITypeDeclaration;
+			bool activeItemIsNamespaceDeclaration = !activeItemIsTypeDeclaration && activeItem is INamespace;
+			bool alreadyExpandedCurrentType = plixConfig.FullyExpandCurrentTypeDeclaration;
 			bool alwaysExpandTypes = alreadyExpandedCurrentType ? false : myConfiguration.FullyExpandTypeDeclarations;
-			myExpandCurrentTypeDeclarationButton.Visible = !alwaysExpandTypes;
-			myExpandCurrentTypeDeclarationButton.Enabled = !alreadyExpandedCurrentType && myAssemblyBrowser.ActiveItem is ITypeDeclaration;
-			myFullExpandTypeDeclarationsCheckBox.Checked = alwaysExpandTypes;
+			if (activeItemIsNamespaceDeclaration)
+			{
+				myExpandCurrentNamespaceDeclarationButton.Visible = true;
+				myExpandCurrentNamespaceDeclarationButton.Enabled = !plixConfig.FullyExpandCurrentNamespaceDeclaration;
+			}
+			else
+			{
+				myExpandCurrentNamespaceDeclarationButton.Visible = false;
+			}
+			if (activeItemIsTypeDeclaration)
+			{
+				myExpandCurrentTypeDeclarationButton.Visible = !alwaysExpandTypes;
+				myExpandCurrentTypeDeclarationButton.Enabled = !alreadyExpandedCurrentType;
+			}
+			else
+			{
+				myExpandCurrentTypeDeclarationButton.Visible = false;
+			}
+			myFullyExpandTypeDeclarationsCheckBox.Checked = alwaysExpandTypes;
 			int itemsCount = exampleItems.Count;
 			ICommandBarCheckBox currentItem;
 			if (itemsCount == 0)
@@ -322,7 +361,7 @@ namespace Reflector
 				ILanguage currentLanguage = languages[iLanguage];
 				bool isChecked = currentLanguage == selectedLanguage;
 				string languageName = currentLanguage.Name;
-				if (currentLanguage != myLanguage && languageName != "IL")
+				if (currentLanguage != myLanguage && !languageName.StartsWith("IL"))
 				{
 					if (currentItemIndex >= itemsCount)
 					{
@@ -423,6 +462,13 @@ namespace Reflector
 		void OnExpandCurrentTypeDeclaration(object sender, EventArgs e)
 		{
 			((PLiXConfiguration)myConfiguration).FullyExpandCurrentTypeDeclaration = true;
+		}
+		/// <summary>
+		/// Event handler for toggling the full type expansion option
+		/// </summary>
+		void OnExpandCurrentNamespaceDeclaration(object sender, EventArgs e)
+		{
+			((PLiXConfiguration)myConfiguration).FullyExpandCurrentNamespaceDeclaration = true;
 		}
 		#endregion // IPackage Implementation
 	}

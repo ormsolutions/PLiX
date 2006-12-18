@@ -19,6 +19,7 @@ using System.Xml;
 using Reflector;
 using Reflector.CodeModel;
 using System.Collections;
+using System.Globalization;
 
 namespace Reflector
 {
@@ -28,12 +29,50 @@ namespace Reflector
 	/// </summary>
 	public partial class PLiXLanguage : ILanguage
 	{
+		#region CustomAttributeTarget enum
+		/// <summary>
+		/// Custom attribute targets corresponding to plix values
+		/// </summary>
+		private enum CustomAttributeTarget
+		{
+			/// <summary>
+			/// Attribute target is implicit from the context
+			/// </summary>
+			None,
+			/// <summary>
+			/// An assembly attribute
+			/// </summary>
+			Assembly,
+			/// <summary>
+			/// A module attribute
+			/// </summary>
+			Module,
+			/// <summary>
+			/// An attribute for an implicit field, used with simple events
+			/// </summary>
+			ImplicitField,
+			/// <summary>
+			/// An attribute for implicit accessor functions, used with simple events
+			/// </summary>
+			ImplicitAccessorFunction,
+			/// <summary>
+			/// An attribute for implicit value parameters, used with set/onAdd/onRemove
+			/// accessor functions
+			/// </summary>
+			ImplicitValueParameter,
+		}
+		#endregion // CustomAttributeTarget enum
 		#region Member Variables
 		private ITranslatorManager myTranslatorManager;
 		private PLiXLanguageWriter myWriter;
 		private IPLiXConfiguration myConfiguration;
 		#endregion // Member Variables
 		#region Constructors
+		/// <summary>
+		/// Create a new PLiXLanguage class
+		/// </summary>
+		/// <param name="translatorManager">The <see cref="ITranslatorManager"/> provided by Reflector</param>
+		/// <param name="configuration">The <see cref="IPLiXConfiguration"/> implementation provided by the <see cref="PLiXLanguagePackage"/></param>
 		public PLiXLanguage(ITranslatorManager translatorManager, IPLiXConfiguration configuration)
 		{
 			myTranslatorManager = translatorManager;
@@ -42,7 +81,7 @@ namespace Reflector
 		#endregion // Constructors
 		#region ILanguage Implementation
 		/// <summary>
-		/// Implements ILanguage.FileExtension
+		/// Implements <see cref="ILanguage.FileExtension"/>
 		/// </summary>
 		protected static string FileExtension
 		{
@@ -59,7 +98,7 @@ namespace Reflector
 			}
 		}
 		/// <summary>
-		/// Implements ILanguage.GetWriter
+		/// Implements <see cref="ILanguage.GetWriter"/>
 		/// </summary>
 		protected ILanguageWriter GetWriter(IFormatter formatter, ILanguageWriterConfiguration configuration)
 		{
@@ -76,7 +115,7 @@ namespace Reflector
 			return GetWriter(formatter, configuration);
 		}
 		/// <summary>
-		/// Implements ILanguage.Name
+		/// Implements <see cref="ILanguage.Name"/>
 		/// </summary>
 		protected static string Name
 		{
@@ -93,17 +132,14 @@ namespace Reflector
 			}
 		}
 		/// <summary>
-		/// Implements ILanguage.Translate
+		/// Implements <see cref="ILanguage.Translate"/>.
+		/// Returns false so that we can make our own translate
+		/// requests explicitly.
 		/// </summary>
-		protected bool Translate
+		protected static bool Translate
 		{
 			get
 			{
-				PLiXLanguageWriter writer = myWriter;
-				if (writer != null)
-				{
-					writer.OnTranslateRequested();
-				}
 				return false;
 			}
 		}
@@ -127,12 +163,13 @@ namespace Reflector
 			private IPLiXConfiguration myPLiXConfiguration;
 			private Stack<string> myOpenElements;
 			private bool myCurrentElementIsOpen;
+			private bool myCurrentElementIsComment;
 			private bool myCurrentElementClosedForText;
 			private bool myFirstWrite;
 			private string myDelayWriteElement;
 			private ITranslator myTranslator;
-			private bool myTranslateRequested;
 			private bool myShowDocumentation;
+			private bool myShowCustomAttributes;
 			private IMethodBody myCurrentMethodBody;
 			private IMethodDeclaration myCurrentMethodDeclaration;
 			private StringBuilder myEscapeTextStringBuilder;
@@ -150,7 +187,8 @@ namespace Reflector
 			{
 				myFormatter = formatter;
 				myWriterConfiguration = configuration;
-				myShowDocumentation = myPLiXConfiguration.ShowDocumentation;
+				myShowCustomAttributes = configuration["ShowCustomAttributes"] == "true";
+				myShowDocumentation = configuration["ShowDocumentation"] == "true";
 			}
 			#endregion // Constructors
 			#region ILanguageWriter Implementation
@@ -159,12 +197,19 @@ namespace Reflector
 			/// </summary>
 			protected void WriteAssembly(IAssembly value)
 			{
-				if (myTranslateRequested)
+				bool detailedForm = myShowCustomAttributes;
+				myFirstWrite = detailedForm;
+				if (detailedForm)
 				{
 					value = myTranslator.TranslateAssembly(value);
-					myTranslateRequested = false;
 				}
-				// UNDONE: WriteAssembly
+				Render(value);
+				if (!detailedForm)
+				{
+					myFormatter.WriteProperty("Location", value.Location);
+					myFormatter.WriteProperty("Name", value.ToString());
+					myFormatter.WriteProperty("Type", value.Type.ToString());
+				}
 			}
 			void ILanguageWriter.WriteAssembly(IAssembly value)
 			{
@@ -175,12 +220,18 @@ namespace Reflector
 			/// </summary>
 			protected void WriteAssemblyReference(IAssemblyReference value)
 			{
-				if (myTranslateRequested)
+				bool detailedForm = myShowCustomAttributes;
+				myFirstWrite = detailedForm;
+				if (detailedForm)
 				{
 					value = myTranslator.TranslateAssemblyReference(value);
-					myTranslateRequested = false;
 				}
-				// UNDONE: WriteAssemblyReference
+				Render(value);
+				if (!detailedForm)
+				{
+					myFormatter.WriteProperty("Name", value.Name);
+					myFormatter.WriteProperty("Version", value.ToString());
+				}
 			}
 			void ILanguageWriter.WriteAssemblyReference(IAssemblyReference value)
 			{
@@ -191,14 +242,13 @@ namespace Reflector
 			/// </summary>
 			protected void WriteEventDeclaration(IEventDeclaration value)
 			{
-				myFirstWrite = true;
-				bool translateMethods = myTranslateRequested;
-				if (translateMethods)
+				bool detailedForm = myWriterConfiguration["ShowMethodDeclarationBody"] == "true";
+				myFirstWrite = detailedForm;
+				Render(value, detailedForm);
+				if (!detailedForm)
 				{
-					//value = myTranslator.TranslatePropertyDeclaration(value);
-					myTranslateRequested = false;
+					WriteTypeReferenceProperties(value.DeclaringType as ITypeReference, "Declaring Type");
 				}
-				Render(value, translateMethods);
 			}
 			void ILanguageWriter.WriteEventDeclaration(IEventDeclaration value)
 			{
@@ -209,7 +259,6 @@ namespace Reflector
 			/// </summary>
 			protected void WriteExpression(IExpression value)
 			{
-				myTranslateRequested = false;
 				// UNDONE: WriteExpression
 			}
 			void ILanguageWriter.WriteExpression(IExpression value)
@@ -221,13 +270,17 @@ namespace Reflector
 			/// </summary>
 			protected void WriteFieldDeclaration(IFieldDeclaration value)
 			{
-				myFirstWrite = true;
-				if (myTranslateRequested)
+				bool detailedForm = myWriterConfiguration["ShowMethodDeclarationBody"] == "true";
+				myFirstWrite = detailedForm;
+				if (detailedForm)
 				{
 					value = myTranslator.TranslateFieldDeclaration(value);
-					myTranslateRequested = false;
 				}
 				Render(value);
+				if (!detailedForm)
+				{
+					WriteTypeReferenceProperties(value.DeclaringType as ITypeReference, "Declaring Type");
+				}
 			}
 			void ILanguageWriter.WriteFieldDeclaration(IFieldDeclaration value)
 			{
@@ -238,14 +291,13 @@ namespace Reflector
 			/// </summary>
 			protected void WriteMethodDeclaration(IMethodDeclaration value)
 			{
-				myFirstWrite = true;
-				bool translate = false;
-				if (myTranslateRequested)
+				bool detailedForm = myWriterConfiguration["ShowMethodDeclarationBody"] == "true";
+				myFirstWrite = detailedForm;
+				Render(value, detailedForm);
+				if (!detailedForm)
 				{
-					translate = true;
-					myTranslateRequested = false;
+					WriteTypeReferenceProperties(value.DeclaringType as ITypeReference, "Declaring Type");
 				}
-				Render(value, translate);
 			}
 			void ILanguageWriter.WriteMethodDeclaration(IMethodDeclaration value)
 			{
@@ -256,12 +308,20 @@ namespace Reflector
 			/// </summary>
 			protected void WriteModule(IModule value)
 			{
-				if (myTranslateRequested)
+				bool detailedForm = myShowCustomAttributes;
+				myFirstWrite = detailedForm;
+				Render(value);
+				if (!detailedForm)
 				{
-					//value = myTranslator.TranslateModule(value); // Not supported
-					myTranslateRequested = false;
+					myFormatter.WriteProperty("Version", value.Version.ToString());
+					string location = value.Location;
+					myFormatter.WriteProperty("Location", value.Location);
+					location = Environment.ExpandEnvironmentVariables(location);
+					if (File.Exists(location))
+					{
+						myFormatter.WriteProperty("Size", (new FileInfo(location)).Length.ToString("N0") + " Bytes");
+					}
 				}
-				// UNDONE: WriteModule
 			}
 			void ILanguageWriter.WriteModule(IModule value)
 			{
@@ -272,12 +332,13 @@ namespace Reflector
 			/// </summary>
 			protected void WriteModuleReference(IModuleReference value)
 			{
-				if (myTranslateRequested)
+				bool detailedForm = myShowCustomAttributes;
+				myFirstWrite = detailedForm;
+				if (detailedForm)
 				{
 					value = myTranslator.TranslateModuleReference(value);
-					myTranslateRequested = false;
 				}
-				// UNDONE: WriteModuleReference
+				Render(value);
 			}
 			void ILanguageWriter.WriteModuleReference(IModuleReference value)
 			{
@@ -288,12 +349,9 @@ namespace Reflector
 			/// </summary>
 			protected void WriteNamespace(INamespace value)
 			{
-				if (myTranslateRequested)
-				{
-					value = myTranslator.TranslateNamespace(value);
-					myTranslateRequested = false;
-				}
-				// UNDONE: WriteNamespace
+				bool detailedForm = myWriterConfiguration["ShowNamespaceBody"] == "true";
+				myFirstWrite = detailedForm;
+				Render(value, detailedForm, detailedForm && myPLiXConfiguration.FullyExpandNamespaceDeclarations);
 			}
 			void ILanguageWriter.WriteNamespace(INamespace value)
 			{
@@ -304,14 +362,13 @@ namespace Reflector
 			/// </summary>
 			protected void WritePropertyDeclaration(IPropertyDeclaration value)
 			{
-				myFirstWrite = true;
-				bool translateMethods = myTranslateRequested;
-				if (translateMethods)
+				bool detailedForm = myWriterConfiguration["ShowMethodDeclarationBody"] == "true";
+				myFirstWrite = detailedForm;
+				Render(value, detailedForm);
+				if (!detailedForm)
 				{
-					//value = myTranslator.TranslatePropertyDeclaration(value);
-					myTranslateRequested = false;
+					WriteTypeReferenceProperties(value.DeclaringType as ITypeReference, "Declaring Type");
 				}
-				Render(value, translateMethods);
 			}
 			void ILanguageWriter.WritePropertyDeclaration(IPropertyDeclaration value)
 			{
@@ -344,29 +401,110 @@ namespace Reflector
 			/// </summary>
 			protected void WriteTypeDeclaration(ITypeDeclaration value)
 			{
-				myFirstWrite = true;
-				bool translateMethods = false;
-				if (myTranslateRequested)
+				bool detailedForm = myWriterConfiguration["ShowTypeDeclarationBody"] == "true";
+				myFirstWrite = detailedForm;
+				Render(value, detailedForm, detailedForm && myPLiXConfiguration.FullyExpandTypeDeclarations);
+				if (!detailedForm)
 				{
-					translateMethods = myPLiXConfiguration.FullyExpandTypeDeclarations;
-					myTranslateRequested = false;
+					WriteTypeReferenceProperties(value, "Name");
 				}
-				Render(value, translateMethods);
 			}
 			void ILanguageWriter.WriteTypeDeclaration(ITypeDeclaration value)
 			{
 				WriteTypeDeclaration(value);
 			}
-			#endregion // ILanguageWriter Implementation
-			#region Translation Integration
-			/// <summary>
-			/// Request translation
-			/// </summary>
-			public void OnTranslateRequested()
+			private void WriteTypeReferenceProperties(ITypeReference typeReference, string typeReferencePropertyName)
 			{
-				myTranslateRequested = true;
+				if (typeReference == null)
+				{
+					return;
+				}
+				StringBuilder builder = new StringBuilder();
+				IModule owningModule = RenderSummaryTypeName(builder, typeReference);
+				myFormatter.WriteProperty(typeReferencePropertyName, builder.ToString());
+				if (owningModule != null)
+				{
+					IAssembly assembly = owningModule.Assembly;
+					myFormatter.WriteProperty("Assembly", assembly.Name + ", " + assembly.Version.ToString(4));
+				}
 			}
-			#endregion // Translation Integration
+			private static IModule RenderSummaryTypeName(StringBuilder builder, ITypeReference typeReference)
+			{
+				if (typeReference == null)
+				{
+					return null;
+				}
+				IModule retVal = null;
+				object owner = typeReference.Owner;
+				IModule owningModule = owner as IModule;
+				if (owningModule == null)
+				{
+					retVal = RenderSummaryTypeName(builder, owner as ITypeReference);
+					if (retVal != null)
+					{
+						builder.Append('+');
+					}
+				}
+				else
+				{
+					retVal = owningModule;
+					string namespaceName = typeReference.Namespace;
+					if (!string.IsNullOrEmpty(namespaceName))
+					{
+						builder.Append(namespaceName);
+						builder.Append('.');
+					}
+				}
+				builder.Append(typeReference.Name);
+				ITypeCollection genericArguments = typeReference.GenericArguments;
+				int genericCount = genericArguments.Count;
+				if (genericCount != 0)
+				{
+					IGenericArgumentProvider ownerArgumentProvider = owner as IGenericArgumentProvider;
+					ITypeCollection ownerGenericArguments = null;
+					if (ownerArgumentProvider != null)
+					{
+						ownerGenericArguments = ownerArgumentProvider.GenericArguments;
+						if (ownerGenericArguments.Count == 0)
+						{
+							ownerGenericArguments = null;
+						}
+					}
+					bool writtenFirstArgument = false;
+					for (int i = 0; i < genericCount; ++i)
+					{
+						IType argument = genericArguments[i];
+						if (ownerGenericArguments != null && ownerGenericArguments.Contains(argument))
+						{
+							continue;
+						}
+						if (writtenFirstArgument)
+						{
+							builder.Append(",");
+						}
+						else
+						{
+							writtenFirstArgument = true;
+							builder.Append("<");
+						}
+						ITypeReference typedArgument = argument as ITypeReference;
+						if (typedArgument != null)
+						{
+							RenderSummaryTypeName(builder, typedArgument);
+						}
+						else
+						{
+							builder.Append(argument.ToString());
+						}
+					}
+					if (writtenFirstArgument)
+					{
+						builder.Append(">");
+					}
+				}
+				return retVal;
+			}
+			#endregion // ILanguageWriter Implementation
 			#region XML Output Helpers
 			private void WriteElement(string tagName)
 			{
@@ -374,10 +512,19 @@ namespace Reflector
 				IFormatter formatter = myFormatter;
 				if (myCurrentElementIsOpen)
 				{
-					WriteNamespace();
-					formatter.Write(">");
-					formatter.WriteLine();
-					formatter.WriteIndent();
+					if (myCurrentElementIsComment)
+					{
+						myCurrentElementIsComment = false;
+						formatter.WriteComment(" -->");
+						formatter.WriteLine();
+					}
+					else
+					{
+						WriteNamespace();
+						formatter.Write(">");
+						formatter.WriteLine();
+						formatter.WriteIndent();
+					}
 				}
 				else
 				{
@@ -393,6 +540,39 @@ namespace Reflector
 				formatter.Write(":");
 				formatter.WriteKeyword(tagName);
 				myOpenElements.Push(tagName);
+			}
+			private void WriteXmlComment()
+			{
+				OutputDelayedElement();
+				IFormatter formatter = myFormatter;
+				if (myCurrentElementIsOpen)
+				{
+					if (myCurrentElementIsComment)
+					{
+						formatter.WriteComment(" -->");
+						formatter.WriteLine();
+					}
+					else
+					{
+						WriteNamespace();
+						formatter.Write(">");
+						formatter.WriteLine();
+						formatter.WriteIndent();
+					}
+				}
+				else
+				{
+					if (myCurrentElementClosedForText)
+					{
+						myCurrentElementClosedForText = false;
+						formatter.WriteIndent();
+					}
+					formatter.WriteLine();
+					myCurrentElementIsOpen = true;
+				}
+				myCurrentElementIsComment = true;
+				formatter.WriteComment("<!-- ");
+				myOpenElements.Push(null);
 			}
 			private void WriteElementDelayed(string tagName)
 			{
@@ -419,26 +599,38 @@ namespace Reflector
 				bool emptyElement = myCurrentElementIsOpen;
 				if (emptyElement)
 				{
-					WriteNamespace();
-					formatter.Write("/>");
-					myCurrentElementIsOpen = false;
+					if (myCurrentElementIsComment)
+					{
+						formatter.WriteComment(" -->");
+						myCurrentElementIsComment = false;
+					}
+					else
+					{
+						WriteNamespace();
+						formatter.Write("/>");
+					}
 					myOpenElements.Pop();
+					myCurrentElementIsOpen = false;
 				}
 				else
 				{
+					string openTagName = myOpenElements.Pop();
 					if (myCurrentElementClosedForText)
 					{
 						myCurrentElementClosedForText = false;
 					}
-					else
+					else if (openTagName != null)
 					{
 						formatter.WriteOutdent();
 						formatter.WriteLine();
 					}
-					formatter.WriteKeyword("</plx");
-					formatter.Write(":");
-					formatter.WriteKeyword(myOpenElements.Pop());
-					formatter.Write(">");
+					if (openTagName != null)
+					{
+						formatter.WriteKeyword("</plx");
+						formatter.Write(":");
+						formatter.WriteKeyword(openTagName);
+						formatter.Write(">");
+					}
 				}
 			}
 			private delegate void WriteAttributeValue(IFormatter formatter, string escapedValue);
@@ -509,31 +701,116 @@ namespace Reflector
 				builder.Length = 0;
 				return text;
 			}
-			private void WriteText(string value)
+			/// <summary>
+			/// Options for the WriteText method
+			/// </summary>
+			[Flags]
+			private enum WriteTextOptions
 			{
-				WriteText(value, false, false);
+				/// <summary>
+				/// Default options (text is escaped and rendered without newline or indent as unformatted text)
+				/// </summary>
+				None = 0,
+				/// <summary>
+				/// Text should not be escaped
+				/// </summary>
+				RenderRaw = 1,
+				/// <summary>
+				/// Format as a literal (default muted red color)
+				/// </summary>
+				AsLiteral = 2,
+				/// <summary>
+				/// Format as a comment (default light grey)
+				/// </summary>
+				AsComment = 4,
+				/// <summary>
+				/// Format as a declaration (default bold)
+				/// </summary>
+				AsDeclaration = 8,
+				/// <summary>
+				/// Add a new line before the text
+				/// </summary>
+				LeadingNewLine = 0x10,
+				/// <summary>
+				/// Add a new line after the text
+				/// </summary>
+				TrailingNewLine = 0x20,
+				/// <summary>
+				/// Add a leading indent before the text
+				/// </summary>
+				LeadingIndent = 0x40,
+				/// <summary>
+				/// Outdent after the text
+				/// </summary>
+				TrailingOutdent = 0x80,
+				/// <summary>
+				/// Used to render a string literal
+				/// </summary>
+				LiteralStringSettings = AsLiteral,
+				/// <summary>
+				/// Render text as a comment without xml escaping
+				/// </summary>
+				RawCommentSettings = AsComment | RenderRaw,
+				/// <summary>
+				/// Use to write an explicit comment (coming from this codebase) with a single call
+				/// </summary>
+				FullExplicitCommentSettings = AsComment | RenderRaw | LeadingNewLine | LeadingIndent | TrailingOutdent,
+				/// <summary>
+				/// Use to write the beginning of an explicit comment (coming from this codebase). WriteText
+				/// should be called a second time with EndExplicitCommentSettings to finish the comment.
+				/// </summary>
+				StartExplicitCommentSettings = AsComment | RenderRaw | LeadingNewLine | LeadingIndent,
+				/// <summary>
+				/// Use to write the end of an explicit comment (coming from this codebase). WriteText
+				/// should first be called with StartExplicitCommentMask to begin the comment.
+				/// </summary>
+				EndExplicitCommentSettings = AsComment | RenderRaw | TrailingOutdent,
 			}
-			private void WriteText(string value, bool renderRaw, bool formatAsComment)
+			private void WriteText(string value, WriteTextOptions options)
 			{
 				if (!string.IsNullOrEmpty(value))
 				{
 					OutputDelayedElement();
 					IFormatter formatter = myFormatter;
-					if (myCurrentElementIsOpen)
+					if (myCurrentElementIsOpen && !myCurrentElementIsComment)
 					{
 						WriteNamespace();
 						formatter.Write(">");
 						myCurrentElementClosedForText = true;
 						myCurrentElementIsOpen = false;
 					}
-					string escapedText = renderRaw ? value : EscapeText(value);
-					if (formatAsComment)
+					if (0 != (options & WriteTextOptions.LeadingNewLine))
+					{
+						myFormatter.WriteLine();
+					}
+					if (0 != (options & WriteTextOptions.LeadingIndent))
+					{
+						myFormatter.WriteIndent();
+					}
+					string escapedText = (0 != (options & WriteTextOptions.RenderRaw)) ? value : EscapeText(value);
+					if (0 != (options & WriteTextOptions.AsComment))
 					{
 						myFormatter.WriteComment(escapedText);
 					}
-					else
+					else if (0 != (options & WriteTextOptions.AsDeclaration))
+					{
+						myFormatter.WriteDeclaration(escapedText);
+					}
+					else if (0 != (options & WriteTextOptions.AsLiteral))
 					{
 						myFormatter.WriteLiteral(escapedText);
+					}
+					else
+					{
+						myFormatter.Write(escapedText);
+					}
+					if (0 != (options & WriteTextOptions.TrailingOutdent))
+					{
+						myFormatter.WriteOutdent();
+					}
+					if (0 != (options & WriteTextOptions.TrailingNewLine))
+					{
+						myFormatter.WriteLine();
 					}
 				}
 			}
