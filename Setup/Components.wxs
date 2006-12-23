@@ -106,6 +106,8 @@
 									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
 								<File Id="VSIntegrationInstructions.html" Name="VSInteg.htm" LongName="VSIntegrationInstructions.html" src="..\CodeGenCustomTool\VSIntegrationInstructions.html"
 									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
+								<File Id="ReflectorIntegration.html" Name="RefInteg.htm" LongName="ReflectorIntegration.html" src="..\Reflector\ReflectorIntegration.html"
+									DefaultLanguage="0" CompanionFile="Reflector.PLiXLanguage.dll"/>
 							</Component>
 						</Directory>
 					</Directory>
