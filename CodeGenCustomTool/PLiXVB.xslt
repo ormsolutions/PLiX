@@ -644,14 +644,6 @@
 			</xsl:apply-templates>
 		</xsl:for-each>
 	</xsl:template>
-	<xsl:template match="plx:enumItem" mode="IndentInfo">
-		<xsl:call-template name="CustomizeIndentInfo">
-			<xsl:with-param name="defaultInfo">
-				<xsl:apply-imports/>
-			</xsl:with-param>
-			<xsl:with-param name="statementClose" select="','"/>
-		</xsl:call-template>
-	</xsl:template>
 	<xsl:template match="plx:event">
 		<xsl:param name="Indent"/>
 		<xsl:variable name="explicitDelegate" select="plx:explicitDelegateType"/>

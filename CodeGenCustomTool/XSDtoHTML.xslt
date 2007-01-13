@@ -120,7 +120,7 @@
 			</xsl:choose>
 		</xsl:if>
 	</xsl:template>
-	<xsl:template name="RenderTypeReference">
+	<xsl:template name="RenderTypeReference" xmlns="http://www.w3.org/1999/xhtml">
 		<xsl:param name="QName" select="string(@type)"/>
 		<xsl:param name="ContextNamespaces" select="namespace::*"/>
 		<xsl:variable name="prefix" select="substring-before($QName,':')"/>
@@ -842,14 +842,17 @@
 										</xsl:apply-templates>
 									</xsl:when>
 									<xsl:when test="$PreCollapsed">
-										<ul>
-											<xsl:apply-templates select="child::*[not(self::xs:annotation)]">
-												<xsl:with-param name="Referred" select="true()"/>
-												<xsl:with-param name="GlobalComplexTypes" select="$GlobalComplexTypes"/>
-												<xsl:with-param name="GlobalSimpleTypes" select="$GlobalSimpleTypes"/>
-												<xsl:with-param name="PreCollapsed" select="boolean(child::xs:*[not(self::xs:annotation)])"/>
-											</xsl:apply-templates>
-										</ul>
+										<xsl:variable name="significantChildElements" select="child::*[not(self::xs:annotation)]"/>
+										<xsl:if test="$significantChildElements">
+											<ul>
+												<xsl:apply-templates select="child::*[not(self::xs:annotation)]">
+													<xsl:with-param name="Referred" select="true()"/>
+													<xsl:with-param name="GlobalComplexTypes" select="$GlobalComplexTypes"/>
+													<xsl:with-param name="GlobalSimpleTypes" select="$GlobalSimpleTypes"/>
+													<xsl:with-param name="PreCollapsed" select="boolean(child::xs:*[not(self::xs:annotation)])"/>
+												</xsl:apply-templates>
+											</ul>
+										</xsl:if>
 									</xsl:when>
 								</xsl:choose>
 							</xsl:otherwise>
