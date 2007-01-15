@@ -2278,7 +2278,16 @@
 				<xsl:text>Overrides </xsl:text>
 			</xsl:when>
 			<xsl:when test="$modifier='sealedOverride'">
-				<xsl:text>NotOverridable Overrides </xsl:text>
+				<xsl:variable name="parentModifier" select="string(parent::plx:*/@modifier)"/>
+				<xsl:choose>
+					<!-- Static doesn't make sense here, but plix schema does not block it -->
+					<xsl:when test="$parentModifier='sealed' or $parentModifier='static'">
+						<xsl:text>Overrides </xsl:text>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:text>NotOverridable Overrides </xsl:text>
+					</xsl:otherwise>
+				</xsl:choose>
 			</xsl:when>
 			<xsl:when test="$modifier='abstractOverride'">
 				<xsl:text>MustOverride Overrides </xsl:text>
