@@ -170,7 +170,7 @@ namespace Reflector
 							}
 							foreach (IMethodDeclaration MethodsItem in value.Methods)
 							{
-								if (MethodsItem.SpecialName && !(MethodsItem.RuntimeSpecialName))
+								if ((MethodsItem.SpecialName && !(MethodsItem.RuntimeSpecialName)) && !(MethodsItem.Static && MethodsItem.Name.StartsWith("op_")))
 								{
 									continue;
 								}
@@ -405,16 +405,16 @@ namespace Reflector
 				}
 				this.WriteEndElement();
 			}
-			private void Render(INamespace value, bool renderBody, bool translateMethods)
+			private void Render(INamespace value, bool renderNamespaceBody, bool renderTypeBody, bool translateMethods)
 			{
 				string elementName = "namespace";
 				this.WriteElement(elementName);
 				this.WriteAttribute("name", value.Name, true, false);
-				if (renderBody)
+				if (renderNamespaceBody)
 				{
 					foreach (ITypeDeclaration TypesItem in value.Types)
 					{
-						this.Render(TypesItem, true, translateMethods);
+						this.Render(TypesItem, renderTypeBody, translateMethods);
 					}
 				}
 				this.WriteEndElement();
@@ -558,22 +558,124 @@ namespace Reflector
 			private void RenderMethod(IMethodDeclaration value, bool isInterfaceMember)
 			{
 				string elementName = "function";
-				this.WriteElement(elementName);
 				IConstructorDeclaration constructorDeclaration = value as IConstructorDeclaration;
 				string methodName = value.Name;
+				string operatorType = null;
 				if ((constructorDeclaration != null) || (value.RuntimeSpecialName && ((methodName == ".ctor") || (methodName == ".cctor"))))
 				{
 					methodName = ".construct";
+				}
+				else if (((value.SpecialName && !(value.RuntimeSpecialName)) && value.Static) && methodName.StartsWith("op_"))
+				{
+					switch (methodName)
+					{
+						case "op_Addition":
+							operatorType = "add";
+							break;
+						case "op_BitwiseAnd":
+							operatorType = "bitwiseAnd";
+							break;
+						case "op_ExclusiveOr":
+							operatorType = "bitwiseExclusiveOr";
+							break;
+						case "op_OnesComplement":
+							operatorType = "bitwiseNot";
+							break;
+						case "op_BitwiseOr":
+							operatorType = "bitwiseOr";
+							break;
+						case "op_LogicalNot":
+							operatorType = "booleanNot";
+							break;
+						case "op_Explicit":
+							operatorType = "castNarrow";
+							break;
+						case "op_Implicit":
+							operatorType = "castWiden";
+							break;
+						case "op_Decrement":
+							operatorType = "decrement";
+							break;
+						case "op_Division":
+							operatorType = "divide";
+							break;
+						case "op_Equality":
+							operatorType = "equality";
+							break;
+						case "op_GreaterThan":
+							operatorType = "greaterThan";
+							break;
+						case "op_GreaterThanOrEqual":
+							operatorType = "greaterThanOrEqual";
+							break;
+						case "op_Increment":
+							operatorType = "increment";
+							break;
+						case "op_Inequality":
+							operatorType = "inequality";
+							break;
+						case "op_IntegerDivision":
+							operatorType = "integerDivide";
+							break;
+						case "op_False":
+							operatorType = "isFalse";
+							break;
+						case "op_True":
+							operatorType = "isTrue";
+							break;
+						case "op_LessThan":
+							operatorType = "lessThan";
+							break;
+						case "op_LessThanOrEqual":
+							operatorType = "lessThanOrEqual";
+							break;
+						case "op_Like":
+							operatorType = "like";
+							break;
+						case "op_Modulus":
+							operatorType = "modulus";
+							break;
+						case "op_Multiply":
+							operatorType = "multiply";
+							break;
+						case "op_UnaryNegation":
+							operatorType = "negative";
+							break;
+						case "op_UnaryPlus":
+							operatorType = "positive";
+							break;
+						case "op_LeftShift":
+							operatorType = "shiftLeft";
+							break;
+						case "op_RightShift":
+							operatorType = "shiftRight";
+							break;
+						case "op_Subtraction":
+							operatorType = "subtract";
+							break;
+					}
 				}
 				else if (methodName == "Finalize")
 				{
 					methodName = ".finalize";
 				}
-				this.WriteAttribute("name", methodName, true, false);
-				this.RenderMethodVisibilityAttribute(value);
-				if (!(isInterfaceMember))
+				if (operatorType != null)
 				{
-					this.RenderMethodModifierAttribute(value);
+					elementName = "operatorFunction";
+				}
+				this.WriteElement(elementName);
+				if (operatorType == null)
+				{
+					this.WriteAttribute("name", methodName, true, false);
+					this.RenderMethodVisibilityAttribute(value);
+					if (!(isInterfaceMember))
+					{
+						this.RenderMethodModifierAttribute(value);
+					}
+				}
+				else
+				{
+					this.WriteAttribute("type", operatorType);
 				}
 				this.RenderDocumentation(value);
 				foreach (ICustomAttribute AttributesItem in value.Attributes)
@@ -760,7 +862,7 @@ namespace Reflector
 				int lastArgumentIndex = arguments.Count - 1;
 				for (int i = lastArgumentIndex; i >= 0; --i)
 				{
-					if (arguments[i] is INamedArgumentExpression)
+					if (arguments[i] is IMemberInitializerExpression)
 					{
 						--lastArgumentIndex;
 					}
@@ -1230,7 +1332,7 @@ namespace Reflector
 			{
 				string elementName = "iterator";
 				this.WriteElement(elementName);
-				IVariableDeclaration variable = value.Variable.Variable;
+				IVariableDeclaration variable = value.Variable;
 				this.WriteAttribute("localName", variable.Name);
 				if (variable.VariableType != null)
 				{
@@ -1508,31 +1610,31 @@ namespace Reflector
 					}
 					else
 					{
-						IArgumentReferenceExpression AsIArgumentReferenceExpression = value as IArgumentReferenceExpression;
-						if (AsIArgumentReferenceExpression != null)
+						IAnonymousMethodExpression AsIAnonymousMethodExpression = value as IAnonymousMethodExpression;
+						if (AsIAnonymousMethodExpression != null)
 						{
-							this.RenderArgumentReferenceExpression(AsIArgumentReferenceExpression);
+							this.RenderAnonymousMethodExpression(AsIAnonymousMethodExpression);
 						}
 						else
 						{
-							IArrayCreateExpression AsIArrayCreateExpression = value as IArrayCreateExpression;
-							if (AsIArrayCreateExpression != null)
+							IArgumentReferenceExpression AsIArgumentReferenceExpression = value as IArgumentReferenceExpression;
+							if (AsIArgumentReferenceExpression != null)
 							{
-								this.RenderArrayCreateExpression(AsIArrayCreateExpression);
+								this.RenderArgumentReferenceExpression(AsIArgumentReferenceExpression);
 							}
 							else
 							{
-								IArrayIndexerExpression AsIArrayIndexerExpression = value as IArrayIndexerExpression;
-								if (AsIArrayIndexerExpression != null)
+								IArrayCreateExpression AsIArrayCreateExpression = value as IArrayCreateExpression;
+								if (AsIArrayCreateExpression != null)
 								{
-									this.RenderArrayIndexerExpression(AsIArrayIndexerExpression);
+									this.RenderArrayCreateExpression(AsIArrayCreateExpression);
 								}
 								else
 								{
-									IArrayInitializerExpression AsIArrayInitializerExpression = value as IArrayInitializerExpression;
-									if (AsIArrayInitializerExpression != null)
+									IArrayIndexerExpression AsIArrayIndexerExpression = value as IArrayIndexerExpression;
+									if (AsIArrayIndexerExpression != null)
 									{
-										this.RenderArrayInitializerExpression(AsIArrayInitializerExpression);
+										this.RenderArrayIndexerExpression(AsIArrayIndexerExpression);
 									}
 									else
 									{
@@ -1592,52 +1694,52 @@ namespace Reflector
 																	}
 																	else
 																	{
-																		ILiteralExpression AsILiteralExpression = value as ILiteralExpression;
-																		if (AsILiteralExpression != null)
+																		IGenericDefaultExpression AsIGenericDefaultExpression = value as IGenericDefaultExpression;
+																		if (AsIGenericDefaultExpression != null)
 																		{
-																			this.RenderLiteralExpression(AsILiteralExpression);
+																			this.RenderGenericDefaultExpression(AsIGenericDefaultExpression);
 																		}
 																		else
 																		{
-																			IMethodInvokeExpression AsIMethodInvokeExpression = value as IMethodInvokeExpression;
-																			if (AsIMethodInvokeExpression != null)
+																			ILiteralExpression AsILiteralExpression = value as ILiteralExpression;
+																			if (AsILiteralExpression != null)
 																			{
-																				this.RenderMethodInvokeExpression(AsIMethodInvokeExpression);
+																				this.RenderLiteralExpression(AsILiteralExpression);
 																			}
 																			else
 																			{
-																				IMethodReferenceExpression AsIMethodReferenceExpression = value as IMethodReferenceExpression;
-																				if (AsIMethodReferenceExpression != null)
+																				IMemberInitializerExpression AsIMemberInitializerExpression = value as IMemberInitializerExpression;
+																				if (AsIMemberInitializerExpression != null)
 																				{
-																					retVal = this.RenderMethodReferenceExpression(AsIMethodReferenceExpression, delayEndElement);
+																					this.RenderMemberInitializerExpression(AsIMemberInitializerExpression);
 																				}
 																				else
 																				{
-																					INamedArgumentExpression AsINamedArgumentExpression = value as INamedArgumentExpression;
-																					if (AsINamedArgumentExpression != null)
+																					IMethodInvokeExpression AsIMethodInvokeExpression = value as IMethodInvokeExpression;
+																					if (AsIMethodInvokeExpression != null)
 																					{
-																						this.RenderNamedArgumentExpression(AsINamedArgumentExpression);
+																						this.RenderMethodInvokeExpression(AsIMethodInvokeExpression);
 																					}
 																					else
 																					{
-																						INullCoalescingExpression AsINullCoalescingExpression = value as INullCoalescingExpression;
-																						if (AsINullCoalescingExpression != null)
+																						IMethodReferenceExpression AsIMethodReferenceExpression = value as IMethodReferenceExpression;
+																						if (AsIMethodReferenceExpression != null)
 																						{
-																							this.RenderNullCoalescingExpression(AsINullCoalescingExpression);
+																							retVal = this.RenderMethodReferenceExpression(AsIMethodReferenceExpression, delayEndElement);
 																						}
 																						else
 																						{
-																							IObjectCreateExpression AsIObjectCreateExpression = value as IObjectCreateExpression;
-																							if (AsIObjectCreateExpression != null)
+																							INullCoalescingExpression AsINullCoalescingExpression = value as INullCoalescingExpression;
+																							if (AsINullCoalescingExpression != null)
 																							{
-																								this.RenderObjectCreateExpression(AsIObjectCreateExpression);
+																								this.RenderNullCoalescingExpression(AsINullCoalescingExpression);
 																							}
 																							else
 																							{
-																								IObjectInitializeExpression AsIObjectInitializeExpression = value as IObjectInitializeExpression;
-																								if (AsIObjectInitializeExpression != null)
+																								IObjectCreateExpression AsIObjectCreateExpression = value as IObjectCreateExpression;
+																								if (AsIObjectCreateExpression != null)
 																								{
-																									this.RenderObjectInitializeExpression(AsIObjectInitializeExpression);
+																									this.RenderObjectCreateExpression(AsIObjectCreateExpression);
 																								}
 																								else
 																								{
@@ -1762,192 +1864,200 @@ namespace Reflector
 					}
 					else
 					{
-						IArgumentReferenceExpression AsIArgumentReferenceExpression = value as IArgumentReferenceExpression;
-						if (AsIArgumentReferenceExpression != null)
+						IAnonymousMethodExpression AsIAnonymousMethodExpression = value as IAnonymousMethodExpression;
+						if (AsIAnonymousMethodExpression != null)
 						{
-							this.RenderArgumentReferenceExpressionType(AsIArgumentReferenceExpression);
+							this.RenderAnonymousMethodExpressionType(AsIAnonymousMethodExpression);
 						}
 						else
 						{
-							IArrayCreateExpression AsIArrayCreateExpression = value as IArrayCreateExpression;
-							if (AsIArrayCreateExpression != null)
+							IArgumentReferenceExpression AsIArgumentReferenceExpression = value as IArgumentReferenceExpression;
+							if (AsIArgumentReferenceExpression != null)
 							{
-								this.RenderArrayCreateExpressionType(AsIArrayCreateExpression);
+								this.RenderArgumentReferenceExpressionType(AsIArgumentReferenceExpression);
 							}
 							else
 							{
-								IArrayIndexerExpression AsIArrayIndexerExpression = value as IArrayIndexerExpression;
-								if (AsIArrayIndexerExpression != null)
+								IArrayCreateExpression AsIArrayCreateExpression = value as IArrayCreateExpression;
+								if (AsIArrayCreateExpression != null)
 								{
-									this.RenderArrayIndexerExpressionType(AsIArrayIndexerExpression);
+									this.RenderArrayCreateExpressionType(AsIArrayCreateExpression);
 								}
 								else
 								{
-									IAssignExpression AsIAssignExpression = value as IAssignExpression;
-									if (AsIAssignExpression != null)
+									IArrayIndexerExpression AsIArrayIndexerExpression = value as IArrayIndexerExpression;
+									if (AsIArrayIndexerExpression != null)
 									{
-										this.RenderAssignExpressionType(AsIAssignExpression);
+										this.RenderArrayIndexerExpressionType(AsIArrayIndexerExpression);
 									}
 									else
 									{
-										IBinaryExpression AsIBinaryExpression = value as IBinaryExpression;
-										if (AsIBinaryExpression != null)
+										IAssignExpression AsIAssignExpression = value as IAssignExpression;
+										if (AsIAssignExpression != null)
 										{
-											this.RenderBinaryExpressionType(AsIBinaryExpression);
+											this.RenderAssignExpressionType(AsIAssignExpression);
 										}
 										else
 										{
-											ICanCastExpression AsICanCastExpression = value as ICanCastExpression;
-											if (AsICanCastExpression != null)
+											IBinaryExpression AsIBinaryExpression = value as IBinaryExpression;
+											if (AsIBinaryExpression != null)
 											{
-												this.RenderCanCastExpressionType(AsICanCastExpression);
+												this.RenderBinaryExpressionType(AsIBinaryExpression);
 											}
 											else
 											{
-												ICastExpression AsICastExpression = value as ICastExpression;
-												if (AsICastExpression != null)
+												ICanCastExpression AsICanCastExpression = value as ICanCastExpression;
+												if (AsICanCastExpression != null)
 												{
-													this.RenderCastExpressionType(AsICastExpression);
+													this.RenderCanCastExpressionType(AsICanCastExpression);
 												}
 												else
 												{
-													IConditionExpression AsIConditionExpression = value as IConditionExpression;
-													if (AsIConditionExpression != null)
+													ICastExpression AsICastExpression = value as ICastExpression;
+													if (AsICastExpression != null)
 													{
-														this.RenderConditionExpressionType(AsIConditionExpression);
+														this.RenderCastExpressionType(AsICastExpression);
 													}
 													else
 													{
-														IDelegateCreateExpression AsIDelegateCreateExpression = value as IDelegateCreateExpression;
-														if (AsIDelegateCreateExpression != null)
+														IConditionExpression AsIConditionExpression = value as IConditionExpression;
+														if (AsIConditionExpression != null)
 														{
-															this.RenderDelegateCreateExpressionType(AsIDelegateCreateExpression);
+															this.RenderConditionExpressionType(AsIConditionExpression);
 														}
 														else
 														{
-															IEventReferenceExpression AsIEventReferenceExpression = value as IEventReferenceExpression;
-															if (AsIEventReferenceExpression != null)
+															IDelegateCreateExpression AsIDelegateCreateExpression = value as IDelegateCreateExpression;
+															if (AsIDelegateCreateExpression != null)
 															{
-																this.RenderEventReferenceExpressionType(AsIEventReferenceExpression);
+																this.RenderDelegateCreateExpressionType(AsIDelegateCreateExpression);
 															}
 															else
 															{
-																IFieldReferenceExpression AsIFieldReferenceExpression = value as IFieldReferenceExpression;
-																if (AsIFieldReferenceExpression != null)
+																IEventReferenceExpression AsIEventReferenceExpression = value as IEventReferenceExpression;
+																if (AsIEventReferenceExpression != null)
 																{
-																	this.RenderFieldReferenceExpressionType(AsIFieldReferenceExpression);
+																	this.RenderEventReferenceExpressionType(AsIEventReferenceExpression);
 																}
 																else
 																{
-																	ILiteralExpression AsILiteralExpression = value as ILiteralExpression;
-																	if (AsILiteralExpression != null)
+																	IFieldReferenceExpression AsIFieldReferenceExpression = value as IFieldReferenceExpression;
+																	if (AsIFieldReferenceExpression != null)
 																	{
-																		this.RenderLiteralExpressionType(AsILiteralExpression);
+																		this.RenderFieldReferenceExpressionType(AsIFieldReferenceExpression);
 																	}
 																	else
 																	{
-																		IMethodInvokeExpression AsIMethodInvokeExpression = value as IMethodInvokeExpression;
-																		if (AsIMethodInvokeExpression != null)
+																		IGenericDefaultExpression AsIGenericDefaultExpression = value as IGenericDefaultExpression;
+																		if (AsIGenericDefaultExpression != null)
 																		{
-																			this.RenderMethodInvokeExpressionType(AsIMethodInvokeExpression);
+																			this.RenderGenericDefaultExpressionType(AsIGenericDefaultExpression);
 																		}
 																		else
 																		{
-																			IMethodReferenceExpression AsIMethodReferenceExpression = value as IMethodReferenceExpression;
-																			if (AsIMethodReferenceExpression != null)
+																			ILiteralExpression AsILiteralExpression = value as ILiteralExpression;
+																			if (AsILiteralExpression != null)
 																			{
-																				this.RenderMethodReferenceExpressionType(AsIMethodReferenceExpression);
+																				this.RenderLiteralExpressionType(AsILiteralExpression);
 																			}
 																			else
 																			{
-																				INullCoalescingExpression AsINullCoalescingExpression = value as INullCoalescingExpression;
-																				if (AsINullCoalescingExpression != null)
+																				IMethodInvokeExpression AsIMethodInvokeExpression = value as IMethodInvokeExpression;
+																				if (AsIMethodInvokeExpression != null)
 																				{
-																					this.RenderNullCoalescingExpressionType(AsINullCoalescingExpression);
+																					this.RenderMethodInvokeExpressionType(AsIMethodInvokeExpression);
 																				}
 																				else
 																				{
-																					IObjectCreateExpression AsIObjectCreateExpression = value as IObjectCreateExpression;
-																					if (AsIObjectCreateExpression != null)
+																					IMethodReferenceExpression AsIMethodReferenceExpression = value as IMethodReferenceExpression;
+																					if (AsIMethodReferenceExpression != null)
 																					{
-																						this.RenderObjectCreateExpressionType(AsIObjectCreateExpression);
+																						this.RenderMethodReferenceExpressionType(AsIMethodReferenceExpression);
 																					}
 																					else
 																					{
-																						IObjectInitializeExpression AsIObjectInitializeExpression = value as IObjectInitializeExpression;
-																						if (AsIObjectInitializeExpression != null)
+																						INullCoalescingExpression AsINullCoalescingExpression = value as INullCoalescingExpression;
+																						if (AsINullCoalescingExpression != null)
 																						{
-																							this.RenderObjectInitializeExpressionType(AsIObjectInitializeExpression);
+																							this.RenderNullCoalescingExpressionType(AsINullCoalescingExpression);
 																						}
 																						else
 																						{
-																							IPropertyIndexerExpression AsIPropertyIndexerExpression = value as IPropertyIndexerExpression;
-																							if (AsIPropertyIndexerExpression != null)
+																							IObjectCreateExpression AsIObjectCreateExpression = value as IObjectCreateExpression;
+																							if (AsIObjectCreateExpression != null)
 																							{
-																								this.RenderPropertyIndexerExpressionType(AsIPropertyIndexerExpression);
+																								this.RenderObjectCreateExpressionType(AsIObjectCreateExpression);
 																							}
 																							else
 																							{
-																								IPropertyReferenceExpression AsIPropertyReferenceExpression = value as IPropertyReferenceExpression;
-																								if (AsIPropertyReferenceExpression != null)
+																								IPropertyIndexerExpression AsIPropertyIndexerExpression = value as IPropertyIndexerExpression;
+																								if (AsIPropertyIndexerExpression != null)
 																								{
-																									this.RenderPropertyReferenceExpressionType(AsIPropertyReferenceExpression);
+																									this.RenderPropertyIndexerExpressionType(AsIPropertyIndexerExpression);
 																								}
 																								else
 																								{
-																									IThisReferenceExpression AsIThisReferenceExpression = value as IThisReferenceExpression;
-																									if (AsIThisReferenceExpression != null)
+																									IPropertyReferenceExpression AsIPropertyReferenceExpression = value as IPropertyReferenceExpression;
+																									if (AsIPropertyReferenceExpression != null)
 																									{
-																										this.RenderThisReferenceExpressionType(AsIThisReferenceExpression);
+																										this.RenderPropertyReferenceExpressionType(AsIPropertyReferenceExpression);
 																									}
 																									else
 																									{
-																										ITryCastExpression AsITryCastExpression = value as ITryCastExpression;
-																										if (AsITryCastExpression != null)
+																										IThisReferenceExpression AsIThisReferenceExpression = value as IThisReferenceExpression;
+																										if (AsIThisReferenceExpression != null)
 																										{
-																											this.RenderTryCastExpressionType(AsITryCastExpression);
+																											this.RenderThisReferenceExpressionType(AsIThisReferenceExpression);
 																										}
 																										else
 																										{
-																											ITypeOfExpression AsITypeOfExpression = value as ITypeOfExpression;
-																											if (AsITypeOfExpression != null)
+																											ITryCastExpression AsITryCastExpression = value as ITryCastExpression;
+																											if (AsITryCastExpression != null)
 																											{
-																												this.RenderTypeOfExpressionType(AsITypeOfExpression);
+																												this.RenderTryCastExpressionType(AsITryCastExpression);
 																											}
 																											else
 																											{
-																												ITypeReferenceExpression AsITypeReferenceExpression = value as ITypeReferenceExpression;
-																												if (AsITypeReferenceExpression != null)
+																												ITypeOfExpression AsITypeOfExpression = value as ITypeOfExpression;
+																												if (AsITypeOfExpression != null)
 																												{
-																													this.RenderTypeReferenceExpressionType(AsITypeReferenceExpression);
+																													this.RenderTypeOfExpressionType(AsITypeOfExpression);
 																												}
 																												else
 																												{
-																													IUnaryExpression AsIUnaryExpression = value as IUnaryExpression;
-																													if (AsIUnaryExpression != null)
+																													ITypeReferenceExpression AsITypeReferenceExpression = value as ITypeReferenceExpression;
+																													if (AsITypeReferenceExpression != null)
 																													{
-																														this.RenderUnaryExpressionType(AsIUnaryExpression);
+																														this.RenderTypeReferenceExpressionType(AsITypeReferenceExpression);
 																													}
 																													else
 																													{
-																														IVariableDeclarationExpression AsIVariableDeclarationExpression = value as IVariableDeclarationExpression;
-																														if (AsIVariableDeclarationExpression != null)
+																														IUnaryExpression AsIUnaryExpression = value as IUnaryExpression;
+																														if (AsIUnaryExpression != null)
 																														{
-																															this.RenderVariableDeclarationExpressionType(AsIVariableDeclarationExpression);
+																															this.RenderUnaryExpressionType(AsIUnaryExpression);
 																														}
 																														else
 																														{
-																															IVariableReferenceExpression AsIVariableReferenceExpression = value as IVariableReferenceExpression;
-																															if (AsIVariableReferenceExpression != null)
+																															IVariableDeclarationExpression AsIVariableDeclarationExpression = value as IVariableDeclarationExpression;
+																															if (AsIVariableDeclarationExpression != null)
 																															{
-																																this.RenderVariableReferenceExpressionType(AsIVariableReferenceExpression);
+																																this.RenderVariableDeclarationExpressionType(AsIVariableDeclarationExpression);
 																															}
 																															else
 																															{
-																																IExpression AsIExpression = value as IExpression;
-																																if (AsIExpression != null)
+																																IVariableReferenceExpression AsIVariableReferenceExpression = value as IVariableReferenceExpression;
+																																if (AsIVariableReferenceExpression != null)
 																																{
-																																	this.RenderUnhandledExpressionType(AsIExpression);
+																																	this.RenderVariableReferenceExpressionType(AsIVariableReferenceExpression);
+																																}
+																																else
+																																{
+																																	IExpression AsIExpression = value as IExpression;
+																																	if (AsIExpression != null)
+																																	{
+																																		this.RenderUnhandledExpressionType(AsIExpression);
+																																	}
 																																}
 																															}
 																														}
@@ -2006,6 +2116,38 @@ namespace Reflector
 				IExpression expression = value.Expression;
 				this.RenderExpressionType(TestNullifyExpression(expression));
 			}
+			private void RenderAnonymousMethodExpression(IAnonymousMethodExpression value)
+			{
+				string elementName = "anonymousFunction";
+				this.WriteElement(elementName);
+				foreach (IParameterDeclaration ParametersItem in value.Parameters)
+				{
+					this.WriteElement("param");
+					this.RenderParameterDeclaration(ParametersItem);
+					this.WriteEndElement();
+				}
+				IType returnType = value.ReturnType.Type;
+				this.WriteElementDelayed("returns");
+				if ((returnType != null) && !(IsVoidType(returnType)))
+				{
+					this.RenderType(returnType);
+				}
+				this.WriteEndElement();
+				IBlockStatement BodyChild = value.Body as IBlockStatement;
+				if (BodyChild != null)
+				{
+					this.RenderBlockStatement(BodyChild);
+				}
+				this.WriteEndElement();
+			}
+			private void RenderAnonymousMethodExpressionType(IAnonymousMethodExpression value)
+			{
+				IType methodType = value.ReturnType.Type;
+				if (methodType != null)
+				{
+					this.RenderType(methodType);
+				}
+			}
 			private void RenderArgumentReferenceExpression(IArgumentReferenceExpression value)
 			{
 				string elementName = "nameRef";
@@ -2027,13 +2169,10 @@ namespace Reflector
 				string elementName = "callNew";
 				this.WriteElement(elementName);
 				this.RenderArrayCreateExpressionType(value);
-				IExpression arrayInitializer = value.Initializer;
+				IBlockExpression arrayInitializer = value.Initializer;
 				if (arrayInitializer != null)
 				{
-					if (arrayInitializer != null)
-					{
-						this.RenderExpression(arrayInitializer);
-					}
+					this.RenderArrayInitializerExpression(arrayInitializer);
 				}
 				else
 				{
@@ -2129,7 +2268,7 @@ namespace Reflector
 						}
 						this.WriteElement("passParamArray");
 						this.RenderArrayCreateExpressionType(value);
-						IArrayInitializerExpression arrayInitializer = value.Initializer as IArrayInitializerExpression;
+						IBlockExpression arrayInitializer = value.Initializer;
 						if (arrayInitializer != null)
 						{
 							foreach (IExpression arrayInitializerExpressionsItem in arrayInitializer.Expressions)
@@ -2175,7 +2314,7 @@ namespace Reflector
 			}
 			private void RenderArrayInitializerChildExpression(IExpression value)
 			{
-				IArrayInitializerExpression arrayInitializer = value as IArrayInitializerExpression;
+				IBlockExpression arrayInitializer = value as IBlockExpression;
 				if (arrayInitializer != null)
 				{
 					if (arrayInitializer != null)
@@ -2188,7 +2327,7 @@ namespace Reflector
 					this.RenderExpression(value);
 				}
 			}
-			private void RenderArrayInitializerExpression(IArrayInitializerExpression value)
+			private void RenderArrayInitializerExpression(IBlockExpression value)
 			{
 				string elementName = "arrayInitializer";
 				this.WriteElement(elementName);
@@ -2461,6 +2600,26 @@ namespace Reflector
 					this.RenderType(targetType);
 				}
 			}
+			private void RenderGenericDefaultExpression(IGenericDefaultExpression value)
+			{
+				string elementName = "defaultValueOf";
+				this.WriteElement(elementName);
+				IGenericArgument genericArgument = value.GenericArgument;
+				IType objectType = genericArgument.Resolve();
+				if (objectType != null)
+				{
+					this.RenderType(objectType);
+				}
+				this.WriteEndElement();
+			}
+			private void RenderGenericDefaultExpressionType(IGenericDefaultExpression value)
+			{
+				IGenericArgument genericArgument = value.GenericArgument;
+				if (genericArgument.Resolve() != null)
+				{
+					this.RenderType(genericArgument.Resolve());
+				}
+			}
 			private void RenderLiteralExpression(ILiteralExpression value)
 			{
 				string elementName = "value";
@@ -2718,6 +2877,27 @@ namespace Reflector
 				this.RenderGenericMemberArguments(member);
 				this.WriteEndElement();
 			}
+			private void RenderMemberInitializerExpression(IMemberInitializerExpression value)
+			{
+				string elementName = "binaryOperator";
+				this.WriteElement(elementName);
+				this.WriteAttribute("type", "assignNamed");
+				string propertyName = value.Member.Name;
+				this.WriteElement("left");
+				this.WriteElement("nameRef");
+				this.WriteAttribute("name", propertyName);
+				this.WriteAttribute("type", "namedParameter");
+				this.WriteEndElement();
+				this.WriteEndElement();
+				IExpression ValueChild = value.Value;
+				if (ValueChild != null)
+				{
+					this.WriteElement("right");
+					this.RenderExpression(ValueChild);
+					this.WriteEndElement();
+				}
+				this.WriteEndElement();
+			}
 			private void RenderMethodReferenceExpressionType(IMethodReferenceExpression value)
 			{
 				IType targetType = value.Method.ReturnType.Type;
@@ -2791,27 +2971,6 @@ namespace Reflector
 					this.WriteEndElement();
 					return false;
 				}
-			}
-			private void RenderNamedArgumentExpression(INamedArgumentExpression value)
-			{
-				string elementName = "binaryOperator";
-				this.WriteElement(elementName);
-				this.WriteAttribute("type", "assignNamed");
-				string propertyName = value.Member.Name;
-				this.WriteElement("left");
-				this.WriteElement("nameRef");
-				this.WriteAttribute("name", propertyName);
-				this.WriteAttribute("type", "namedParameter");
-				this.WriteEndElement();
-				this.WriteEndElement();
-				IExpression ValueChild = value.Value;
-				if (ValueChild != null)
-				{
-					this.WriteElement("right");
-					this.RenderExpression(ValueChild);
-					this.WriteEndElement();
-				}
-				this.WriteEndElement();
 			}
 			private void RenderGenericMemberArguments(IGenericArgumentProvider value)
 			{
@@ -2896,67 +3055,47 @@ namespace Reflector
 			{
 				string elementName = "callNew";
 				this.WriteElement(elementName);
-				IMethodReference ctorReference = value.Constructor;
-				IType declaringType = ctorReference.DeclaringType;
+				IType declaringType = value.Type;
 				if (declaringType != null)
 				{
 					this.RenderType(declaringType);
 				}
-				this.RenderGenericMemberArguments(ctorReference);
-				int argumentIndex = -1;
-				IExpressionCollection arguments = value.Arguments;
-				int lastArgumentIndex = arguments.Count - 1;
-				foreach (IExpression argumentsItem in arguments)
+				IMethodReference ctorReference = value.Constructor;
+				if (ctorReference != null)
 				{
-					++argumentIndex;
-					if (argumentIndex == lastArgumentIndex)
+					this.RenderGenericMemberArguments(ctorReference);
+					int argumentIndex = -1;
+					IExpressionCollection arguments = value.Arguments;
+					int lastArgumentIndex = arguments.Count - 1;
+					foreach (IExpression argumentsItem in arguments)
 					{
-						bool argumentsItemDelayEndChildElement = false;
-						if (argumentsItem != null)
+						++argumentIndex;
+						if (argumentIndex == lastArgumentIndex)
 						{
-							argumentsItemDelayEndChildElement = this.RenderArrayCreateExpressionAsParamArray(argumentsItem, true, ctorReference, argumentIndex, null);
+							bool argumentsItemDelayEndChildElement = false;
+							if (argumentsItem != null)
+							{
+								argumentsItemDelayEndChildElement = this.RenderArrayCreateExpressionAsParamArray(argumentsItem, true, ctorReference, argumentIndex, null);
+							}
+							if (argumentsItemDelayEndChildElement)
+							{
+								this.WriteEndElement();
+								break;
+							}
 						}
-						if (argumentsItemDelayEndChildElement)
-						{
-							this.WriteEndElement();
-							break;
-						}
+						this.WriteElement("passParam");
+						this.RenderExpression(argumentsItem);
+						this.WriteEndElement();
 					}
-					this.WriteElement("passParam");
-					this.RenderExpression(argumentsItem);
-					this.WriteEndElement();
 				}
 				this.WriteEndElement();
 			}
 			private void RenderObjectCreateExpressionType(IObjectCreateExpression value)
 			{
-				IType declaringType = value.Constructor.DeclaringType;
+				IType declaringType = value.Type;
 				if (declaringType != null)
 				{
 					this.RenderType(declaringType);
-				}
-			}
-			private void RenderObjectInitializeExpression(IObjectInitializeExpression value)
-			{
-				string elementName = "callNew";
-				IType objectType = value.Type;
-				if (objectType is IGenericArgument)
-				{
-					elementName = "defaultValueOf";
-				}
-				this.WriteElement(elementName);
-				if (objectType != null)
-				{
-					this.RenderType(objectType);
-				}
-				this.WriteEndElement();
-			}
-			private void RenderObjectInitializeExpressionType(IObjectInitializeExpression value)
-			{
-				IType objectType = value.Type;
-				if (objectType != null)
-				{
-					this.RenderType(objectType);
 				}
 			}
 			private void RenderPropertyIndexerExpression(IPropertyIndexerExpression value)
@@ -3163,12 +3302,13 @@ namespace Reflector
 			{
 				string elementName = "nameRef";
 				this.WriteElement(elementName);
-				this.WriteAttribute("name", value.Variable.Name);
+				this.WriteAttribute("name", value.Variable.Resolve().Name);
 				this.WriteEndElement();
 			}
 			private void RenderVariableReferenceExpressionType(IVariableReferenceExpression value)
 			{
-				IType targetType = value.Variable.Variable.VariableType;
+				IVariableReference targetReference = value.Variable;
+				IType targetType = targetReference.Resolve().VariableType;
 				if (targetType != null)
 				{
 					this.RenderType(targetType);

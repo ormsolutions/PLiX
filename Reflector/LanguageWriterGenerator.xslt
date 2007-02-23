@@ -248,6 +248,97 @@
 			</plx:assign>
 		</plx:case>
 	</xsl:template>
+	<xsl:template match="lw:stringSwitchMap">
+		<xsl:param name="DocumentRoot"/>
+		<xsl:call-template name="ResolveContextAttributes">
+			<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="lw:stringSwitchMap" mode="ResolvedContext">
+		<xsl:param name="DocumentRoot"/>
+		<plx:switch>
+			<plx:condition>
+				<xsl:choose>
+					<xsl:when test="string(@valueProperty)">
+						<plx:callInstance name="{@valueProperty}" type="property">
+							<plx:callObject>
+								<plx:nameRef name="value" type="parameter"/>
+							</plx:callObject>
+						</plx:callInstance>
+					</xsl:when>
+					<xsl:when test="string(@parameterName)">
+						<plx:nameRef name="{@parameterName}" type="parameter"/>
+					</xsl:when>
+					<xsl:otherwise>
+						<plx:nameRef name="{@fromLocalName}"/>
+					</xsl:otherwise>
+				</xsl:choose>
+			</plx:condition>
+			<xsl:apply-templates select="*">
+				<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+			</xsl:apply-templates>
+		</plx:switch>
+	</xsl:template>
+	<xsl:template match="lw:stringCaseMap">
+		<xsl:param name="DocumentRoot"/>
+		<xsl:call-template name="ResolveContextAttributes">
+			<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="lw:stringCaseMap" mode="ResolvedContext">
+		<plx:case>
+			<xsl:call-template name="AddStringCaseMapCondition">
+				<xsl:with-param name="RemainingValues" select="normalize-space(@fromValue)"/>
+			</xsl:call-template>
+			<xsl:variable name="filterCondition" select="child::*"/>
+			<xsl:variable name="assignFragment">
+				<plx:assign>
+					<plx:left>
+						<plx:nameRef name="{../@targetLocalName}"/>
+					</plx:left>
+					<plx:right>
+						<plx:string data="{@targetValue}"/>
+					</plx:right>
+				</plx:assign>
+			</xsl:variable>
+			<xsl:choose>
+				<xsl:when test="$filterCondition">
+					<plx:branch>
+						<plx:condition>
+							<xsl:copy-of select="$filterCondition"/>
+						</plx:condition>
+						<xsl:copy-of select="$assignFragment"/>
+					</plx:branch>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:copy-of select="$assignFragment"/>
+				</xsl:otherwise>
+			</xsl:choose>
+		</plx:case>
+	</xsl:template>
+	<xsl:template name="AddStringCaseMapCondition">
+		<xsl:param name="RemainingValues"/>
+		<xsl:variable name="remainder" select="substring-after($RemainingValues, ' ')"/>
+		<xsl:variable name="currentValueFragment">
+			<xsl:choose>
+				<xsl:when test="$remainder">
+					<xsl:value-of select="substring-before($RemainingValues, ' ')"/>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:value-of select="$RemainingValues"/>
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:variable>
+		<xsl:variable name="currentValue" select="string($currentValueFragment)"/>
+		<plx:condition>
+			<plx:string data="{$currentValue}"/>
+		</plx:condition>
+		<xsl:if test="$remainder">
+			<xsl:call-template name="AddStringCaseMapCondition">
+				<xsl:with-param name="RemainingValues" select="$remainder"/>
+			</xsl:call-template>
+		</xsl:if>
+	</xsl:template>
 	<xsl:template match="lw:attributeSwitchMap">
 		<xsl:param name="DocumentRoot"/>
 		<xsl:call-template name="ResolveContextAttributes">
@@ -1426,7 +1517,7 @@
 			</xsl:if>
 		</xsl:variable>
 		<xsl:choose>
-			<xsl:when test="$localName">
+			<xsl:when test="$localName and not(@testNull='false')">
 				<plx:branch>
 					<plx:condition>
 						<plx:binaryOperator type="identityInequality">

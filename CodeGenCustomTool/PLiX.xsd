@@ -834,6 +834,23 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
+	<xs:element name="anonymousFunction" type="anonymousFunctionType" substitutionGroup="expressionElement"/>
+	<xs:complexType name="anonymousFunctionType">
+		<xs:annotation>
+			<xs:documentation>An inline callback function.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="expressionElementType">
+				<xs:sequence>
+					<xs:choice minOccurs="0" maxOccurs="unbounded">
+						<xs:element ref="param"/>
+					</xs:choice>
+					<xs:element ref="returns" minOccurs="0"/>
+					<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
 	<xs:element name="attribute" type="attributeType"/>
 	<xs:complexType name="attributeType">
 		<xs:annotation>

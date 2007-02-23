@@ -68,6 +68,30 @@
 		</xsl:apply-templates>
 		<xsl:text>)</xsl:text>
 	</xsl:template>
+	<xsl:template match="plx:anonymousFunction">
+		<xsl:param name="Indent"/>
+		<xsl:param name="LocalItemKey"/>
+		<xsl:text>delegate</xsl:text>
+		<xsl:call-template name="RenderParams"/>
+		<xsl:if test="$NewLineBeforeBlockOpen">
+			<xsl:value-of select="$NewLine"/>
+			<xsl:value-of select="$Indent"/>
+			<xsl:value-of select="$SingleIndent"/>
+		</xsl:if>
+		<xsl:value-of select="$BlockOpen"/>
+		<xsl:value-of select="$NewLine"/>
+		<xsl:variable name="nextIndent" select="concat($Indent,$SingleIndent,$SingleIndent)"/>
+		<xsl:for-each select="child::*[not(self::plx:param or self::plx:returns)]">
+			<xsl:call-template name="RenderElement">
+				<xsl:with-param name="Indent" select="$nextIndent"/>
+				<xsl:with-param name="LocalItemKey" select="$LocalItemKey"/>
+				<xsl:with-param name="Statement" select="true()"/>
+			</xsl:call-template>
+		</xsl:for-each>
+		<xsl:value-of select="$Indent"/>
+		<xsl:value-of select="$SingleIndent"/>
+		<xsl:value-of select="$DefaultBlockClose"/>
+	</xsl:template>
 	<xsl:template match="plx:assign">
 		<xsl:param name="Indent"/>
 		<xsl:apply-templates select="plx:left/child::*">

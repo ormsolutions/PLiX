@@ -105,7 +105,7 @@ namespace Reflector
 			PLiXLanguageWriter retVal = myWriter;
 			if (retVal == null)
 			{
-				myWriter = retVal = new PLiXLanguageWriter(myTranslatorManager.Disassembler, myConfiguration);
+				myWriter = retVal = new PLiXLanguageWriter(myTranslatorManager.CreateDisassembler(null, null), myConfiguration);
 			}
 			retVal.Associate(formatter, configuration);
 			return retVal;
@@ -201,7 +201,7 @@ namespace Reflector
 				myFirstWrite = detailedForm;
 				if (detailedForm)
 				{
-					value = myTranslator.TranslateAssembly(value);
+					value = myTranslator.TranslateAssembly(value, false);
 				}
 				Render(value);
 				if (!detailedForm)
@@ -350,8 +350,10 @@ namespace Reflector
 			protected void WriteNamespace(INamespace value)
 			{
 				bool detailedForm = myWriterConfiguration["ShowNamespaceBody"] == "true";
+				bool fullExpansion = myPLiXConfiguration.FullyExpandNamespaceDeclarations;
+				bool typeDeclarationBody = detailedForm && (fullExpansion || myWriterConfiguration["ShowTypeDeclarationBody"] == "true");
 				myFirstWrite = detailedForm;
-				Render(value, detailedForm, detailedForm && myPLiXConfiguration.FullyExpandNamespaceDeclarations);
+				Render(value, detailedForm, typeDeclarationBody, detailedForm && fullExpansion);
 			}
 			void ILanguageWriter.WriteNamespace(INamespace value)
 			{
@@ -403,7 +405,7 @@ namespace Reflector
 			{
 				bool detailedForm = myWriterConfiguration["ShowTypeDeclarationBody"] == "true";
 				myFirstWrite = detailedForm;
-				Render(value, detailedForm, detailedForm && myPLiXConfiguration.FullyExpandTypeDeclarations);
+				Render(value, detailedForm, detailedForm && (myPLiXConfiguration.FullyExpandTypeDeclarations || myWriterConfiguration["ShowMethodDeclarationBody"] == "true"));
 				if (!detailedForm)
 				{
 					WriteTypeReferenceProperties(value, "Name");
@@ -875,6 +877,10 @@ namespace Reflector
 					Write(value);
 				}
 				void IFormatter.WriteDeclaration(string value)
+				{
+					Write(value);
+				}
+				void IFormatter.WriteDeclaration(string value, object target)
 				{
 					Write(value);
 				}
