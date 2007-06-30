@@ -36,6 +36,10 @@ namespace Reflector
 		/// Return true to include method implementations as part of a namespace declaration
 		/// </summary>
 		bool FullyExpandNamespaceDeclarations { get;}
+		/// <summary>
+		/// Return true to write the dataTypeQualifier attribute even if it matches the current active item
+		/// </summary>
+		bool DisplayContextDataTypeQualifier { get;}
 	}
 	/// <summary>
 	/// Starting point for a Reflector class
@@ -53,12 +57,14 @@ namespace Reflector
 			private bool myFullyExpandTypeDeclarations;
 			private bool myFullyExpandCurrentTypeDeclaration;
 			private bool myFullyExpandCurrentNamespaceDeclaration;
+			private bool myDisplayContextDataTypeQualifier;
 			private PLiXLanguagePackage myPackage;
 			#endregion // Member Variables
 			#region Constants
 			private const string ConfigurationSection = "PLiXLanguage";
 			private const string ExampleLanguageValueName = "ExampleLanguage";
 			private const string FullyExpandTypeDeclarationsValueName = "FullyExpandTypeDeclarations";
+			private const string DisplayContextDataTypeQualifierValueName = "DisplayContextDataTypeQualifier";
 			#endregion // Constants
 			#region Constructors
 			/// <summary>
@@ -73,6 +79,7 @@ namespace Reflector
 
 				myExampleLanguageName = myConfiguration.GetProperty(ExampleLanguageValueName, "C#");
 				myFullyExpandTypeDeclarations = 0 == string.Compare(myConfiguration.GetProperty(FullyExpandTypeDeclarationsValueName, "false"), "true", StringComparison.CurrentCultureIgnoreCase);
+				myDisplayContextDataTypeQualifier = 0 == string.Compare(myConfiguration.GetProperty(DisplayContextDataTypeQualifierValueName, "false"), "true", StringComparison.CurrentCultureIgnoreCase);
 			}
 			#endregion // Constructors
 			#region IPLiXConfiguration Implementation
@@ -214,6 +221,22 @@ namespace Reflector
 					}
 				}
 			}
+			public bool DisplayContextDataTypeQualifier
+			{
+				get
+				{
+					return myDisplayContextDataTypeQualifier;
+				}
+				set
+				{
+					if (value != myDisplayContextDataTypeQualifier)
+					{
+						myDisplayContextDataTypeQualifier = value;
+						myConfiguration.SetProperty(DisplayContextDataTypeQualifierValueName, value ? "true" : "false");
+						RefreshCurrentSelection();
+					}
+				}
+			}
 			/// <summary>
 			/// Force the disassembler page to refresh
 			/// </summary>
@@ -235,6 +258,7 @@ namespace Reflector
 		private ICommandBarItem myExpandCurrentTypeDeclarationButton;
 		private ICommandBarItem myExpandCurrentNamespaceDeclarationButton;
 		private ICommandBarCheckBox myFullyExpandTypeDeclarationsCheckBox;
+		private ICommandBarCheckBox myDisplayContextDataTypeQualifierCheckBox;
 		private IPLiXConfiguration myConfiguration;
 		private object myLastActiveItem;
 		#endregion // Member Variables
@@ -269,7 +293,15 @@ namespace Reflector
 			myExpandCurrentNamespaceDeclarationButton = menuItems.AddButton("E&xpand Current Namespace Declaration", new EventHandler(OnExpandCurrentNamespaceDeclaration));
 			myExpandCurrentTypeDeclarationButton = menuItems.AddButton("E&xpand Current Type Declaration", new EventHandler(OnExpandCurrentTypeDeclaration));
 			(myFullyExpandTypeDeclarationsCheckBox = menuItems.AddCheckBox("Ex&pand All Type Declarations")).Click += new EventHandler(OnFullyExpandTypeDeclarationsChanged);
+			menuItems.AddSeparator();
+			(myDisplayContextDataTypeQualifierCheckBox = menuItems.AddCheckBox("Display Context Type &Qualifier")).Click += new EventHandler(OnDisplayContextDataTypeQualifierChanged);
 			myTopMenu = topMenu;
+
+			ICommandBarControl appRefresh = GetCommandbarControl(commandBarManager, "ToolBar", "Application.Refresh");
+			if (appRefresh != null)
+			{
+				appRefresh.Click += new EventHandler(OnApplicationRefresh);
+			}
 		}
 		void IPackage.Unload()
 		{
@@ -277,7 +309,33 @@ namespace Reflector
 			myAssemblyBrowser.ActiveItemChanged -= new EventHandler(OnActiveItemChanged);
 			myTopMenu.DropDown -= new EventHandler(OnOpenTopMenu);
 			myLanguageManager.UnregisterLanguage(myLanguage);
-			((ICommandBarManager)myServiceProvider.GetService(typeof(ICommandBarManager))).CommandBars["MenuBar"].Items.Remove(myTopMenu);
+
+			ICommandBarManager commandBarManager = (ICommandBarManager)myServiceProvider.GetService(typeof(ICommandBarManager));
+			commandBarManager.CommandBars["MenuBar"].Items.Remove(myTopMenu);
+			ICommandBarControl appRefresh = GetCommandbarControl(commandBarManager, "ToolBar", "Application.Refresh");
+			if (appRefresh != null)
+			{
+				appRefresh.Click -= new EventHandler(OnApplicationRefresh);
+			}
+		}
+		private static ICommandBarControl GetCommandbarControl(ICommandBarManager manager, string barIdentifier, string controlValue)
+		{
+			ICommandBar toolbar;
+			if (null != (toolbar = manager.CommandBars[barIdentifier]))
+			{
+				foreach (ICommandBarItem item in toolbar.Items)
+				{
+					ICommandBarControl testControl = item as ICommandBarControl;
+					string testControlValue;
+					if (testControl != null &&
+						null != (testControlValue = testControl.Value as string) &&
+						testControlValue == controlValue)
+					{
+						return testControl;
+					}
+				}
+			}
+			return null;
 		}
 		/// <summary>
 		/// Event handler to show our PLiX menu when we're the active rendering language
@@ -289,7 +347,7 @@ namespace Reflector
 		/// <summary>
 		/// Event handler to reenable the 'Expand Current Type Declaration' menu on selection change
 		/// </summary>
-		void OnActiveItemChanged(object sender, EventArgs e)
+		private void OnActiveItemChanged(object sender, EventArgs e)
 		{
 			PLiXConfiguration plixConfig = (PLiXConfiguration)myConfiguration;
 			plixConfig.FullyExpandCurrentTypeDeclaration = false;
@@ -306,7 +364,7 @@ namespace Reflector
 		/// Unfortunately, there is no add/remove event when languages are added and removed,
 		/// and the DropDown event does not fire on submenus, so we need to synchronize here.
 		/// </summary>
-		void OnOpenTopMenu(object sender, EventArgs e)
+		private void OnOpenTopMenu(object sender, EventArgs e)
 		{
 			ICommandBarItemCollection exampleItems = myExampleLanguageMenu.Items;
 			ILanguageCollection languages = myLanguageManager.Languages;
@@ -336,6 +394,7 @@ namespace Reflector
 				myExpandCurrentTypeDeclarationButton.Visible = false;
 			}
 			myFullyExpandTypeDeclarationsCheckBox.Checked = alwaysExpandTypes;
+			myDisplayContextDataTypeQualifierCheckBox.Checked = plixConfig.DisplayContextDataTypeQualifier;
 			int itemsCount = exampleItems.Count;
 			ICommandBarCheckBox currentItem;
 			if (itemsCount == 0)
@@ -435,14 +494,14 @@ namespace Reflector
 		/// <summary>
 		/// Event handler for clicking a different example language
 		/// </summary>
-		void OnExampleLanguageClick(object sender, EventArgs e)
+		private void OnExampleLanguageClick(object sender, EventArgs e)
 		{
 			((PLiXConfiguration)myConfiguration).ExampleLanguage = ((ICommandBarItem)sender).Value as ILanguage;
 		}
 		/// <summary>
 		/// Event handler for toggling the full type expansion option
 		/// </summary>
-		void OnFullyExpandTypeDeclarationsChanged(object sender, EventArgs e)
+		private void OnFullyExpandTypeDeclarationsChanged(object sender, EventArgs e)
 		{
 			PLiXConfiguration config = (PLiXConfiguration)myConfiguration;
 			// If the current is explicitly expanded, then FullyExpandTypeDeclarations will return
@@ -457,18 +516,37 @@ namespace Reflector
 			}
 		}
 		/// <summary>
+		/// Event handler for toggling the display current namespace option
+		/// </summary>
+		private void OnDisplayContextDataTypeQualifierChanged(object sender, EventArgs e)
+		{
+			PLiXConfiguration config = (PLiXConfiguration)myConfiguration;
+			config.DisplayContextDataTypeQualifier = !config.DisplayContextDataTypeQualifier;
+		}
+		/// <summary>
 		/// Event handler for toggling the full type expansion option
 		/// </summary>
-		void OnExpandCurrentTypeDeclaration(object sender, EventArgs e)
+		private void OnExpandCurrentTypeDeclaration(object sender, EventArgs e)
 		{
 			((PLiXConfiguration)myConfiguration).FullyExpandCurrentTypeDeclaration = true;
 		}
 		/// <summary>
 		/// Event handler for toggling the full type expansion option
 		/// </summary>
-		void OnExpandCurrentNamespaceDeclaration(object sender, EventArgs e)
+		private void OnExpandCurrentNamespaceDeclaration(object sender, EventArgs e)
 		{
 			((PLiXConfiguration)myConfiguration).FullyExpandCurrentNamespaceDeclaration = true;
+		}
+		/// <summary>
+		/// Event handler to clear cached information when the Refresh button is clicked
+		/// </summary>
+		private void OnApplicationRefresh(object sender, EventArgs e)
+		{
+			PLiXLanguage language = myLanguage as PLiXLanguage;
+			if (language != null)
+			{
+				language.OnRefresh();
+			}
 		}
 		#endregion // IPackage Implementation
 	}

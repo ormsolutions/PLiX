@@ -105,10 +105,43 @@ namespace Reflector
 				}
 				else
 				{
-					this.RenderDocumentation(value);
-					foreach (ICustomAttribute AttributesItem in value.Attributes)
+					ICustomAttributeCollection customAttributes = value.Attributes;
+					int defaultMemberAttributeIndex = -1;
+					if (customAttributes.Count != 0)
 					{
-						this.RenderCustomAttribute(AttributesItem);
+						int attributeIndex = 0;
+						foreach (ICustomAttribute testCustomAttribute in customAttributes)
+						{
+							ITypeReference attributeType = testCustomAttribute.Constructor.DeclaringType as ITypeReference;
+							if (attributeType != null)
+							{
+								if ((attributeType.Name == "DefaultMemberAttribute") && (attributeType.Namespace == "System.Reflection"))
+								{
+									ILiteralExpression defaultMemberNameLiteral;
+									string defaultMemberName;
+									object literalValue;
+									IExpressionCollection arguments = testCustomAttribute.Arguments;
+									if ((((arguments.Count == 1) && ((defaultMemberNameLiteral = arguments[0] as ILiteralExpression) != null)) && (((literalValue = defaultMemberNameLiteral.Value) != null) && (Type.GetTypeCode(literalValue.GetType()) == TypeCode.String))) && (null != (defaultMemberName = (string)literalValue)))
+									{
+										defaultMemberAttributeIndex = attributeIndex;
+										this.WriteAttribute("defaultMember", defaultMemberName, false, true);
+									}
+									break;
+								}
+							}
+							++attributeIndex;
+						}
+					}
+					this.RenderDocumentation(value);
+					int customAttributeIndex = -1;
+					foreach (ICustomAttribute customAttributesItem in customAttributes)
+					{
+						++customAttributeIndex;
+						if (customAttributeIndex == defaultMemberAttributeIndex)
+						{
+							continue;
+						}
+						this.RenderCustomAttribute(customAttributesItem);
 					}
 					IGenericArgumentProvider ownerGenericArgumentProvider = value.Owner as IGenericArgumentProvider;
 					ITypeCollection ownerGenericArguments = null;
@@ -158,23 +191,38 @@ namespace Reflector
 						{
 							foreach (IFieldDeclaration FieldsItem in value.Fields)
 							{
+								if (this.myMemberMap.IsSimpleEventField(FieldsItem))
+								{
+									continue;
+								}
 								this.Render(FieldsItem);
 							}
 							foreach (IPropertyDeclaration PropertiesItem in value.Properties)
 							{
-								this.Render(PropertiesItem, translateMethods, isInterface);
-							}
-							foreach (IEventDeclaration EventsItem in value.Events)
-							{
-								this.Render(EventsItem, translateMethods, isInterface);
-							}
-							foreach (IMethodDeclaration MethodsItem in value.Methods)
-							{
-								if ((MethodsItem.SpecialName && !(MethodsItem.RuntimeSpecialName)) && !(MethodsItem.Static && MethodsItem.Name.StartsWith("op_")))
+								InterfaceMemberInfo interfaceMemberInfo = this.myMemberMap.GetInterfaceMemberInfo(PropertiesItem);
+								if (interfaceMemberInfo.Style == InterfaceMemberStyle.DeferredExplicitImplementation)
 								{
 									continue;
 								}
-								this.Render(MethodsItem, translateMethods, isInterface);
+								this.Render(PropertiesItem, interfaceMemberInfo, translateMethods, isInterface);
+							}
+							foreach (IEventDeclaration EventsItem in value.Events)
+							{
+								InterfaceMemberInfo interfaceMemberInfo = this.myMemberMap.GetInterfaceMemberInfo(EventsItem);
+								if (interfaceMemberInfo.Style == InterfaceMemberStyle.DeferredExplicitImplementation)
+								{
+									continue;
+								}
+								this.Render(EventsItem, interfaceMemberInfo, translateMethods, isInterface);
+							}
+							foreach (IMethodDeclaration MethodsItem in value.Methods)
+							{
+								InterfaceMemberInfo interfaceMemberInfo = this.myMemberMap.GetInterfaceMemberInfo(MethodsItem);
+								if ((interfaceMemberInfo.Style == InterfaceMemberStyle.DeferredExplicitImplementation) || ((MethodsItem.SpecialName && !(MethodsItem.RuntimeSpecialName)) && !(MethodsItem.Static && MethodsItem.Name.StartsWith("op_"))))
+								{
+									continue;
+								}
+								this.Render(MethodsItem, interfaceMemberInfo, translateMethods, isInterface);
 							}
 							foreach (ITypeDeclaration NestedTypesItem in value.NestedTypes)
 							{
@@ -264,13 +312,13 @@ namespace Reflector
 				}
 				this.WriteEndElement();
 			}
-			private void Render(IPropertyDeclaration value, bool translateMethods)
+			private void Render(IPropertyDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool translateMethods)
 			{
 				ITypeReference declaringType = value.DeclaringType as ITypeReference;
 				bool isInterfaceMember = (declaringType != null) && declaringType.Resolve().Interface;
-				this.Render(value, translateMethods, isInterfaceMember);
+				this.Render(value, interfaceMemberInfo, translateMethods, isInterfaceMember);
 			}
-			private void Render(IPropertyDeclaration value, bool translateMethods, bool isInterfaceMember)
+			private void Render(IPropertyDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool translateMethods, bool isInterfaceMember)
 			{
 				string elementName = "property";
 				this.WriteElement(elementName);
@@ -292,6 +340,13 @@ namespace Reflector
 				{
 					this.RenderCustomAttribute(AttributesItem);
 				}
+				if (interfaceMemberInfo.HasInterfaceMembers)
+				{
+					foreach (IMemberReference InterfaceMemberCollectionItem in interfaceMemberInfo.InterfaceMemberCollection)
+					{
+						this.RenderInterfaceMember(InterfaceMemberCollectionItem);
+					}
+				}
 				foreach (IParameterDeclaration referenceMethodParametersItem in referenceMethod.Parameters)
 				{
 					this.WriteElement("param");
@@ -308,30 +363,31 @@ namespace Reflector
 				if (GetMethodChild != null)
 				{
 					this.WriteElement("get");
-					this.RenderAccessorMethod(GetMethodChild, referenceMethod, translateMethods);
+					this.RenderAccessorMethod(GetMethodChild, referenceMethod, false, translateMethods);
 					this.WriteEndElement();
 				}
 				IMethodReference SetMethodChild = value.SetMethod;
 				if (SetMethodChild != null)
 				{
 					this.WriteElement("set");
-					this.RenderAccessorMethod(SetMethodChild, referenceMethod, translateMethods);
+					this.RenderAccessorMethod(SetMethodChild, referenceMethod, true, translateMethods);
 					this.WriteEndElement();
 				}
 				this.WriteEndElement();
 			}
-			private void Render(IEventDeclaration value, bool translateMethods)
+			private void Render(IEventDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool translateMethods)
 			{
 				ITypeReference declaringType = value.DeclaringType as ITypeReference;
 				bool isInterfaceMember = (declaringType != null) && declaringType.Resolve().Interface;
-				this.Render(value, translateMethods, isInterfaceMember);
+				this.Render(value, interfaceMemberInfo, translateMethods, isInterfaceMember);
 			}
-			private void Render(IEventDeclaration value, bool translateMethods, bool isInterfaceMember)
+			private void Render(IEventDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool translateMethods, bool isInterfaceMember)
 			{
 				string elementName = "event";
 				this.WriteElement(elementName);
 				this.WriteAttribute("name", value.Name, true, false);
 				IMethodDeclaration referenceMethod = GetEventReferenceMethod(value);
+				IFieldDeclaration backingField = this.myMemberMap.GetSimpleEventField(value);
 				ITypeReference eventType = value.EventType;
 				if (referenceMethod != null)
 				{
@@ -348,6 +404,32 @@ namespace Reflector
 				foreach (ICustomAttribute AttributesItem in value.Attributes)
 				{
 					this.RenderCustomAttribute(AttributesItem);
+				}
+				if (backingField != null)
+				{
+					foreach (ICustomAttribute backingFieldAttributesItem in backingField.Attributes)
+					{
+						this.RenderCustomAttribute(backingFieldAttributesItem, CustomAttributeTarget.ImplicitField);
+					}
+					if (referenceMethod != null)
+					{
+						foreach (ICustomAttribute referenceMethodAttributesItem in referenceMethod.Attributes)
+						{
+							ITypeReference attributeType = referenceMethodAttributesItem.Constructor.DeclaringType as ITypeReference;
+							if ((attributeType != null) && ((attributeType.Name == "DebuggerNonUserCodeAttribute") && (attributeType.Namespace == "System.Diagnostics")))
+							{
+								continue;
+							}
+							this.RenderCustomAttribute(referenceMethodAttributesItem, CustomAttributeTarget.ImplicitAccessorFunction);
+						}
+					}
+				}
+				if (interfaceMemberInfo.HasInterfaceMembers)
+				{
+					foreach (IMemberReference InterfaceMemberCollectionItem in interfaceMemberInfo.InterfaceMemberCollection)
+					{
+						this.RenderInterfaceMember(InterfaceMemberCollectionItem);
+					}
 				}
 				IParameterDeclarationCollection parameters = GetDelegateParameters(eventType);
 				foreach (IParameterDeclaration parametersItem in parameters)
@@ -382,26 +464,29 @@ namespace Reflector
 					this.RenderGenericArgument(eventTypeGenericArgumentsItem);
 					this.WriteEndElement();
 				}
-				IMethodReference AddMethodChild = value.AddMethod;
-				if (AddMethodChild != null)
+				if (backingField == null)
 				{
-					this.WriteElement("onAdd");
-					this.RenderAccessorMethod(AddMethodChild, null, translateMethods);
-					this.WriteEndElement();
-				}
-				IMethodReference RemoveMethodChild = value.RemoveMethod;
-				if (RemoveMethodChild != null)
-				{
-					this.WriteElement("onRemove");
-					this.RenderAccessorMethod(RemoveMethodChild, null, translateMethods);
-					this.WriteEndElement();
-				}
-				IMethodReference InvokeMethodChild = value.InvokeMethod;
-				if (InvokeMethodChild != null)
-				{
-					this.WriteElement("onFire");
-					this.RenderAccessorMethod(InvokeMethodChild, null, translateMethods);
-					this.WriteEndElement();
+					IMethodReference AddMethodChild = value.AddMethod;
+					if (AddMethodChild != null)
+					{
+						this.WriteElement("onAdd");
+						this.RenderAccessorMethod(AddMethodChild, null, true, translateMethods);
+						this.WriteEndElement();
+					}
+					IMethodReference RemoveMethodChild = value.RemoveMethod;
+					if (RemoveMethodChild != null)
+					{
+						this.WriteElement("onRemove");
+						this.RenderAccessorMethod(RemoveMethodChild, null, true, translateMethods);
+						this.WriteEndElement();
+					}
+					IMethodReference InvokeMethodChild = value.InvokeMethod;
+					if (InvokeMethodChild != null)
+					{
+						this.WriteElement("onFire");
+						this.RenderAccessorMethod(InvokeMethodChild, null, false, translateMethods);
+						this.WriteEndElement();
+					}
 				}
 				this.WriteEndElement();
 			}
@@ -470,7 +555,7 @@ namespace Reflector
 				this.WriteEndElement();
 				this.WriteEndElement();
 			}
-			private void RenderAccessorMethod(IMethodReference value, IMethodDeclaration referenceMethod, bool translateMethod)
+			private void RenderAccessorMethod(IMethodReference value, IMethodDeclaration referenceMethod, bool renderParameterAttributes, bool translateMethod)
 			{
 				IMethodDeclaration accessorDeclaration = value.Resolve();
 				if ((referenceMethod != null) && (CompareMethodVisibilityStrength(referenceMethod.Visibility, accessorDeclaration.Visibility) < 0))
@@ -487,6 +572,14 @@ namespace Reflector
 				foreach (ICustomAttribute accessorDeclarationAttributesItem in accessorDeclaration.Attributes)
 				{
 					this.RenderCustomAttribute(accessorDeclarationAttributesItem);
+				}
+				if (renderParameterAttributes)
+				{
+					IParameterDeclaration firstParam = accessorDeclaration.Parameters[0];
+					foreach (ICustomAttribute firstParamAttributesItem in firstParam.Attributes)
+					{
+						this.RenderCustomAttribute(firstParamAttributesItem, CustomAttributeTarget.ImplicitValueParameter);
+					}
 				}
 				IMethodBody accessorBody = translateMethod ? accessorDeclaration.Body as IMethodBody : null;
 				if (accessorBody != null)
@@ -509,13 +602,13 @@ namespace Reflector
 					}
 				}
 			}
-			private void Render(IMethodDeclaration value, bool translateMethod)
+			private void Render(IMethodDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool translateMethod)
 			{
 				ITypeReference declaringType = value.DeclaringType as ITypeReference;
 				bool isInterfaceMember = (declaringType != null) && declaringType.Resolve().Interface;
-				this.Render(value, translateMethod, isInterfaceMember);
+				this.Render(value, interfaceMemberInfo, translateMethod, isInterfaceMember);
 			}
-			private void Render(IMethodDeclaration value, bool translateMethod, bool isInterfaceMember)
+			private void Render(IMethodDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool translateMethod, bool isInterfaceMember)
 			{
 				translateMethod = translateMethod && !(isInterfaceMember);
 				if (translateMethod)
@@ -539,7 +632,7 @@ namespace Reflector
 					}
 					try
 					{
-						this.RenderMethod(value, isInterfaceMember);
+						this.RenderMethod(value, interfaceMemberInfo, isInterfaceMember);
 					}
 					finally
 					{
@@ -552,10 +645,10 @@ namespace Reflector
 				}
 				else
 				{
-					this.RenderMethod(value, isInterfaceMember);
+					this.RenderMethod(value, interfaceMemberInfo, isInterfaceMember);
 				}
 			}
-			private void RenderMethod(IMethodDeclaration value, bool isInterfaceMember)
+			private void RenderMethod(IMethodDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool isInterfaceMember)
 			{
 				string elementName = "function";
 				IConstructorDeclaration constructorDeclaration = value as IConstructorDeclaration;
@@ -681,6 +774,13 @@ namespace Reflector
 				foreach (ICustomAttribute AttributesItem in value.Attributes)
 				{
 					this.RenderCustomAttribute(AttributesItem);
+				}
+				if (interfaceMemberInfo.HasInterfaceMembers)
+				{
+					foreach (IMemberReference InterfaceMemberCollectionItem in interfaceMemberInfo.InterfaceMemberCollection)
+					{
+						this.RenderInterfaceMember(InterfaceMemberCollectionItem);
+					}
 				}
 				IGenericArgumentProvider ownerGenericArgumentProvider = value.DeclaringType as IGenericArgumentProvider;
 				ITypeCollection ownerGenericArguments = null;
@@ -909,122 +1009,130 @@ namespace Reflector
 					}
 					else
 					{
-						IConditionStatement AsIConditionStatement = value as IConditionStatement;
-						if (AsIConditionStatement != null)
+						ICommentStatement AsICommentStatement = value as ICommentStatement;
+						if (AsICommentStatement != null)
 						{
-							this.RenderConditionStatement(AsIConditionStatement);
+							this.RenderCommentStatement(AsICommentStatement);
 						}
 						else
 						{
-							IContinueStatement AsIContinueStatement = value as IContinueStatement;
-							if (AsIContinueStatement != null)
+							IConditionStatement AsIConditionStatement = value as IConditionStatement;
+							if (AsIConditionStatement != null)
 							{
-								this.RenderContinueStatement(AsIContinueStatement);
+								this.RenderConditionStatement(AsIConditionStatement);
 							}
 							else
 							{
-								IDoStatement AsIDoStatement = value as IDoStatement;
-								if (AsIDoStatement != null)
+								IContinueStatement AsIContinueStatement = value as IContinueStatement;
+								if (AsIContinueStatement != null)
 								{
-									this.RenderDoStatement(AsIDoStatement);
+									this.RenderContinueStatement(AsIContinueStatement);
 								}
 								else
 								{
-									IExpressionStatement AsIExpressionStatement = value as IExpressionStatement;
-									if (AsIExpressionStatement != null)
+									IDoStatement AsIDoStatement = value as IDoStatement;
+									if (AsIDoStatement != null)
 									{
-										this.RenderExpressionStatement(AsIExpressionStatement, topLevel);
+										this.RenderDoStatement(AsIDoStatement);
 									}
 									else
 									{
-										IForEachStatement AsIForEachStatement = value as IForEachStatement;
-										if (AsIForEachStatement != null)
+										IExpressionStatement AsIExpressionStatement = value as IExpressionStatement;
+										if (AsIExpressionStatement != null)
 										{
-											this.RenderForEachStatement(AsIForEachStatement);
+											this.RenderExpressionStatement(AsIExpressionStatement, topLevel);
 										}
 										else
 										{
-											IForStatement AsIForStatement = value as IForStatement;
-											if (AsIForStatement != null)
+											IForEachStatement AsIForEachStatement = value as IForEachStatement;
+											if (AsIForEachStatement != null)
 											{
-												this.RenderForStatement(AsIForStatement);
+												this.RenderForEachStatement(AsIForEachStatement);
 											}
 											else
 											{
-												IGotoStatement AsIGotoStatement = value as IGotoStatement;
-												if (AsIGotoStatement != null)
+												IForStatement AsIForStatement = value as IForStatement;
+												if (AsIForStatement != null)
 												{
-													this.RenderGotoStatement(AsIGotoStatement);
+													this.RenderForStatement(AsIForStatement);
 												}
 												else
 												{
-													ILabeledStatement AsILabeledStatement = value as ILabeledStatement;
-													if (AsILabeledStatement != null)
+													IGotoStatement AsIGotoStatement = value as IGotoStatement;
+													if (AsIGotoStatement != null)
 													{
-														this.RenderLabeledStatement(AsILabeledStatement, topLevel);
+														this.RenderGotoStatement(AsIGotoStatement);
 													}
 													else
 													{
-														ILockStatement AsILockStatement = value as ILockStatement;
-														if (AsILockStatement != null)
+														ILabeledStatement AsILabeledStatement = value as ILabeledStatement;
+														if (AsILabeledStatement != null)
 														{
-															this.RenderLockStatement(AsILockStatement);
+															this.RenderLabeledStatement(AsILabeledStatement, topLevel);
 														}
 														else
 														{
-															IMethodReturnStatement AsIMethodReturnStatement = value as IMethodReturnStatement;
-															if (AsIMethodReturnStatement != null)
+															ILockStatement AsILockStatement = value as ILockStatement;
+															if (AsILockStatement != null)
 															{
-																this.RenderMethodReturnStatement(AsIMethodReturnStatement);
+																this.RenderLockStatement(AsILockStatement);
 															}
 															else
 															{
-																IRemoveEventStatement AsIRemoveEventStatement = value as IRemoveEventStatement;
-																if (AsIRemoveEventStatement != null)
+																IMethodReturnStatement AsIMethodReturnStatement = value as IMethodReturnStatement;
+																if (AsIMethodReturnStatement != null)
 																{
-																	this.RenderRemoveEventStatement(AsIRemoveEventStatement);
+																	this.RenderMethodReturnStatement(AsIMethodReturnStatement);
 																}
 																else
 																{
-																	ISwitchStatement AsISwitchStatement = value as ISwitchStatement;
-																	if (AsISwitchStatement != null)
+																	IRemoveEventStatement AsIRemoveEventStatement = value as IRemoveEventStatement;
+																	if (AsIRemoveEventStatement != null)
 																	{
-																		this.RenderSwitchStatement(AsISwitchStatement);
+																		this.RenderRemoveEventStatement(AsIRemoveEventStatement);
 																	}
 																	else
 																	{
-																		IThrowExceptionStatement AsIThrowExceptionStatement = value as IThrowExceptionStatement;
-																		if (AsIThrowExceptionStatement != null)
+																		ISwitchStatement AsISwitchStatement = value as ISwitchStatement;
+																		if (AsISwitchStatement != null)
 																		{
-																			this.RenderThrowExceptionStatement(AsIThrowExceptionStatement);
+																			this.RenderSwitchStatement(AsISwitchStatement);
 																		}
 																		else
 																		{
-																			ITryCatchFinallyStatement AsITryCatchFinallyStatement = value as ITryCatchFinallyStatement;
-																			if (AsITryCatchFinallyStatement != null)
+																			IThrowExceptionStatement AsIThrowExceptionStatement = value as IThrowExceptionStatement;
+																			if (AsIThrowExceptionStatement != null)
 																			{
-																				this.RenderTryCatchFinallyStatement(AsITryCatchFinallyStatement);
+																				this.RenderThrowExceptionStatement(AsIThrowExceptionStatement);
 																			}
 																			else
 																			{
-																				IUsingStatement AsIUsingStatement = value as IUsingStatement;
-																				if (AsIUsingStatement != null)
+																				ITryCatchFinallyStatement AsITryCatchFinallyStatement = value as ITryCatchFinallyStatement;
+																				if (AsITryCatchFinallyStatement != null)
 																				{
-																					this.RenderUsingStatement(AsIUsingStatement);
+																					this.RenderTryCatchFinallyStatement(AsITryCatchFinallyStatement);
 																				}
 																				else
 																				{
-																					IWhileStatement AsIWhileStatement = value as IWhileStatement;
-																					if (AsIWhileStatement != null)
+																					IUsingStatement AsIUsingStatement = value as IUsingStatement;
+																					if (AsIUsingStatement != null)
 																					{
-																						this.RenderWhileStatement(AsIWhileStatement);
+																						this.RenderUsingStatement(AsIUsingStatement);
 																					}
 																					else
 																					{
-																						IStatement AsIStatement = value as IStatement;
-																						if (AsIStatement != null)
+																						IWhileStatement AsIWhileStatement = value as IWhileStatement;
+																						if (AsIWhileStatement != null)
 																						{
-																							this.RenderUnhandledStatement(AsIStatement);
+																							this.RenderWhileStatement(AsIWhileStatement);
+																						}
+																						else
+																						{
+																							IStatement AsIStatement = value as IStatement;
+																							if (AsIStatement != null)
+																							{
+																								this.RenderUnhandledStatement(AsIStatement);
+																							}
 																						}
 																					}
 																				}
@@ -1142,6 +1250,13 @@ namespace Reflector
 				{
 					this.RenderBlockStatement(BodyChild);
 				}
+				this.WriteEndElement();
+			}
+			private void RenderCommentStatement(ICommentStatement value)
+			{
+				string commentText = value.Comment.Text;
+				this.WriteElement("comment");
+				this.WriteText(commentText, WriteTextOptions.AsComment);
 				this.WriteEndElement();
 			}
 			private void RenderConditionStatement(IConditionStatement value)
@@ -2972,6 +3087,49 @@ namespace Reflector
 					return false;
 				}
 			}
+			private void RenderInterfaceMember(IMemberReference value)
+			{
+				string elementName = "interfaceMember";
+				this.WriteElement(elementName);
+				string memberName = value.Name;
+				this.WriteAttribute("memberName", memberName, value.ToString(), value);
+				ITypeReference declaringType = value.DeclaringType as ITypeReference;
+				if (declaringType != null)
+				{
+					ITypeDeclaration resolvedDeclaringType = declaringType.Resolve();
+					if (resolvedDeclaringType != null)
+					{
+						ICustomAttributeCollection customAttributes = resolvedDeclaringType.Attributes;
+						if (customAttributes.Count != 0)
+						{
+							foreach (ICustomAttribute testCustomAttribute in customAttributes)
+							{
+								ITypeReference attributeType = testCustomAttribute.Constructor.DeclaringType as ITypeReference;
+								if (attributeType != null)
+								{
+									if ((attributeType.Name == "DefaultMemberAttribute") && (attributeType.Namespace == "System.Reflection"))
+									{
+										ILiteralExpression defaultMemberNameLiteral;
+										string defaultMemberName;
+										object literalValue;
+										IExpressionCollection arguments = testCustomAttribute.Arguments;
+										if (((((arguments.Count == 1) && ((defaultMemberNameLiteral = arguments[0] as ILiteralExpression) != null)) && (((literalValue = defaultMemberNameLiteral.Value) != null) && (Type.GetTypeCode(literalValue.GetType()) == TypeCode.String))) && (null != (defaultMemberName = (string)literalValue))) && (memberName == defaultMemberName))
+										{
+											this.WriteAttribute("defaultMember", "true");
+										}
+										break;
+									}
+								}
+							}
+						}
+					}
+				}
+				if (declaringType != null)
+				{
+					this.RenderTypeReference(declaringType);
+				}
+				this.WriteEndElement();
+			}
 			private void RenderGenericMemberArguments(IGenericArgumentProvider value)
 			{
 				foreach (IType GenericArgumentsItem in value.GenericArguments)
@@ -3819,7 +3977,31 @@ namespace Reflector
 					}
 					if (!(string.IsNullOrEmpty(resolvedNamespace)))
 					{
-						this.WriteAttribute("dataTypeQualifier", resolvedNamespace);
+						string contextQualifier = this.myContextDataTypeQualifier;
+						if (contextQualifier != null)
+						{
+							int qualifierLength = contextQualifier.Length;
+							int resolvedLength = resolvedNamespace.Length;
+							if ((qualifierLength <= resolvedLength) && resolvedNamespace.StartsWith(contextQualifier))
+							{
+								if (qualifierLength == resolvedLength)
+								{
+									resolvedNamespace = null;
+								}
+								else if (resolvedNamespace[qualifierLength] == '.')
+								{
+									resolvedNamespace = resolvedNamespace.Substring(qualifierLength + 1);
+								}
+							}
+							if (!(string.IsNullOrEmpty(resolvedNamespace)))
+							{
+								this.WriteAttribute("dataTypeQualifier", resolvedNamespace);
+							}
+						}
+						else
+						{
+							this.WriteAttribute("dataTypeQualifier", resolvedNamespace);
+						}
 					}
 				}
 				if (parametrizedQualifier != null)

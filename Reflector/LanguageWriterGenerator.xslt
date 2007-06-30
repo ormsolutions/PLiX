@@ -1279,6 +1279,9 @@
 									<xsl:when test="string(@localName)">
 										<plx:nameRef name="{@localName}"/>
 									</xsl:when>
+									<xsl:when test="string(@parameterName)">
+										<plx:nameRef name="{@parameterName}" type="parameter"/>
+									</xsl:when>
 									<xsl:otherwise>
 										<plx:nameRef name="value" type="parameter"/>
 									</xsl:otherwise>
@@ -1288,6 +1291,9 @@
 					</xsl:when>
 					<xsl:when test="string(@localName)">
 						<plx:nameRef name="{@localName}"/>
+					</xsl:when>
+					<xsl:when test="string(@parameterName)">
+						<plx:nameRef name="{@parameterName}" type="parameter"/>
 					</xsl:when>
 					<xsl:otherwise>
 						<plx:nameRef name="value" type="parameter"/>

@@ -198,8 +198,270 @@
 			</defer>
 		</plx:branch>
 		<plx:fallbackBranch>
+			<local name="customAttributes" type="ICustomAttributeCollection" property="Attributes"/>
+			<plx:local name="defaultMemberAttributeIndex" dataTypeName=".i4">
+				<plx:initialize>
+					<plx:value data="-1" type="i4"/>
+				</plx:initialize>
+			</plx:local>
+			<plx:branch>
+				<plx:condition>
+					<plx:binaryOperator type="inequality">
+						<plx:left>
+							<plx:callInstance name="Count" type="property">
+								<plx:callObject>
+									<plx:nameRef name="customAttributes"/>
+								</plx:callObject>
+							</plx:callInstance>
+						</plx:left>
+						<plx:right>
+							<plx:value data="0" type="i4"/>
+						</plx:right>
+					</plx:binaryOperator>
+				</plx:condition>
+				<plx:local name="attributeIndex" dataTypeName=".i4">
+					<plx:initialize>
+						<plx:value data="0" type="i4"/>
+					</plx:initialize>
+				</plx:local>
+				<plx:iterator localName="testCustomAttribute" dataTypeName="ICustomAttribute">
+					<plx:initialize>
+						<plx:nameRef name="customAttributes"/>
+					</plx:initialize>
+					<plx:local name="attributeType" dataTypeName="ITypeReference">
+						<plx:initialize>
+							<plx:cast type="testCast" dataTypeName="ITypeReference">
+								<plx:callInstance name="DeclaringType" type="property">
+									<plx:callObject>
+										<plx:callInstance name="Constructor" type="property">
+											<plx:callObject>
+												<plx:nameRef name="testCustomAttribute"/>
+											</plx:callObject>
+										</plx:callInstance>
+									</plx:callObject>
+								</plx:callInstance>
+							</plx:cast>
+						</plx:initialize>
+					</plx:local>
+					<plx:branch>
+						<plx:condition>
+							<plx:binaryOperator type="identityInequality">
+								<plx:left>
+									<plx:nameRef name="attributeType"/>
+								</plx:left>
+								<plx:right>
+									<plx:nullKeyword/>
+								</plx:right>
+							</plx:binaryOperator>
+						</plx:condition>
+						<plx:branch>
+							<plx:condition>
+								<plx:binaryOperator type="booleanAnd">
+									<plx:left>
+										<plx:binaryOperator type="identityEquality">
+											<plx:left>
+												<plx:callInstance name="Name" type="property">
+													<plx:callObject>
+														<plx:nameRef name="attributeType"/>
+													</plx:callObject>
+												</plx:callInstance>
+											</plx:left>
+											<plx:right>
+												<plx:string>DefaultMemberAttribute</plx:string>
+											</plx:right>
+										</plx:binaryOperator>
+									</plx:left>
+									<plx:right>
+										<plx:binaryOperator type="identityEquality">
+											<plx:left>
+												<plx:callInstance name="Namespace" type="property">
+													<plx:callObject>
+														<plx:nameRef name="attributeType"/>
+													</plx:callObject>
+												</plx:callInstance>
+											</plx:left>
+											<plx:right>
+												<plx:string>System.Reflection</plx:string>
+											</plx:right>
+										</plx:binaryOperator>
+									</plx:right>
+								</plx:binaryOperator>
+							</plx:condition>
+							<plx:local name="defaultMemberNameLiteral" dataTypeName="ILiteralExpression"/>
+							<plx:local name="defaultMemberName" dataTypeName=".string"/>
+							<plx:local name="literalValue" dataTypeName=".object"/>
+							<plx:local name="arguments" dataTypeName="IExpressionCollection">
+								<plx:initialize>
+									<plx:callInstance name="Arguments" type="property">
+										<plx:callObject>
+											<plx:nameRef name="testCustomAttribute"/>
+										</plx:callObject>
+									</plx:callInstance>
+								</plx:initialize>
+							</plx:local>
+							<plx:branch>
+								<plx:condition>
+									<plx:binaryOperator type="booleanAnd">
+										<plx:left>
+											<plx:binaryOperator type="booleanAnd">
+												<plx:left>
+													<plx:binaryOperator type="booleanAnd">
+														<plx:left>
+															<plx:binaryOperator type="equality">
+																<plx:left>
+																	<plx:callInstance name="Count" type="property">
+																		<plx:callObject>
+																			<plx:nameRef name="arguments"/>
+																		</plx:callObject>
+																	</plx:callInstance>
+																</plx:left>
+																<plx:right>
+																	<plx:value data="1" type="i4"/>
+																</plx:right>
+															</plx:binaryOperator>
+														</plx:left>
+														<plx:right>
+															<plx:binaryOperator type="identityInequality">
+																<plx:left>
+																	<plx:inlineStatement dataTypeName="ILiteralExpression">
+																		<plx:assign>
+																			<plx:left>
+																				<plx:nameRef name="defaultMemberNameLiteral"/>
+																			</plx:left>
+																			<plx:right>
+																				<plx:cast type="testCast" dataTypeName="ILiteralExpression">
+																					<plx:callInstance name=".implied" type="indexerCall">
+																						<plx:callObject>
+																							<plx:nameRef name="arguments"/>
+																						</plx:callObject>
+																						<plx:passParam>
+																							<plx:value data="0" type="i4"/>
+																						</plx:passParam>
+																					</plx:callInstance>
+																				</plx:cast>
+																			</plx:right>
+																		</plx:assign>
+																	</plx:inlineStatement>
+																</plx:left>
+																<plx:right>
+																	<plx:nullKeyword/>
+																</plx:right>
+															</plx:binaryOperator>
+														</plx:right>
+													</plx:binaryOperator>
+												</plx:left>
+												<plx:right>
+													<plx:binaryOperator type="booleanAnd">
+														<plx:left>
+															<plx:binaryOperator type="identityInequality">
+																<plx:left>
+																	<plx:inlineStatement dataTypeName=".object">
+																		<plx:assign>
+																			<plx:left>
+																				<plx:nameRef name="literalValue"/>
+																			</plx:left>
+																			<plx:right>
+																				<plx:callInstance name="Value" type="property">
+																					<plx:callObject>
+																						<plx:nameRef name="defaultMemberNameLiteral"/>
+																					</plx:callObject>
+																				</plx:callInstance>
+																			</plx:right>
+																		</plx:assign>
+																	</plx:inlineStatement>
+																</plx:left>
+																<plx:right>
+																	<plx:nullKeyword/>
+																</plx:right>
+															</plx:binaryOperator>
+														</plx:left>
+														<plx:right>
+															<plx:binaryOperator type="equality">
+																<plx:left>
+																	<plx:callStatic name="GetTypeCode" dataTypeName="Type">
+																		<plx:passParam>
+																			<plx:callInstance name="GetType">
+																				<plx:callObject>
+																					<plx:nameRef name="literalValue"/>
+																				</plx:callObject>
+																			</plx:callInstance>
+																		</plx:passParam>
+																	</plx:callStatic>
+																</plx:left>
+																<plx:right>
+																	<plx:callStatic name="String" type="field" dataTypeName="TypeCode"/>
+																</plx:right>
+															</plx:binaryOperator>
+														</plx:right>
+													</plx:binaryOperator>
+												</plx:right>
+											</plx:binaryOperator>
+										</plx:left>
+										<plx:right>
+											<plx:binaryOperator type="identityInequality">
+												<plx:left>
+													<plx:nullKeyword/>
+												</plx:left>
+												<plx:right>
+													<plx:inlineStatement dataTypeName=".string">
+														<plx:assign>
+															<plx:left>
+																<plx:nameRef name="defaultMemberName"/>
+															</plx:left>
+															<plx:right>
+																<plx:cast dataTypeName=".string">
+																	<plx:nameRef name="literalValue"/>
+																</plx:cast>
+															</plx:right>
+														</plx:assign>
+													</plx:inlineStatement>
+												</plx:right>
+											</plx:binaryOperator>
+										</plx:right>
+									</plx:binaryOperator>
+								</plx:condition>
+								<plx:assign>
+									<plx:left>
+										<plx:nameRef name="defaultMemberAttributeIndex"/>
+									</plx:left>
+									<plx:right>
+										<plx:nameRef name="attributeIndex"/>
+									</plx:right>
+								</plx:assign>
+								<attribute name="defaultMember" localName="defaultMemberName" emphasis="literal"/>
+							</plx:branch>
+							<plx:break/>
+						</plx:branch>
+					</plx:branch>
+					<plx:increment>
+						<plx:nameRef name="attributeIndex"/>
+					</plx:increment>
+				</plx:iterator>
+			</plx:branch>
 			<defer deferRender="RenderDocumentation"/>
-			<collection collectionProperty="Attributes" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute"/>
+			<plx:local name="customAttributeIndex" dataTypeName=".i4">
+				<plx:initialize>
+					<plx:value data="-1" type="i4"/>
+				</plx:initialize>
+			</plx:local>
+			<collection localName="customAttributes" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute">
+				<plx:increment>
+					<plx:nameRef name="customAttributeIndex"/>
+				</plx:increment>
+				<plx:branch>
+					<plx:condition>
+						<plx:binaryOperator type="equality">
+							<plx:left>
+								<plx:nameRef name="customAttributeIndex"/>
+							</plx:left>
+							<plx:right>
+								<plx:nameRef name="defaultMemberAttributeIndex"/>
+							</plx:right>
+						</plx:binaryOperator>
+					</plx:condition>
+					<plx:continue/>
+				</plx:branch>
+			</collection>
 			<commonConstruct ref="PopulateOwnerGenericArguments" property="Owner"/>
 			<collection collectionProperty="GenericArguments" itemDataType="IGenericParameter" renderItem="RenderGenericParameterDeclaration" elementName="typeParam">
 				<commonConstruct ref="FilterGenericArgument" itemName="GenericArgumentsItem"/>
@@ -238,8 +500,54 @@
 					<plx:condition>
 						<plx:nameRef name="renderBody" type="parameter"/>
 					</plx:condition>
-					<collection collectionProperty="Fields" itemDataType="IFieldDeclaration" renderItem="Render"/>
+					<collection collectionProperty="Fields" itemDataType="IFieldDeclaration" renderItem="Render">
+						<plx:branch>
+							<plx:condition>
+								<plx:callInstance name="IsSimpleEventField">
+									<plx:callObject>
+										<plx:callThis name="myMemberMap" type="field"/>
+									</plx:callObject>
+									<plx:passParam>
+										<plx:nameRef name="FieldsItem"/>
+									</plx:passParam>
+								</plx:callInstance>
+							</plx:condition>
+							<plx:continue/>
+						</plx:branch>						
+					</collection>
 					<collection collectionProperty="Properties" itemDataType="IPropertyDeclaration" renderItem="Render">
+						<plx:local name="interfaceMemberInfo" dataTypeName="InterfaceMemberInfo">
+							<plx:initialize>
+								<plx:callInstance name="GetInterfaceMemberInfo">
+									<plx:callObject>
+										<plx:callThis name="myMemberMap" type="field"/>
+									</plx:callObject>
+									<plx:passParam>
+										<plx:nameRef name="PropertiesItem"/>
+									</plx:passParam>
+								</plx:callInstance>
+							</plx:initialize>
+						</plx:local>
+						<plx:branch>
+							<plx:condition>
+								<plx:binaryOperator type="equality">
+									<plx:left>
+										<plx:callInstance name="Style" type="property">
+											<plx:callObject>
+												<plx:nameRef name="interfaceMemberInfo"/>
+											</plx:callObject>
+										</plx:callInstance>
+									</plx:left>
+									<plx:right>
+										<plx:callStatic name="DeferredExplicitImplementation" dataTypeName="InterfaceMemberStyle" type="field"/>
+									</plx:right>
+								</plx:binaryOperator>
+							</plx:condition>
+							<plx:continue/>
+						</plx:branch>
+						<plx:passParam>
+							<plx:nameRef name="interfaceMemberInfo" type="parameter"/>
+						</plx:passParam>
 						<plx:passParam>
 							<plx:nameRef name="translateMethods" type="parameter"/>
 						</plx:passParam>
@@ -248,6 +556,38 @@
 						</plx:passParam>
 					</collection>
 					<collection collectionProperty="Events" itemDataType="IEventDeclaration" renderItem="Render">
+						<plx:local name="interfaceMemberInfo" dataTypeName="InterfaceMemberInfo">
+							<plx:initialize>
+								<plx:callInstance name="GetInterfaceMemberInfo">
+									<plx:callObject>
+										<plx:callThis name="myMemberMap" type="field"/>
+									</plx:callObject>
+									<plx:passParam>
+										<plx:nameRef name="EventsItem"/>
+									</plx:passParam>
+								</plx:callInstance>
+							</plx:initialize>
+						</plx:local>
+						<plx:branch>
+							<plx:condition>
+								<plx:binaryOperator type="equality">
+									<plx:left>
+										<plx:callInstance name="Style" type="property">
+											<plx:callObject>
+												<plx:nameRef name="interfaceMemberInfo"/>
+											</plx:callObject>
+										</plx:callInstance>
+									</plx:left>
+									<plx:right>
+										<plx:callStatic name="DeferredExplicitImplementation" dataTypeName="InterfaceMemberStyle" type="field"/>
+									</plx:right>
+								</plx:binaryOperator>
+							</plx:condition>
+							<plx:continue/>
+						</plx:branch>
+						<plx:passParam>
+							<plx:nameRef name="interfaceMemberInfo" type="parameter"/>
+						</plx:passParam>
 						<plx:passParam>
 							<plx:nameRef name="translateMethods" type="parameter"/>
 						</plx:passParam>
@@ -257,60 +597,93 @@
 					</collection>
 					<collection collectionProperty="Methods" itemDataType="IMethodDeclaration" renderItem="Render">
 						<plx:passParam>
+							<plx:nameRef name="interfaceMemberInfo" type="parameter"/>
+						</plx:passParam>
+						<plx:passParam>
 							<plx:nameRef name="translateMethods" type="parameter"/>
 						</plx:passParam>
 						<plx:passParam>
 							<plx:nameRef name="isInterface"/>
 						</plx:passParam>
+						<plx:local name="interfaceMemberInfo" dataTypeName="InterfaceMemberInfo">
+							<plx:initialize>
+								<plx:callInstance name="GetInterfaceMemberInfo">
+									<plx:callObject>
+										<plx:callThis name="myMemberMap" type="field"/>
+									</plx:callObject>
+									<plx:passParam>
+										<plx:nameRef name="MethodsItem"/>
+									</plx:passParam>
+								</plx:callInstance>
+							</plx:initialize>
+						</plx:local>
 						<plx:branch>
 							<plx:condition>
-								<plx:binaryOperator type="booleanAnd">
+								<plx:binaryOperator type="booleanOr">
 									<plx:left>
-										<plx:binaryOperator type="booleanAnd">
+										<plx:binaryOperator type="equality">
 											<plx:left>
-												<plx:callInstance name="SpecialName" type="property">
+												<plx:callInstance name="Style" type="property">
 													<plx:callObject>
-														<plx:nameRef name="MethodsItem"/>
+														<plx:nameRef name="interfaceMemberInfo"/>
 													</plx:callObject>
 												</plx:callInstance>
 											</plx:left>
 											<plx:right>
-												<plx:unaryOperator type="booleanNot">
-													<plx:callInstance name="RuntimeSpecialName" type="property">
-														<plx:callObject>
-															<plx:nameRef name="MethodsItem"/>
-														</plx:callObject>
-													</plx:callInstance>
-												</plx:unaryOperator>
+												<plx:callStatic name="DeferredExplicitImplementation" dataTypeName="InterfaceMemberStyle" type="field"/>
 											</plx:right>
 										</plx:binaryOperator>
 									</plx:left>
 									<plx:right>
-										<plx:unaryOperator type="booleanNot">
-											<plx:binaryOperator type="booleanAnd">
-												<plx:left>
-													<plx:callInstance name="Static" type="property">
-														<plx:callObject>
-															<plx:nameRef name="MethodsItem"/>
-														</plx:callObject>
-													</plx:callInstance>
-												</plx:left>
-												<plx:right>
-													<plx:callInstance name="StartsWith">
-														<plx:callObject>
-															<plx:callInstance name="Name" type="property">
+										<plx:binaryOperator type="booleanAnd">
+											<plx:left>
+												<plx:binaryOperator type="booleanAnd">
+													<plx:left>
+														<plx:callInstance name="SpecialName" type="property">
+															<plx:callObject>
+																<plx:nameRef name="MethodsItem"/>
+															</plx:callObject>
+														</plx:callInstance>
+													</plx:left>
+													<plx:right>
+														<plx:unaryOperator type="booleanNot">
+															<plx:callInstance name="RuntimeSpecialName" type="property">
 																<plx:callObject>
 																	<plx:nameRef name="MethodsItem"/>
 																</plx:callObject>
 															</plx:callInstance>
-														</plx:callObject>
-														<plx:passParam>
-															<plx:string data="op_"/>
-														</plx:passParam>
-													</plx:callInstance>
-												</plx:right>
-											</plx:binaryOperator>
-										</plx:unaryOperator>
+														</plx:unaryOperator>
+													</plx:right>
+												</plx:binaryOperator>
+											</plx:left>
+											<plx:right>
+												<plx:unaryOperator type="booleanNot">
+													<plx:binaryOperator type="booleanAnd">
+														<plx:left>
+															<plx:callInstance name="Static" type="property">
+																<plx:callObject>
+																	<plx:nameRef name="MethodsItem"/>
+																</plx:callObject>
+															</plx:callInstance>
+														</plx:left>
+														<plx:right>
+															<plx:callInstance name="StartsWith">
+																<plx:callObject>
+																	<plx:callInstance name="Name" type="property">
+																		<plx:callObject>
+																			<plx:nameRef name="MethodsItem"/>
+																		</plx:callObject>
+																	</plx:callInstance>
+																</plx:callObject>
+																<plx:passParam>
+																	<plx:string data="op_"/>
+																</plx:passParam>
+															</plx:callInstance>
+														</plx:right>
+													</plx:binaryOperator>
+												</plx:unaryOperator>
+											</plx:right>
+										</plx:binaryOperator>
 									</plx:right>
 								</plx:binaryOperator>
 							</plx:condition>
@@ -384,11 +757,15 @@
 		<child childProperty="Initializer" childDataType="IExpression" renderChild="RenderExpression" elementName="initialize"/>
 	</handler>
 	<handler name="Render" valueDataType="IPropertyDeclaration">
+		<plx:param name="interfaceMemberInfo" dataTypeName="InterfaceMemberInfo"/>
 		<plx:param name="translateMethods" dataTypeName=".boolean"/>
 		<commonConstruct ref="DeclareIsInterfaceMember"/>
 		<plx:callThis name="Render">
 			<plx:passParam>
 				<plx:nameRef name="value" type="parameter"/>
+			</plx:passParam>
+			<plx:passParam>
+				<plx:nameRef name="interfaceMemberInfo" type="parameter"/>
 			</plx:passParam>
 			<plx:passParam>
 				<plx:nameRef name="translateMethods" type="parameter"/>
@@ -399,6 +776,7 @@
 		</plx:callThis>
 	</handler>
 	<handler name="Render" valueDataType="IPropertyDeclaration" elementName="property">
+		<plx:param name="interfaceMemberInfo" dataTypeName="InterfaceMemberInfo"/>
 		<plx:param name="translateMethods" dataTypeName=".boolean"/>
 		<plx:param name="isInterfaceMember" dataTypeName=".boolean"/>
 		<commonConstruct ref="NameDeclarationAttribute"/>
@@ -422,6 +800,7 @@
 		</plx:branch>
 		<defer deferRender="RenderDocumentation"/>
 		<collection collectionProperty="Attributes" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute"/>
+		<commonConstruct ref="RenderInterfaceMembers"/>
 		<collection localName="referenceMethod" collectionProperty="Parameters" itemDataType="IParameterDeclaration" renderItem="RenderParameterDeclaration" elementName="param"/>
 		<typeReference elementName="returns">
 			<plx:callInstance name="PropertyType" type="property">
@@ -435,6 +814,9 @@
 				<plx:nameRef name="referenceMethod"/>
 			</plx:passParam>
 			<plx:passParam>
+				<plx:falseKeyword/>
+			</plx:passParam>
+			<plx:passParam>
 				<plx:nameRef name="translateMethods" type="parameter"/>
 			</plx:passParam>
 		</child>
@@ -443,16 +825,23 @@
 				<plx:nameRef name="referenceMethod"/>
 			</plx:passParam>
 			<plx:passParam>
+				<plx:trueKeyword/>
+			</plx:passParam>
+			<plx:passParam>
 				<plx:nameRef name="translateMethods" type="parameter"/>
 			</plx:passParam>
 		</child>
 	</handler>
 	<handler name="Render" valueDataType="IEventDeclaration">
+		<plx:param name="interfaceMemberInfo" dataTypeName="InterfaceMemberInfo"/>
 		<plx:param name="translateMethods" dataTypeName=".boolean"/>
 		<commonConstruct ref="DeclareIsInterfaceMember"/>
 		<plx:callThis name="Render">
 			<plx:passParam>
 				<plx:nameRef name="value" type="parameter"/>
+			</plx:passParam>
+			<plx:passParam>
+				<plx:nameRef name="interfaceMemberInfo" type="parameter"/>
 			</plx:passParam>
 			<plx:passParam>
 				<plx:nameRef name="translateMethods" type="parameter"/>
@@ -463,6 +852,7 @@
 		</plx:callThis>
 	</handler>
 	<handler name="Render" valueDataType="IEventDeclaration" elementName="event">
+		<plx:param name="interfaceMemberInfo" dataTypeName="InterfaceMemberInfo"/>
 		<plx:param name="translateMethods" dataTypeName=".boolean"/>
 		<plx:param name="isInterfaceMember" dataTypeName=".boolean"/>
 		<commonConstruct ref="NameDeclarationAttribute"/>
@@ -473,6 +863,18 @@
 						<plx:nameRef name="value" type="parameter"/>
 					</plx:passParam>
 				</plx:callThis>
+			</plx:initialize>
+		</plx:local>
+		<plx:local name="backingField" dataTypeName="IFieldDeclaration">
+			<plx:initialize>
+				<plx:callInstance name="GetSimpleEventField">
+					<plx:callObject>
+						<plx:callThis name="myMemberMap" type="field"/>
+					</plx:callObject>
+					<plx:passParam>
+						<plx:nameRef name="value" type="parameter"/>
+					</plx:passParam>
+				</plx:callInstance>
 			</plx:initialize>
 		</plx:local>
 		<local name="eventType" type="ITypeReference" property="EventType"/>
@@ -487,6 +889,91 @@
 		</plx:branch>
 		<defer deferRender="RenderDocumentation"/>
 		<collection collectionProperty="Attributes" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute"/>
+		<plx:branch>
+			<plx:condition>
+				<plx:binaryOperator type="identityInequality">
+					<plx:left>
+						<plx:nameRef name="backingField"/>
+					</plx:left>
+					<plx:right>
+						<plx:nullKeyword/>
+					</plx:right>
+				</plx:binaryOperator>
+			</plx:condition>
+			<collection localName="backingField" collectionProperty="Attributes" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute">
+				<plx:passParam>
+					<plx:callStatic dataTypeName="CustomAttributeTarget" name="ImplicitField" type="field"/>
+				</plx:passParam>
+			</collection>
+			<plx:branch>
+				<plx:condition>
+					<plx:binaryOperator type="identityInequality">
+						<plx:left>
+							<plx:nameRef name="referenceMethod"/>
+						</plx:left>
+						<plx:right>
+							<plx:nullKeyword/>
+						</plx:right>
+					</plx:binaryOperator>
+				</plx:condition>
+				<collection localName="referenceMethod" collectionProperty="Attributes" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute">
+					<local name="attributeType" type="ITypeReference" property="Constructor DeclaringType" propertyOf="referenceMethodAttributesItem" testCast="true"/>
+					<plx:branch>
+						<plx:condition>
+							<plx:binaryOperator type="booleanAnd">
+								<plx:left>
+									<plx:binaryOperator type="identityInequality">
+										<plx:left>
+											<plx:nameRef name="attributeType"/>
+										</plx:left>
+										<plx:right>
+											<plx:nullKeyword/>
+										</plx:right>
+									</plx:binaryOperator>
+								</plx:left>
+								<plx:right>
+									<plx:binaryOperator type="booleanAnd">
+										<plx:left>
+											<plx:binaryOperator type="equality">
+												<plx:left>
+													<plx:callInstance name="Name" type="property">
+														<plx:callObject>
+															<plx:nameRef name="attributeType"/>
+														</plx:callObject>
+													</plx:callInstance>
+												</plx:left>
+												<plx:right>
+													<plx:string>DebuggerNonUserCodeAttribute</plx:string>
+												</plx:right>
+											</plx:binaryOperator>
+										</plx:left>
+										<plx:right>
+											<plx:binaryOperator type="identityEquality">
+												<plx:left>
+													<plx:callInstance name="Namespace" type="property">
+														<plx:callObject>
+															<plx:nameRef name="attributeType"/>
+														</plx:callObject>
+													</plx:callInstance>
+												</plx:left>
+												<plx:right>
+													<plx:string>System.Diagnostics</plx:string>
+												</plx:right>
+											</plx:binaryOperator>
+										</plx:right>
+									</plx:binaryOperator>
+								</plx:right>
+							</plx:binaryOperator>
+						</plx:condition>
+						<plx:continue/>
+					</plx:branch>
+					<plx:passParam>
+						<plx:callStatic dataTypeName="CustomAttributeTarget" name="ImplicitAccessorFunction" type="field"/>
+					</plx:passParam>
+				</collection>
+			</plx:branch>
+		</plx:branch>
+		<commonConstruct ref="RenderInterfaceMembers"/>
 		<plx:local name="parameters" dataTypeName="IParameterDeclarationCollection">
 			<plx:initialize>
 				<plx:callThis name="GetDelegateParameters" accessor="static">
@@ -504,30 +991,51 @@
 		<collection collectionProperty="GenericArguments" localName="eventType"  itemDataType="IType" renderItem="RenderGenericArgument" elementName="passTypeParam">
 			<commonConstruct ref="FilterGenericArgument" itemName="eventTypeGenericArgumentsItem"/>
 		</collection>
-		<child childProperty="AddMethod" childDataType="IMethodReference" renderChild="RenderAccessorMethod" elementName="onAdd">
-			<plx:passParam>
-				<plx:nullKeyword/>
-			</plx:passParam>
-			<plx:passParam>
-				<plx:nameRef name="translateMethods" type="parameter"/>
-			</plx:passParam>
-		</child>
-		<child childProperty="RemoveMethod" childDataType="IMethodReference" renderChild="RenderAccessorMethod" elementName="onRemove">
-			<plx:passParam>
-				<plx:nullKeyword/>
-			</plx:passParam>
-			<plx:passParam>
-				<plx:nameRef name="translateMethods" type="parameter"/>
-			</plx:passParam>
-		</child>
-		<child childProperty="InvokeMethod" childDataType="IMethodReference" renderChild="RenderAccessorMethod" elementName="onFire">
-			<plx:passParam>
-				<plx:nullKeyword/>
-			</plx:passParam>
-			<plx:passParam>
-				<plx:nameRef name="translateMethods" type="parameter"/>
-			</plx:passParam>
-		</child>
+		<plx:branch>
+			<plx:condition>
+				<plx:binaryOperator type="identityEquality">
+					<plx:left>
+						<plx:nameRef name="backingField"/>
+					</plx:left>
+					<plx:right>
+						<plx:nullKeyword/>
+					</plx:right>
+				</plx:binaryOperator>
+			</plx:condition>
+			<child childProperty="AddMethod" childDataType="IMethodReference" renderChild="RenderAccessorMethod" elementName="onAdd">
+				<plx:passParam>
+					<plx:nullKeyword/>
+				</plx:passParam>
+				<plx:passParam>
+					<plx:trueKeyword/>
+				</plx:passParam>
+				<plx:passParam>
+					<plx:nameRef name="translateMethods" type="parameter"/>
+				</plx:passParam>
+			</child>
+			<child childProperty="RemoveMethod" childDataType="IMethodReference" renderChild="RenderAccessorMethod" elementName="onRemove">
+				<plx:passParam>
+					<plx:nullKeyword/>
+				</plx:passParam>
+				<plx:passParam>
+					<plx:trueKeyword/>
+				</plx:passParam>
+				<plx:passParam>
+					<plx:nameRef name="translateMethods" type="parameter"/>
+				</plx:passParam>
+			</child>
+			<child childProperty="InvokeMethod" childDataType="IMethodReference" renderChild="RenderAccessorMethod" elementName="onFire">
+				<plx:passParam>
+					<plx:nullKeyword/>
+				</plx:passParam>
+				<plx:passParam>
+					<plx:falseKeyword/>
+				</plx:passParam>
+				<plx:passParam>
+					<plx:nameRef name="translateMethods" type="parameter"/>
+				</plx:passParam>
+			</child>
+		</plx:branch>
 	</handler>
 	<handler name="Render" valueDataType="INamespace" elementName="namespace">
 		<plx:param name="renderNamespaceBody" dataTypeName=".boolean"/>
@@ -606,6 +1114,7 @@
 	</handler>
 	<handler name="RenderAccessorMethod" valueDataType="IMethodReference">
 		<plx:param name="referenceMethod" dataTypeName="IMethodDeclaration"/>
+		<plx:param name="renderParameterAttributes" dataTypeName=".boolean"/>
 		<plx:param name="translateMethod" dataTypeName=".boolean"/>
 		<plx:local name="accessorDeclaration" dataTypeName="IMethodDeclaration">
 			<plx:initialize>
@@ -660,6 +1169,32 @@
 		</plx:branch>
 		<defer deferRender="RenderDocumentation" localName="accessorDeclaration"/>
 		<collection collectionProperty="Attributes" localName="accessorDeclaration" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute"/>
+		<plx:branch>
+			<plx:condition>
+					<plx:nameRef name="renderParameterAttributes" type="parameter"/>
+			</plx:condition>
+			<plx:local name="firstParam" dataTypeName="IParameterDeclaration">
+				<plx:initialize>
+					<plx:callInstance name=".implied" type="indexerCall">
+						<plx:callObject>
+							<plx:callInstance name="Parameters" type="property">
+								<plx:callObject>
+									<plx:nameRef name="accessorDeclaration"/>
+								</plx:callObject>
+							</plx:callInstance>
+						</plx:callObject>
+						<plx:passParam>
+							<plx:value data="0" type="i4"/>
+						</plx:passParam>
+					</plx:callInstance>
+				</plx:initialize>
+			</plx:local>
+			<collection localName="firstParam" collectionProperty="Attributes" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute">
+				<plx:passParam>
+					<plx:callStatic dataTypeName="CustomAttributeTarget" name="ImplicitValueParameter" type="field"/>
+				</plx:passParam>
+			</collection>
+		</plx:branch>
 		<plx:local name="accessorBody" dataTypeName="IMethodBody">
 			<plx:initialize>
 				<plx:inlineStatement dataTypeName="IMethodBody">
@@ -749,11 +1284,15 @@
 		</plx:branch>
 	</handler>
 	<handler name="Render" valueDataType="IMethodDeclaration">
+		<plx:param name="interfaceMemberInfo" dataTypeName="InterfaceMemberInfo"/>
 		<plx:param name="translateMethod" dataTypeName=".boolean"/>
 		<commonConstruct ref="DeclareIsInterfaceMember"/>
 		<plx:callThis name="Render">
 			<plx:passParam>
 				<plx:nameRef name="value" type="parameter"/>
+			</plx:passParam>
+			<plx:passParam>
+				<plx:nameRef name="interfaceMemberInfo" type="parameter"/>
 			</plx:passParam>
 			<plx:passParam>
 				<plx:nameRef name="translateMethod" type="parameter"/>
@@ -764,6 +1303,7 @@
 		</plx:callThis>
 	</handler>
 	<handler name="Render" valueDataType="IMethodDeclaration">
+		<plx:param name="interfaceMemberInfo" dataTypeName="InterfaceMemberInfo"/>
 		<plx:param name="translateMethod" dataTypeName=".boolean"/>
 		<plx:param name="isInterfaceMember" dataTypeName=".boolean"/>
 		<plx:assign>
@@ -889,6 +1429,9 @@
 			<plx:try>
 				<defer deferRender="RenderMethod">
 					<plx:passParam>
+						<plx:nameRef name="interfaceMemberInfo" type="parameter"/>
+					</plx:passParam>
+					<plx:passParam>
 						<plx:nameRef name="isInterfaceMember" type="parameter"/>
 					</plx:passParam>
 				</defer>
@@ -920,12 +1463,16 @@
 		<plx:fallbackBranch>
 			<defer deferRender="RenderMethod">
 				<plx:passParam>
+					<plx:nameRef name="interfaceMemberInfo" type="parameter"/>
+				</plx:passParam>
+				<plx:passParam>
 					<plx:nameRef name="isInterfaceMember" type="parameter"/>
 				</plx:passParam>
 			</defer>
 		</plx:fallbackBranch>
 	</handler>
 	<handler name="RenderMethod" valueDataType="IMethodDeclaration" elementName="function">
+		<plx:param name="interfaceMemberInfo" dataTypeName="InterfaceMemberInfo"/>
 		<plx:param name="isInterfaceMember" dataTypeName=".boolean"/>
 		<local name="constructorDeclaration" type="IConstructorDeclaration" testCast="true"/>
 		<local name="methodName" type=".string" property="Name"/>
@@ -1148,6 +1695,7 @@
 		</attributeConditionalMap>-->
 		<defer deferRender="RenderDocumentation"/>
 		<collection collectionProperty="Attributes" itemDataType="ICustomAttribute" renderItem="RenderCustomAttribute"/>
+		<commonConstruct ref="RenderInterfaceMembers"/>
 		<commonConstruct ref="PopulateOwnerGenericArguments" property="DeclaringType"/>
 		<collection collectionProperty="GenericArguments" itemDataType="IGenericParameter" renderItem="RenderGenericParameterDeclaration" elementName="typeParam">
 			<commonConstruct ref="FilterGenericArgument" itemName="GenericArgumentsItem"/>
@@ -1397,7 +1945,7 @@
 			<!-- RenderBlockStatement should always be redirected through another construct, not through RenderStatement -->
 			<!--<typeHandler valueDataType="IBlockStatement" handler="RenderBlockStatement"/>-->
 			<typeHandler valueDataType="IBreakStatement" handler="RenderBreakStatement"/>
-			<!--<typeHandler valueDataType="ICommentStatement" handler="RenderCommentStatement"/>-->
+			<typeHandler valueDataType="ICommentStatement" handler="RenderCommentStatement"/>
 			<typeHandler valueDataType="IConditionStatement" handler="RenderConditionStatement"/>
 			<typeHandler valueDataType="IContinueStatement" handler="RenderContinueStatement"/>
 			<typeHandler valueDataType="IDoStatement" handler="RenderDoStatement"/>
@@ -1538,6 +2086,12 @@
 			</typeReference>
 		</plx:branch>
 		<child childProperty="Body" childDataType="IBlockStatement" renderChild="RenderBlockStatement"/>
+	</handler>
+	<handler name="RenderCommentStatement" valueDataType="ICommentStatement">
+		<local name="commentText" type=".string" property="Comment Text"/>
+		<element name="comment">
+			<text style="AsComment" localName="commentText"/>
+		</element>
 	</handler>
 	<handler name="RenderConditionStatement" valueDataType="IConditionStatement">
 		<local name="elseStatements" type="IStatementCollection" property="Else Statements"/>
@@ -3293,6 +3847,291 @@
 			</plx:passParam>
 		</plx:callThis>
 	</handler>
+	<handler name="RenderInterfaceMember" valueDataType="IMemberReference" elementName="interfaceMember">
+		<local name="memberName" type=".string"  property="Name"/>
+		<attribute name="memberName" localName="memberName">
+			<plx:passParam>
+				<plx:callInstance name="ToString">
+					<plx:callObject>
+						<plx:nameRef name="value"/>
+					</plx:callObject>
+				</plx:callInstance>
+			</plx:passParam>
+			<plx:passParam>
+				<plx:nameRef name="value"/>
+			</plx:passParam>
+		</attribute>
+		<local name="declaringType" type="ITypeReference" property="DeclaringType" testCast="true"/>
+		<plx:branch>
+			<plx:condition>
+				<plx:binaryOperator type="identityInequality">
+					<plx:left>
+						<plx:nameRef name="declaringType"/>
+					</plx:left>
+					<plx:right>
+						<plx:nullKeyword/>
+					</plx:right>
+				</plx:binaryOperator>
+			</plx:condition>
+			<plx:local name="resolvedDeclaringType" dataTypeName="ITypeDeclaration">
+				<plx:initialize>
+					<plx:callInstance name="Resolve">
+						<plx:callObject>
+							<plx:nameRef name="declaringType"/>
+						</plx:callObject>
+					</plx:callInstance>
+				</plx:initialize>
+			</plx:local>
+			<plx:branch>
+				<plx:condition>
+					<plx:binaryOperator type="identityInequality">
+						<plx:left>
+							<plx:nameRef name="resolvedDeclaringType"/>
+						</plx:left>
+						<plx:right>
+							<plx:nullKeyword/>
+						</plx:right>
+					</plx:binaryOperator>
+				</plx:condition>
+				<local name="customAttributes" type="ICustomAttributeCollection" propertyOf="resolvedDeclaringType" property="Attributes"/>
+				<plx:branch>
+					<plx:condition>
+						<plx:binaryOperator type="inequality">
+							<plx:left>
+								<plx:callInstance name="Count" type="property">
+									<plx:callObject>
+										<plx:nameRef name="customAttributes"/>
+									</plx:callObject>
+								</plx:callInstance>
+							</plx:left>
+							<plx:right>
+								<plx:value data="0" type="i4"/>
+							</plx:right>
+						</plx:binaryOperator>
+					</plx:condition>
+					<plx:iterator localName="testCustomAttribute" dataTypeName="ICustomAttribute">
+						<plx:initialize>
+							<plx:nameRef name="customAttributes"/>
+						</plx:initialize>
+						<plx:local name="attributeType" dataTypeName="ITypeReference">
+							<plx:initialize>
+								<plx:cast type="testCast" dataTypeName="ITypeReference">
+									<plx:callInstance name="DeclaringType" type="property">
+										<plx:callObject>
+											<plx:callInstance name="Constructor" type="property">
+												<plx:callObject>
+													<plx:nameRef name="testCustomAttribute"/>
+												</plx:callObject>
+											</plx:callInstance>
+										</plx:callObject>
+									</plx:callInstance>
+								</plx:cast>
+							</plx:initialize>
+						</plx:local>
+						<plx:branch>
+							<plx:condition>
+								<plx:binaryOperator type="identityInequality">
+									<plx:left>
+										<plx:nameRef name="attributeType"/>
+									</plx:left>
+									<plx:right>
+										<plx:nullKeyword/>
+									</plx:right>
+								</plx:binaryOperator>
+							</plx:condition>
+							<plx:branch>
+								<plx:condition>
+									<plx:binaryOperator type="booleanAnd">
+										<plx:left>
+											<plx:binaryOperator type="identityEquality">
+												<plx:left>
+													<plx:callInstance name="Name" type="property">
+														<plx:callObject>
+															<plx:nameRef name="attributeType"/>
+														</plx:callObject>
+													</plx:callInstance>
+												</plx:left>
+												<plx:right>
+													<plx:string>DefaultMemberAttribute</plx:string>
+												</plx:right>
+											</plx:binaryOperator>
+										</plx:left>
+										<plx:right>
+											<plx:binaryOperator type="identityEquality">
+												<plx:left>
+													<plx:callInstance name="Namespace" type="property">
+														<plx:callObject>
+															<plx:nameRef name="attributeType"/>
+														</plx:callObject>
+													</plx:callInstance>
+												</plx:left>
+												<plx:right>
+													<plx:string>System.Reflection</plx:string>
+												</plx:right>
+											</plx:binaryOperator>
+										</plx:right>
+									</plx:binaryOperator>
+								</plx:condition>
+								<plx:local name="defaultMemberNameLiteral" dataTypeName="ILiteralExpression"/>
+								<plx:local name="defaultMemberName" dataTypeName=".string"/>
+								<plx:local name="literalValue" dataTypeName=".object"/>
+								<plx:local name="arguments" dataTypeName="IExpressionCollection">
+									<plx:initialize>
+										<plx:callInstance name="Arguments" type="property">
+											<plx:callObject>
+												<plx:nameRef name="testCustomAttribute"/>
+											</plx:callObject>
+										</plx:callInstance>
+									</plx:initialize>
+								</plx:local>
+								<plx:branch>
+									<plx:condition>
+										<plx:binaryOperator type="booleanAnd">
+											<plx:left>
+												<plx:binaryOperator type="booleanAnd">
+													<plx:left>
+														<plx:binaryOperator type="booleanAnd">
+															<plx:left>
+																<plx:binaryOperator type="booleanAnd">
+																	<plx:left>
+																		<plx:binaryOperator type="equality">
+																			<plx:left>
+																				<plx:callInstance name="Count" type="property">
+																					<plx:callObject>
+																						<plx:nameRef name="arguments"/>
+																					</plx:callObject>
+																				</plx:callInstance>
+																			</plx:left>
+																			<plx:right>
+																				<plx:value data="1" type="i4"/>
+																			</plx:right>
+																		</plx:binaryOperator>
+																	</plx:left>
+																	<plx:right>
+																		<plx:binaryOperator type="identityInequality">
+																			<plx:left>
+																				<plx:inlineStatement dataTypeName="ILiteralExpression">
+																					<plx:assign>
+																						<plx:left>
+																							<plx:nameRef name="defaultMemberNameLiteral"/>
+																						</plx:left>
+																						<plx:right>
+																							<plx:cast type="testCast" dataTypeName="ILiteralExpression">
+																								<plx:callInstance name=".implied" type="indexerCall">
+																									<plx:callObject>
+																										<plx:nameRef name="arguments"/>
+																									</plx:callObject>
+																									<plx:passParam>
+																										<plx:value data="0" type="i4"/>
+																									</plx:passParam>
+																								</plx:callInstance>
+																							</plx:cast>
+																						</plx:right>
+																					</plx:assign>
+																				</plx:inlineStatement>
+																			</plx:left>
+																			<plx:right>
+																				<plx:nullKeyword/>
+																			</plx:right>
+																		</plx:binaryOperator>
+																	</plx:right>
+																</plx:binaryOperator>
+															</plx:left>
+															<plx:right>
+																<plx:binaryOperator type="booleanAnd">
+																	<plx:left>
+																		<plx:binaryOperator type="identityInequality">
+																			<plx:left>
+																				<plx:inlineStatement dataTypeName=".object">
+																					<plx:assign>
+																						<plx:left>
+																							<plx:nameRef name="literalValue"/>
+																						</plx:left>
+																						<plx:right>
+																							<plx:callInstance name="Value" type="property">
+																								<plx:callObject>
+																									<plx:nameRef name="defaultMemberNameLiteral"/>
+																								</plx:callObject>
+																							</plx:callInstance>
+																						</plx:right>
+																					</plx:assign>
+																				</plx:inlineStatement>
+																			</plx:left>
+																			<plx:right>
+																				<plx:nullKeyword/>
+																			</plx:right>
+																		</plx:binaryOperator>
+																	</plx:left>
+																	<plx:right>
+																		<plx:binaryOperator type="equality">
+																			<plx:left>
+																				<plx:callStatic name="GetTypeCode" dataTypeName="Type">
+																					<plx:passParam>
+																						<plx:callInstance name="GetType">
+																							<plx:callObject>
+																								<plx:nameRef name="literalValue"/>
+																							</plx:callObject>
+																						</plx:callInstance>
+																					</plx:passParam>
+																				</plx:callStatic>
+																			</plx:left>
+																			<plx:right>
+																				<plx:callStatic name="String" type="field" dataTypeName="TypeCode"/>
+																			</plx:right>
+																		</plx:binaryOperator>
+																	</plx:right>
+																</plx:binaryOperator>
+															</plx:right>
+														</plx:binaryOperator>
+													</plx:left>
+													<plx:right>
+														<plx:binaryOperator type="identityInequality">
+															<plx:left>
+																<plx:nullKeyword/>
+															</plx:left>
+															<plx:right>
+																<plx:inlineStatement dataTypeName=".string">
+																	<plx:assign>
+																		<plx:left>
+																			<plx:nameRef name="defaultMemberName"/>
+																		</plx:left>
+																		<plx:right>
+																			<plx:cast dataTypeName=".string">
+																				<plx:nameRef name="literalValue"/>
+																			</plx:cast>
+																		</plx:right>
+																	</plx:assign>
+																</plx:inlineStatement>
+															</plx:right>
+														</plx:binaryOperator>
+													</plx:right>
+												</plx:binaryOperator>
+											</plx:left>
+											<plx:right>
+												<plx:binaryOperator type="equality">
+													<plx:left>
+														<plx:nameRef name="memberName"/>
+													</plx:left>
+													<plx:right>
+														<plx:nameRef name="defaultMemberName"/>
+													</plx:right>
+												</plx:binaryOperator>
+											</plx:right>
+										</plx:binaryOperator>
+									</plx:condition>
+									<attribute name="defaultMember" value="true"/>
+								</plx:branch>
+								<plx:break/>
+							</plx:branch>
+						</plx:branch>
+					</plx:iterator>
+				</plx:branch>
+			</plx:branch>
+		</plx:branch>
+		<typeReference canBeNull="true" resolvedType="true">
+			<plx:nameRef name="declaringType"/>
+		</typeReference>
+	</handler>
 	<handler name="RenderGenericMemberArguments" valueDataType="IGenericArgumentProvider">
 		<collection collectionProperty="GenericArguments" itemDataType="IType" renderItem="RenderGenericArgument" elementName="passMemberTypeParam"/>
 	</handler>
@@ -4492,9 +5331,147 @@
 						</plx:callStatic>
 					</plx:unaryOperator>
 				</plx:condition>
-				<attribute name="dataTypeQualifier">
-					<plx:nameRef name="resolvedNamespace"/>
-				</attribute>
+				<plx:local name="contextQualifier" dataTypeName=".string">
+					<plx:initialize>
+						<plx:callThis name="myContextDataTypeQualifier" type="field"/>
+					</plx:initialize>
+				</plx:local>
+				<plx:branch>
+					<plx:condition>
+						<plx:binaryOperator type="identityInequality">
+							<plx:left>
+								<plx:nameRef name="contextQualifier"/>
+							</plx:left>
+							<plx:right>
+								<plx:nullKeyword/>
+							</plx:right>
+						</plx:binaryOperator>
+					</plx:condition>
+					<plx:local name="qualifierLength" dataTypeName=".i4">
+						<plx:initialize>
+							<plx:callInstance name="Length" type="property">
+								<plx:callObject>
+									<plx:nameRef name="contextQualifier"/>
+								</plx:callObject>
+							</plx:callInstance>
+						</plx:initialize>
+					</plx:local>
+					<plx:local name="resolvedLength" dataTypeName=".i4">
+						<plx:initialize>
+							<plx:callInstance name="Length" type="property">
+								<plx:callObject>
+									<plx:nameRef name="resolvedNamespace"/>
+								</plx:callObject>
+							</plx:callInstance>
+						</plx:initialize>
+					</plx:local>
+					<plx:branch>
+						<plx:condition>
+							<plx:binaryOperator type="booleanAnd">
+								<plx:left>
+									<plx:binaryOperator type="lessThanOrEqual">
+										<plx:left>
+											<plx:nameRef name="qualifierLength"/>
+										</plx:left>
+										<plx:right>
+											<plx:nameRef name="resolvedLength"/>
+										</plx:right>
+									</plx:binaryOperator>
+								</plx:left>
+								<plx:right>
+									<plx:callInstance name="StartsWith">
+										<plx:callObject>
+											<plx:nameRef name="resolvedNamespace"/>
+										</plx:callObject>
+										<plx:passParam>
+											<plx:nameRef name="contextQualifier"/>
+										</plx:passParam>
+									</plx:callInstance>
+								</plx:right>
+							</plx:binaryOperator>
+						</plx:condition>
+						<plx:branch>
+							<plx:condition>
+								<plx:binaryOperator type="equality">
+									<plx:left>
+										<plx:nameRef name="qualifierLength"/>
+									</plx:left>
+									<plx:right>
+										<plx:nameRef name="resolvedLength"/>
+									</plx:right>
+								</plx:binaryOperator>
+							</plx:condition>
+							<plx:assign>
+								<plx:left>
+									<plx:nameRef name="resolvedNamespace"/>
+								</plx:left>
+								<plx:right>
+									<plx:nullKeyword/>
+								</plx:right>
+							</plx:assign>
+						</plx:branch>
+						<plx:alternateBranch>
+							<plx:condition>
+								<plx:binaryOperator type="equality">
+									<plx:left>
+										<plx:callInstance name=".implied" type="indexerCall">
+											<plx:callObject>
+												<plx:nameRef name="resolvedNamespace"/>
+											</plx:callObject>
+											<plx:passParam>
+												<plx:nameRef name="qualifierLength"/>
+											</plx:passParam>
+										</plx:callInstance>
+									</plx:left>
+									<plx:right>
+										<plx:value data="." type="char"/>
+									</plx:right>
+								</plx:binaryOperator>
+							</plx:condition>
+							<plx:assign>
+								<plx:left>
+									<plx:nameRef name="resolvedNamespace"/>
+								</plx:left>
+								<plx:right>
+									<plx:callInstance name="Substring">
+										<plx:callObject>
+											<plx:nameRef name="resolvedNamespace"/>
+										</plx:callObject>
+										<plx:passParam>
+											<plx:binaryOperator type="add">
+												<plx:left>
+													<plx:nameRef name="qualifierLength"/>
+												</plx:left>
+												<plx:right>
+													<plx:value data="1" type="i4"/>
+												</plx:right>
+											</plx:binaryOperator>
+										</plx:passParam>
+									</plx:callInstance>
+								</plx:right>
+							</plx:assign>
+						</plx:alternateBranch>
+					</plx:branch>
+					<plx:branch>
+						<plx:condition>
+							<plx:unaryOperator type="booleanNot">
+								<plx:callStatic name="IsNullOrEmpty" dataTypeName=".string">
+									<plx:passParam>
+										<plx:nameRef name="resolvedNamespace"/>
+									</plx:passParam>
+								</plx:callStatic>
+							</plx:unaryOperator>
+						</plx:condition>
+						<attribute name="dataTypeQualifier">
+							<plx:nameRef name="resolvedNamespace"/>
+						</attribute>
+					</plx:branch>
+				</plx:branch>
+				<plx:fallbackBranch>
+					<attribute name="dataTypeQualifier">
+						<plx:nameRef name="resolvedNamespace"/>
+					</attribute>
+				</plx:fallbackBranch>
 			</plx:branch>
 		</plx:branch>
 		<typeReference elementName="parametrizedDataTypeQualifier" allowEmptyElement="false" resolvedType="true">
@@ -5080,6 +6057,18 @@
 				<plx:callThis name="WriteEndElement"/>
 				<plx:break/>
 			</plx:branch>
+		</plx:branch>
+	</commonConstruct>
+	<commonConstruct name="RenderInterfaceMembers">
+		<plx:branch>
+			<plx:condition>
+				<plx:callInstance name="HasInterfaceMembers" type="property">
+					<plx:callObject>
+						<plx:nameRef name="interfaceMemberInfo" type="parameter"/>
+					</plx:callObject>
+				</plx:callInstance>
+			</plx:condition>
+			<collection collectionProperty="InterfaceMemberCollection" parameterName="interfaceMemberInfo" itemDataType="IMemberReference" renderItem="RenderInterfaceMember"/>
 		</plx:branch>
 	</commonConstruct>
 </root>
