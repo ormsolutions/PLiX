@@ -3497,14 +3497,10 @@ namespace Reflector
 				switch (operatorType)
 				{
 					case UnaryOperator.PreIncrement:
-						elementName = "increment";
-						break;
 					case UnaryOperator.PostIncrement:
 						elementName = "increment";
 						break;
 					case UnaryOperator.PreDecrement:
-						elementName = "decrement";
-						break;
 					case UnaryOperator.PostDecrement:
 						elementName = "decrement";
 						break;

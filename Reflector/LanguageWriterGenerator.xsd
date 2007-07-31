@@ -1,0 +1,931 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<xs:schema id="LanguageWriterGenerator" 
+	targetNamespace="urn:LanguageWriter"
+	elementFormDefault="qualified"
+	xmlns="urn:LanguageWriter"
+	xmlns:lw="urn:LanguageWriter"
+	xmlns:plx="http://schemas.neumont.edu/CodeGeneration/PLiX" 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:import namespace="http://schemas.neumont.edu/CodeGeneration/PLiX"/>
+
+	<!-- Root and immediate child elements -->
+	<xs:element name="root" type="rootType">
+		<xs:key name="CommonConstructName">
+			<xs:selector xpath="lw:commonConstruct"/>
+			<xs:field xpath="@name"/>
+		</xs:key>
+	</xs:element>
+	<xs:complexType name="rootType">
+		<xs:annotation>
+			<xs:documentation>The document root for LanguageWriterGenerator data</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Copyright" type="CopyrightType"/>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element name="handler" type="handlerPatternType"/>
+				<xs:element name="commonConstruct" type="commonConstructDefinitionType"/>
+				<xs:element ref="plx:member">
+					<xs:annotation>
+						<xs:documentation>Any PLiX member can be included directly.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="dataBlob"/>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="CopyrightType">
+		<xs:annotation>
+			<xs:documentation>Provide copyright information for the generated code</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="CopyrightLine" minOccurs="0" maxOccurs="unbounded" type="xs:string"/>
+		</xs:sequence>
+		<xs:attribute name="name" use="required" type="xs:string"/>
+	</xs:complexType>
+	<xs:complexType name="handlerPatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern that expands to a method used to write a PLiX Xml element corresponding to a Reflector.CodeModel element. Each handler method automatically gets a value parameter with a type corresponding to the valueDataType attribute.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="plx:param" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Specify additional custom parameters for the handler method.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:group ref="codeBlockContents"/>
+				<xs:element name="customElementName">
+					<xs:annotation>
+						<xs:documentation>PLiX code used to conditionally modify the elementName variable. The last customElementName element is used as a marker to indicate the latest point that the elementName is written. Custom code can appear before this point, but should never write attributes.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:choice>
+							<xs:group ref="singleExpression"/>
+							<xs:group ref="codeBlockContents" minOccurs="0" maxOccurs="unbounded"/>
+						</xs:choice>
+						<xs:attribute name="elementName" type="xs:Name">
+							<xs:annotation>
+								<xs:documentation>If elementName is specified, then the code in this element is the conditional expression for when the name is used. Otherwise, the nested code is free-form PLiX that must set the elementName local variable.</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+			</xs:choice>
+		</xs:sequence>
+		<xs:attribute name="name" type="plx:simpleNameType" use="required">
+			<xs:annotation>
+				<xs:documentation>The name of the generated handler method</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="valueDataType" type="plx:dataTypeNameType" use="required">
+			<xs:annotation>
+				<xs:documentation></xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="elementName">
+			<xs:annotation>
+				<xs:documentation>The name of the element to write for this method. If this is specified, both the open and close elements will be written unless the delayEndElement attribute is true. The elementName value can be conditionally customized with the customElementName element.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="delayEndElement" type="xs:boolean">
+			<xs:annotation>
+				<xs:documentation>If delayEndElement is true, then a delayEndElement parameter is automatically added to handler method signature and the method returns a boolean indicating whether or not the element was written. If true is passed to the delayEndElement parameter and the method returns true, then it is the responsibility of the calling code to call the WriteEndElement method.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+
+	<!-- Groups and substitution group heads for mixing patterns with PLiX elements -->
+	<xs:group name="singleExpression">
+		<xs:choice>
+			<xs:group ref="plx:callExpressions"/>
+			<xs:element ref="plx:expressionElement"/>
+		</xs:choice>
+	</xs:group>
+	<xs:group name="codeBlockContents">
+		<xs:choice>
+			<xs:group ref="plx:blockContents"/>
+			<xs:element ref="blockContentsPattern"/>
+		</xs:choice>
+	</xs:group>
+	<xs:element name="blockContentsPattern" abstract="true" substitutionGroup="plx:bodyStatement"/>
+	<xs:attributeGroup name="allowEmptyElementAttribute">
+		<xs:attribute name="allowEmptyElement" type="xs:boolean" default="true">
+			<xs:annotation>
+				<xs:documentation>(Default: true) If allowEmptyElement is false, then the element is only written if attributes or child elements are written into the element.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:attributeGroup>
+
+	<!-- commonConstruct pattern definition and reference -->
+	<xs:element name="commonConstruct" type="commonConstructReferencePatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="commonConstructReferencePatternType">
+		<xs:annotation>
+			<xs:documentation>Substitute code from a commonConstruct at this point.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:attribute name="ref" type="xs:string" use="required">
+					<xs:annotation>
+						<xs:documentation>The name of the commonConstruct being referenced</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:anyAttribute namespace="##local" processContents="skip">
+					<xs:annotation>
+						<xs:documentation>Additional attribute values are resolved in the commonConstruct use ?attributeName as the value for any attribute in the common construct</xs:documentation>
+					</xs:annotation>
+				</xs:anyAttribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="commonConstructDefinitionType">
+		<xs:group ref="codeBlockContents" maxOccurs="unbounded"/>
+		<xs:attribute name="name" type="xs:string" use="required">
+			<xs:annotation>
+				<xs:documentation>The identifying name for the commonConstruct. Must be unique in the root scope.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+
+	<!-- Other patterns -->
+	<xs:element name="attribute" type="attributePatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="attributePatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern to render an attribute. The attribute value can be static (with the value attribute), read off of an existing local variable (with the localName attribute), read off of a property (with the valueProperty attribute), or a custom expression (write a child PLiX expression)</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:sequence>
+					<xs:group ref="singleExpression" minOccurs="0"/>
+					<xs:element ref="plx:passParam" minOccurs="0" maxOccurs="unbounded">
+						<xs:annotation>
+							<xs:documentation>Additional parameters to pass to the WriteAttribute method.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+				</xs:sequence>
+				<xs:attribute name="name" type="xs:Name" use="required">
+					<xs:annotation>
+						<xs:documentation>The name of the attribute to write.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="value" type="xs:string">
+					<xs:annotation>
+						<xs:documentation>(Optional) A fixed value for the attribute. The same value is written every time.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="valueProperty" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of a property to call to get the attribute value. Called on the localName variable if specified, or the value parameter.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="localName" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) A local variable used to get the attribute value. If localName is specified and valueProperty is not, then use the value of this variable as the attribute value.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="emphasis">
+					<xs:annotation>
+						<xs:documentation>(Optional) Specifies emphasis levels for the attribute value.</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:restriction base="xs:token">
+							<xs:enumeration value="literal">
+								<xs:annotation>
+									<xs:documentation>The value is a literal (string, number, etc.) and should be rendered with different emphasis.</xs:documentation>
+								</xs:annotation>
+							</xs:enumeration>
+							<xs:enumeration value="declaration">
+								<xs:annotation>
+									<xs:documentation>The attribute provides the identifying value for the declaration of the element.</xs:documentation>
+								</xs:annotation>
+							</xs:enumeration>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="attributeConditionalMap" type="attributeConditionalMapPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="attributeConditionalMapPatternType">
+		<xs:annotation>
+			<xs:documentation>Conditionally write an attribute to the xml. Different than the attribute pattern, which always writes the attribute. The attribute will not write if none of the conditions are satisfied.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:sequence>
+					<xs:element name="conditionMap" maxOccurs="unbounded">
+						<xs:complexType>
+							<xs:annotation>
+								<xs:documentation>Provide an attribute name and condition.</xs:documentation>
+							</xs:annotation>
+							<xs:choice>
+								<xs:annotation>
+									<xs:documentation>Any PLiX expression. The attributeValue will be used if this expression is true.</xs:documentation>
+								</xs:annotation>
+								<xs:group ref="singleExpression"/>
+							</xs:choice>
+							<xs:attribute name="attributeValue" type="xs:string" use="required">
+								<xs:annotation>
+									<xs:documentation>The value for this attribute when the condition holds.</xs:documentation>
+								</xs:annotation>
+							</xs:attribute>
+						</xs:complexType>
+					</xs:element>
+					<xs:element ref="fallbackMap" minOccurs="0"/>
+				</xs:sequence>
+				<xs:attribute name="attributeName" type="xs:Name" use="required">
+					<xs:annotation>
+						<xs:documentation>The name of the attribute to write.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="attributeSwitchMap" type="attributeSwitchMapPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="attributeSwitchMapPatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern used to map enumeration values to equivalent Xml attribute values.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:sequence>
+					<xs:element name="attributeCaseMap" maxOccurs="unbounded">
+						<xs:complexType>
+							<xs:group ref="singleExpression" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>An expression used as a secondary filter on the value. The value is assigned only if the filter is true.</xs:documentation>
+								</xs:annotation>
+							</xs:group>
+							<xs:attribute name="value" use="required">
+								<xs:annotation>
+									<xs:documentation>One or more values from the enum specified in the valueDataType attribute on the parent attributeSwitchMap</xs:documentation>
+								</xs:annotation>
+								<xs:simpleType>
+									<xs:list itemType="xs:token"/>
+								</xs:simpleType>
+							</xs:attribute>
+							<xs:attribute name="attributeValue" type="xs:string" use="required">
+								<xs:annotation>
+									<xs:documentation>The corresponding Xml attribute value</xs:documentation>
+								</xs:annotation>
+							</xs:attribute>
+						</xs:complexType>
+					</xs:element>
+					<xs:element ref="fallbackMap" minOccurs="0"/>
+				</xs:sequence>
+				<xs:attribute name="attributeName" type="xs:Name" use="required">
+					<xs:annotation>
+						<xs:documentation>The name of the attribute to write. The attribute is written only if a map matches the value.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="valueProperty" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) A property used to retrieve the value to map to the attribute value. Binds to the value parameter unless the localName or parameterName attributes are specified.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="localName" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of a local variable used to retrieve the value to map to the attribute value. If the valueProperty attribute is also specified then the property is called on this variable, otherwise the variable value is used directly. Cannot be used with parameterName.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="parameterName" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of a parameter used to retrieve the value to map to the attribute value. If the valueProperty attribute is also specified then the property is called on this parameter, otherwise the parameter value is used directly. Cannot be used with localName.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="valueDataType" type="plx:dataTypeNameType" use="required">
+					<xs:annotation>
+						<xs:documentation>The type of the enumeration being mapped to an attribue value.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="child" type="childPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="childPatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern representing a single child element. Sets of elements are handled with the collection pattern.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:sequence>
+					<xs:element ref="plx:passParam" minOccurs="0" maxOccurs="unbounded">
+						<xs:annotation>
+							<xs:documentation>Specify additional parameters to pass to the renderChild method.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+				</xs:sequence>
+				<xs:attribute name="childProperty" type="plx:simpleNameType" use="required">
+					<xs:annotation>
+						<xs:documentation>The name of a property to call on the value parameter to retrieve the child element.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="childDataType" type="plx:dataTypeNameType" use="required">
+					<xs:annotation>
+						<xs:documentation>The data type of the child element.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="renderChild" type="xs:string" use="required">
+					<xs:annotation>
+						<xs:documentation>The name of the method used to render the child element.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="propertyOf" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>The name of a local variable to bind the childProperty to. The value parameter is used if propertyOf is not specified.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="elementName" type="xs:Name">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of an element to generate for the child item. The element can be modified with the allowEmptyElement attribute. This attribute should be carefully coordinated with the elementName attribute on the target handler method.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attributeGroup ref="allowEmptyElementAttribute"/>
+				<xs:attribute name="testCast" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>(Default: false) Set to true to perform a test cast ('as' in C#) as part of the variable initialization.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="delayEndElement" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>(Default: false) Set to true to support delaying creation of the end element. If this is set, the calling code must check the {@childProperty}DelayEndChildElement boolean variable to determine if the element requires closing with a this.WriteEndElement method call.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="collection" type="collectionPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="collectionPatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern to render a collection of child elements</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:sequence>
+					<xs:group ref="codeBlockContents" minOccurs="0" maxOccurs="unbounded"/>
+					<xs:element ref="plx:passParam" minOccurs="0" maxOccurs="unbounded">
+						<xs:annotation>
+							<xs:documentation>Specify additional parameters to pass to the method specified with renderItem</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+				</xs:sequence>
+				<xs:attribute name="renderItem" type="plx:simpleNameType" use="required">
+					<xs:annotation>
+						<xs:documentation>The name of the method used to render the child elements in the collection.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="itemDataType" type="plx:dataTypeNameType" use="required">
+					<xs:annotation>
+						<xs:documentation>The data type of the child element in the collection.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="elementName" type="xs:Name">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of an element to generate for each item. The element can be modified with the allowEmptyElement attribute. This attribute should be carefully coordinated with the elementName attribute on the target handler method.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attributeGroup ref="allowEmptyElementAttribute"/>
+				<xs:attribute name="collectionProperty" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) A property to call to retrieve the collection of child elements. If this is set and localName is not set and parameterName is not set, then the collection property is assumed to be on the value parameter.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="localName">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of a local variable. Either used directly as a collection or as the target of the collectionProperty. Should not be mixed with parameterName.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="parameterName">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of a parameter. Either used directly as a collection or as the target of the collectionProperty. Should not be mixed with localName.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="comment" type="commentPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="commentPatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern used to render an xml comment in the reflector output.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:group ref="codeBlockContents" maxOccurs="unbounded"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="deferExpressionType" type="deferExpressionTypePatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="deferExpressionTypePatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern to defer writing type attributes and elements based on one or more expression elements.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:attribute name="localNames" use="required">
+					<xs:annotation>
+						<xs:documentation>A list of local variable names that contain an expression to retrieve a type from. If one of the types is null, it defers to one of the later types.</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:list itemType="plx:simpleNameType"/>
+					</xs:simpleType>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="defer" type="deferPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:element name="deferExpression" type="deferExpressionPatternType" substitutionGroup="plx:expressionElement"/>
+	<xs:attributeGroup name="deferPatternAttributes">
+		<xs:attribute name="deferRender" type="plx:simpleNameType" use="required">
+			<xs:annotation>
+				<xs:documentation>The handler method to defer to</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="elementName" type="xs:Name">
+			<xs:annotation>
+				<xs:documentation>(Optional) the name of the element to write before deferring to the target method. Behavior can be modified with the allowEmptyElement attribute.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="allowEmptyElementAttribute"/>
+		<xs:attribute name="localName" type="plx:simpleNameType">
+			<xs:annotation>
+				<xs:documentation>The name of a local variable to pass to the deferred handler. The value parameter is used if this is not specified.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="delayEndElement" type="xs:boolean" default="false">
+			<xs:annotation>
+				<xs:documentation>(Default: false) Set to true to support delaying creation of the end element. If this is set, the calling code must check the {@childProperty}DelayEndChildElement boolean variable to determine if the element requires closing with a this.WriteEndElement method call.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="testNull" type="xs:boolean" default="true">
+			<xs:annotation>
+				<xs:documentation>(Default: true) Set to false if the localName value cannot be null. Defaults to true for defensive code generation.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:attributeGroup>
+	<xs:group name="deferPatternElements">
+		<xs:sequence>
+			<xs:element ref="plx:passParam" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:complexType name="deferPatternType">
+		<xs:annotation>
+			<xs:documentation>Defer to another method</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:group ref="deferPatternElements"/>
+				<xs:attributeGroup ref="deferPatternAttributes"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="deferExpressionPatternType">
+		<!-- Note that this is the same as defer (hence the shared attribute and element groups), but this
+		is used in situations where an expression is needed instead of a statement. It needs to be in a different
+		substitution group and extension hierarchy to keep the plix schema happy -->
+		<xs:annotation>
+			<xs:documentation>Defer to another method and use the returned value as an expression</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:expressionElementType">
+				<xs:group ref="deferPatternElements"/>
+				<xs:attributeGroup ref="deferPatternAttributes"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="element" type="elementPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="elementPatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern used explicitly render an xml element.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:group ref="codeBlockContents" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:attribute name="name" use="required" type="xs:Name">
+					<xs:annotation>
+						<xs:documentation>The name of the element to write.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attributeGroup ref="allowEmptyElementAttribute"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="elementNameSwitchMap" type="elementNameSwitchMapPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="elementNameSwitchMapPatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern used to map enumeration values to equivalent element names.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:sequence>
+					<xs:element name="elementNameCaseMap" maxOccurs="unbounded">
+						<xs:complexType>
+							<xs:attribute name="value" use="required">
+								<xs:annotation>
+									<xs:documentation>One or more values from the enum specified in the valueDataType attribute on the parent elementNameSwitchMap</xs:documentation>
+								</xs:annotation>
+								<xs:simpleType>
+									<xs:list itemType="xs:token"/>
+								</xs:simpleType>
+							</xs:attribute>
+							<xs:attribute name="elementName" type="xs:string" use="required">
+								<xs:annotation>
+									<xs:documentation>The corresponding Xml element name</xs:documentation>
+								</xs:annotation>
+							</xs:attribute>
+						</xs:complexType>
+					</xs:element>
+				</xs:sequence>
+				<xs:attribute name="valueProperty" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) A property used to retrieve the value to map to the element value. Binds to the value parameter unless the localName or parameterName attributes are specified.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="localName" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of a local variable used to retrieve the value to map to the element name. If the valueProperty attribute is also specified then the property is called on this variable, otherwise the variable value is used directly. Cannot be used with parameterName.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="parameterName" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of a parameter used to retrieve the value to map to the element name. If the valueProperty attribute is also specified then the property is called on this parameter, otherwise the parameter value is used directly. Cannot be used with localName.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="valueDataType" type="plx:dataTypeNameType" use="required">
+					<xs:annotation>
+						<xs:documentation>The type of the enumeration being mapped to an attribue value.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="fallbackMap">
+		<xs:annotation>
+			<xs:documentation>The fallback case for a mapping with no map.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:group ref="codeBlockContents" maxOccurs="unbounded"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="literalValueMap" type="literalValueMapPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="literalValueMapPatternType">
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:annotation>
+					<xs:documentation>Pattern to generate code to render an ILiteralExpression</xs:documentation>
+				</xs:annotation>
+				<xs:attribute name="typesOnly" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>(Default: false) Render type information only.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="local" type="localPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="localPatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern that expands into an initialized local variable</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:attribute name="name" type="plx:simpleNameType" use="required">
+					<xs:annotation>
+						<xs:documentation>The name of the local variable</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="type" type="plx:dataTypeNameType" use="required">
+					<xs:annotation>
+						<xs:documentation>The type for the variable. The type is assumed to be in an available namespace (Reflector.CodeModel, etc)</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="property">
+					<xs:annotation>
+						<xs:documentation>(Optional) One or more property names to use to initialize the variable, chained from left to right. The first property is assumed to be the property of the value parameter (automatically provided with the handler pattern) unless the propertyOf attribute is also specified.</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:list itemType="plx:simpleNameType"/>
+					</xs:simpleType>
+				</xs:attribute>
+				<xs:attribute name="propertyOf" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of a local variable to bind the property list to. Provides alternative to the default binding to the value parameter.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="testCast" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>(Default: false) Set to true to perform a test cast ('as' in C#) as part of the variable initialization.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="stringSwitchMap" type="stringSwitchMapPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="stringSwitchMapPatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern used to map string values to alternate string values.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:sequence>
+					<xs:element name="stringCaseMap" maxOccurs="unbounded">
+						<xs:complexType>
+							<xs:group ref="singleExpression" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>An expression used as a secondary filter on the value. The value is assigned only if the filter is true.</xs:documentation>
+								</xs:annotation>
+							</xs:group>
+							<xs:attribute name="fromValue" use="required">
+								<xs:annotation>
+									<xs:documentation>A recognized 'from' value, or a list of multiple values that map to the same target.</xs:documentation>
+								</xs:annotation>
+								<xs:simpleType>
+									<xs:list itemType="xs:token"/>
+								</xs:simpleType>
+							</xs:attribute>
+							<xs:attribute name="targetValue" type="xs:string" use="required">
+								<xs:annotation>
+									<xs:documentation>The target string value</xs:documentation>
+								</xs:annotation>
+							</xs:attribute>
+						</xs:complexType>
+					</xs:element>
+				</xs:sequence>
+				<xs:attribute name="targetLocalName" type="plx:simpleNameType" use="required">
+					<xs:annotation>
+						<xs:documentation>The name of a local variable used to write the target string. The variable must be defined and initialized independently.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="fromProperty" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) A property used to retrieve the 'from' string value. Binds to the value parameter unless the fromLocalName or fromParameterName attributes are specified.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="fromLocalName" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of a local variable used to retrieve the 'from' string property. If the fromProperty attribute is also specified then the property is called on this variable, otherwise the variable value is used directly. Cannot be used with fromParameterName.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="fromParameterName" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of a parameter used to retrieve the 'from' string property. If the fromProperty attribute is also specified then the property is called on this parameter, otherwise the parameter value is used directly. Cannot be used with fromLocalName.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="text" type="textPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="textPatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern used to render formatted text in reflector.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:group ref="singleExpression" minOccurs="0"/>
+				<xs:attribute name="property" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) A property used to retrieve the text value. The property is bound to the value parameter, unless the localName or parameterName attributes are set.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="localName" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) A local variable used to get the string value. If localName is specified and property is not, then use the value of this variable as the text value. Cannot be used with parameterName.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="parameterName" type="plx:simpleNameType">
+					<xs:annotation>
+						<xs:documentation>(Optional) A parameter used to get the string value. If parameterName is specified and property is not, then use the value of this parameter as the text value. Cannot be used with localName.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="style" use="required">
+					<xs:annotation>
+						<xs:documentation>Specifies the formatting style of the rendered text. Multiple styles are space separated and combined in the generated code.</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:list>
+							<xs:simpleType>
+								<xs:restriction base="xs:token">
+									<xs:enumeration value="RenderRaw">
+										<xs:annotation>
+											<xs:documentation>Text should not be escaped</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+									<xs:enumeration value="AsLiteral">
+										<xs:annotation>
+											<xs:documentation>Format as a literal (default muted red color)</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+									<xs:enumeration value="AsComment">
+										<xs:annotation>
+											<xs:documentation>Format as a comment (default light grey)</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+									<xs:enumeration value="AsDeclaration">
+										<xs:annotation>
+											<xs:documentation>Format as a declaration (default bold)</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+									<xs:enumeration value="LeadingNewLine">
+										<xs:annotation>
+											<xs:documentation>Add a new line before the text</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+									<xs:enumeration value="TrailingNewLine">
+										<xs:annotation>
+											<xs:documentation>Add a new line after the text</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+									<xs:enumeration value="LeadingIndent">
+										<xs:annotation>
+											<xs:documentation>Add a leading indent before the text</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+									<xs:enumeration value="TrailingOutdent">
+										<xs:annotation>
+											<xs:documentation>Outdent after the text</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+									<xs:enumeration value="LiteralStringSettings">
+										<xs:annotation>
+											<xs:documentation>Used to render a string literal (Equivalent to: AsLiteral)</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+									<xs:enumeration value="RawCommentSettings">
+										<xs:annotation>
+											<xs:documentation>Render text as a comment without xml escaping (Equivalent to: AsComment RenderRaw)</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+									<xs:enumeration value="FullExplicitCommentSettings">
+										<xs:annotation>
+											<xs:documentation>Use to write an explicit comment (coming from this codebase) with a single call (Equivalent to: AsComment RenderRaw LeadingNewLine LeadingIndent TrailingOutdent)</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+									<xs:enumeration value="StartExplicitCommentSettings">
+										<xs:annotation>
+											<xs:documentation>Use to write the beginning of an explicit comment (coming from this codebase). WriteText should be called a second time with EndExplicitCommentSettings to finish the comment. (Equivalent to: AsComment RenderRaw LeadingNewLine LeadingIndent)</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+									<xs:enumeration value="EndExplicitCommentSettings">
+										<xs:annotation>
+											<xs:documentation>Use to write the end of an explicit comment (coming from this codebase). WriteText should first be called with StartExplicitCommentMask to begin the comment. (Equivalent to: AsComment RenderRaw TrailingOutdent)</xs:documentation>
+										</xs:annotation>
+									</xs:enumeration>
+								</xs:restriction>
+							</xs:simpleType>
+						</xs:list>
+					</xs:simpleType>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="typeHandlerMap" type="typeHandlerMapPatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="typeHandlerMapPatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern to redirect the value parameter to different handler methods based on the type of the parameter.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:sequence>
+					<xs:element name="typeHandler" maxOccurs="unbounded">
+						<xs:complexType>
+							<xs:annotation>
+								<xs:documentation>Specify the method handler for a given element type.</xs:documentation>
+							</xs:annotation>
+							<xs:sequence>
+								<xs:element ref="plx:passParam" minOccurs="0" maxOccurs="unbounded">
+									<xs:annotation>
+										<xs:documentation>Specify additional parameters to pass to the handler method.</xs:documentation>
+									</xs:annotation>
+								</xs:element>
+							</xs:sequence>
+							<xs:attribute name="valueDataType" type="plx:dataTypeNameType" use="required">
+								<xs:annotation>
+									<xs:documentation>The name of the target type</xs:documentation>
+								</xs:annotation>
+							</xs:attribute>
+							<xs:attribute name="handler" type="plx:simpleNameType" use="required">
+								<xs:annotation>
+									<xs:documentation>The method to defer to if the value parameter is of the specified type.</xs:documentation>
+								</xs:annotation>
+							</xs:attribute>
+							<xs:attribute name="delayEndElement">
+								<xs:annotation>
+									<xs:documentation>Specify delayed element handling for the target method.</xs:documentation>
+								</xs:annotation>
+								<xs:simpleType>
+									<xs:restriction base="xs:token">
+										<xs:enumeration value="">
+											<xs:annotation>
+												<xs:documentation>Forward through the parent's delayEndElement value.</xs:documentation>
+											</xs:annotation>
+										</xs:enumeration>
+										<xs:enumeration value="true">
+											<xs:annotation>
+												<xs:documentation>The target handler should not write its end element.</xs:documentation>
+											</xs:annotation>
+										</xs:enumeration>
+										<xs:enumeration value="false">
+											<xs:annotation>
+												<xs:documentation>The target handler should write its end element.</xs:documentation>
+											</xs:annotation>
+										</xs:enumeration>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:attribute>
+						</xs:complexType>
+					</xs:element>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="typeReference" type="typeReferencePatternType" substitutionGroup="blockContentsPattern"/>
+	<xs:complexType name="typeReferencePatternType">
+		<xs:annotation>
+			<xs:documentation>A pattern representing a reference to a type. All type references in PLiX use the same attributes and child elements.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="plx:bodyStatementType">
+				<xs:group ref="singleExpression"/>
+				<xs:attribute name="elementName" type="xs:string">
+					<xs:annotation>
+						<xs:documentation>(Optional) The name of the element to write while rendering the type reference. Behavior can be modified with the allowEmptyElement attribute. If elementName is not specified, then this pattern assumes than an element is already open and attributes and child elements can be written to it.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attributeGroup ref="allowEmptyElementAttribute"/>
+				<xs:attribute name="resolvedType" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>(Default: false) The provided type is already an ITypeReference, not an IType. If this is not set, then the IType must be resolved into an ITypeReference before it can be rendered.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="resolvedTypeWithoutGenerics" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>(Default: false) Used in addition to the resolvedType attribute. The type is already resolved, and does not have any generic components.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="canBeNull" type="xs:boolean" default="true">
+					<xs:annotation>
+						<xs:documentation>(Default: true) The type expression is known to be not null. By default, all types are assumed to potentially fail to resolve and appropriate checks are generated.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="renderVoid" type="xs:boolean" default="true">
+					<xs:annotation>
+						<xs:documentation>(Default: true) If this is set to false, then a System.Void type is not rendered.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="renderObject" type="xs:boolean" default="true">
+					<xs:annotation>
+						<xs:documentation>(Default: true) If this is set to false, then a System.Object type is not rendered.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<!-- Data blobs. Data used solely as input to helper transform functions -->
+	<xs:element name="dataBlob" abstract="true">
+		<xs:annotation>
+			<xs:documentation>A placeholder for arbitrary data blobs included in a root element</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="systemTypeTestFunctions" type="systemTypeTestFunctionsType" substitutionGroup="dataBlob"/>
+	<xs:complexType name="systemTypeTestFunctionsType">
+		<xs:annotation>
+			<xs:documentation>A blob of data used to generate helper functions to determine if an IType is a given system type. Type names listed in the types attribute are assumed to be in the System namespace. A static IsTYPENAMEType method is generated for each type.</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="types" use="required">
+			<xs:annotation>
+				<xs:documentation>A list of system types to generate functions for.</xs:documentation>
+			</xs:annotation>
+			<xs:simpleType>
+				<xs:list>
+					<xs:simpleType>
+						<xs:restriction base="plx:simpleNameType"/>
+					</xs:simpleType>
+				</xs:list>
+			</xs:simpleType>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="knownSystemTypeMap" type="knownSystemTypeMapType" substitutionGroup="dataBlob"/>
+	<xs:complexType name="knownSystemTypeMapType">
+		<xs:annotation>
+			<xs:documentation>A type mapping used to create a MapKnownSystemType method that returns a string if a provided ITypeReference maps to one of the known types.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="knownSystemType" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>An element representing the mapping for a single type.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:attribute name="systemName" type="plx:simpleNameType" use="required">
+						<xs:annotation>
+							<xs:documentation>The name of the type in the System namespace</xs:documentation>
+						</xs:annotation>
+					</xs:attribute>
+					<xs:attribute name="name" type="plx:simpleNameType" use="required">
+						<xs:annotation>
+							<xs:documentation>The corresponding name for the type in the list of intrinsic type names in PLiX dataTypeName attributes. Specified without a leading dot.</xs:documentation>
+						</xs:annotation>
+					</xs:attribute>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+</xs:schema>

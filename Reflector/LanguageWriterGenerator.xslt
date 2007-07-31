@@ -213,9 +213,22 @@
 					<xsl:when test="string(@valueProperty)">
 						<plx:callInstance name="{@valueProperty}" type="property">
 							<plx:callObject>
-								<plx:nameRef name="value" type="parameter"/>
+								<xsl:choose>
+									<xsl:when test="string(@localName)">
+										<plx:nameRef name="{@localName}"/>
+									</xsl:when>
+									<xsl:when test="string(@parameterName)">
+										<plx:nameRef name="{@parameterName}" type="parameter"/>
+									</xsl:when>
+									<xsl:otherwise>
+										<plx:nameRef name="value" type="parameter"/>
+									</xsl:otherwise>
+								</xsl:choose>
 							</plx:callObject>
 						</plx:callInstance>
+					</xsl:when>
+					<xsl:when test="string(@parameterName)">
+						<plx:nameRef name="{@parameterName}" type="parameter"/>
 					</xsl:when>
 					<xsl:otherwise>
 						<plx:nameRef name="{@localName}"/>
@@ -235,9 +248,9 @@
 	</xsl:template>
 	<xsl:template match="lw:elementNameCaseMap" mode="ResolvedContext">
 		<plx:case>
-			<plx:condition>
-				<plx:callStatic dataTypeName="{../@valueDataType}" name="{@value}" type="field"/>
-			</plx:condition>
+			<xsl:call-template name="AddEnumCaseMapCondition">
+				<xsl:with-param name="RemainingValues" select="normalize-space(@value)"/>
+			</xsl:call-template>
 			<plx:assign>
 				<plx:left>
 					<plx:nameRef name="elementName"/>
@@ -259,15 +272,25 @@
 		<plx:switch>
 			<plx:condition>
 				<xsl:choose>
-					<xsl:when test="string(@valueProperty)">
-						<plx:callInstance name="{@valueProperty}" type="property">
+					<xsl:when test="string(@fromProperty)">
+						<plx:callInstance name="{@fromProperty}" type="property">
 							<plx:callObject>
-								<plx:nameRef name="value" type="parameter"/>
+								<xsl:choose>
+									<xsl:when test="string(@fromLocalName)">
+										<plx:nameRef name="{@fromLocalName}"/>
+									</xsl:when>
+									<xsl:when test="string(@fromParameterName)">
+										<plx:nameRef name="{@fromParameterName}" type="parameter"/>
+									</xsl:when>
+									<xsl:otherwise>
+										<plx:nameRef name="value" type="parameter"/>
+									</xsl:otherwise>
+								</xsl:choose>
 							</plx:callObject>
 						</plx:callInstance>
 					</xsl:when>
-					<xsl:when test="string(@parameterName)">
-						<plx:nameRef name="{@parameterName}" type="parameter"/>
+					<xsl:when test="string(@fromParameterName)">
+						<plx:nameRef name="{@fromParameterName}" type="parameter"/>
 					</xsl:when>
 					<xsl:otherwise>
 						<plx:nameRef name="{@fromLocalName}"/>
@@ -354,7 +377,17 @@
 					<xsl:when test="string(@valueProperty)">
 						<plx:callInstance name="{@valueProperty}" type="property">
 							<plx:callObject>
-								<plx:nameRef name="value" type="parameter"/>
+								<xsl:choose>
+									<xsl:when test="string(@localName)">
+										<plx:nameRef name="{@localName}"/>
+									</xsl:when>
+									<xsl:when test="string(@parameterName)">
+										<plx:nameRef name="{@parameterName}" type="parameter"/>
+									</xsl:when>
+									<xsl:otherwise>
+										<plx:nameRef name="value" type="parameter"/>
+									</xsl:otherwise>
+								</xsl:choose>
 							</plx:callObject>
 						</plx:callInstance>
 					</xsl:when>
@@ -366,11 +399,13 @@
 					</xsl:otherwise>
 				</xsl:choose>
 			</plx:condition>
-			<xsl:apply-templates select="*">
+			<xsl:apply-templates select="*[not(self::lw:fallbackMap)]">
 				<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
 			</xsl:apply-templates>
 		</plx:switch>
-		<xsl:call-template name="DynamicAttributeRender"/>
+		<xsl:call-template name="DynamicAttributeRender">
+			<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="lw:attributeCaseMap">
 		<xsl:param name="DocumentRoot"/>
@@ -380,7 +415,7 @@
 	</xsl:template>
 	<xsl:template match="lw:attributeCaseMap" mode="ResolvedContext">
 		<plx:case>
-			<xsl:call-template name="AddAttributeCaseMapCondition">
+			<xsl:call-template name="AddEnumCaseMapCondition">
 				<xsl:with-param name="RemainingValues" select="normalize-space(@value)"/>
 			</xsl:call-template>
 			<xsl:variable name="filterCondition" select="child::*"/>
@@ -409,7 +444,7 @@
 			</xsl:choose>
 		</plx:case>
 	</xsl:template>
-	<xsl:template name="AddAttributeCaseMapCondition">
+	<xsl:template name="AddEnumCaseMapCondition">
 		<xsl:param name="RemainingValues"/>
 		<xsl:variable name="remainder" select="substring-after($RemainingValues, ' ')"/>
 		<xsl:variable name="currentValueFragment">
@@ -427,7 +462,7 @@
 			<plx:callStatic dataTypeName="{../@valueDataType}" name="{$currentValue}" type="field"/>
 		</plx:condition>
 		<xsl:if test="$remainder">
-			<xsl:call-template name="AddAttributeCaseMapCondition">
+			<xsl:call-template name="AddEnumCaseMapCondition">
 				<xsl:with-param name="RemainingValues" select="$remainder"/>
 			</xsl:call-template>
 		</xsl:if>
@@ -441,10 +476,12 @@
 	<xsl:template match="lw:attributeConditionalMap" mode="ResolvedContext">
 		<xsl:param name="DocumentRoot"/>
 		<xsl:call-template name="DynamicAttributeInitialize"/>
-		<xsl:apply-templates select="*">
+		<xsl:apply-templates select="*[not(self::lw:fallbackMap)]">
 			<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
 		</xsl:apply-templates>
-		<xsl:call-template name="DynamicAttributeRender"/>
+		<xsl:call-template name="DynamicAttributeRender">
+			<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="lw:conditionMap">
 		<xsl:param name="DocumentRoot"/>
@@ -477,6 +514,20 @@
 				</plx:right>
 			</plx:assign>
 		</xsl:element>
+	</xsl:template>
+	<xsl:template match="lw:fallbackMap">
+		<xsl:param name="DocumentRoot"/>
+		<xsl:call-template name="ResolveContextAttributes">
+			<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="lw:fallbackMap" mode="ResolvedContext">
+		<xsl:param name="DocumentRoot"/>
+		<plx:fallbackBranch>
+			<xsl:apply-templates select="*">
+				<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+			</xsl:apply-templates>
+		</plx:fallbackBranch>
 	</xsl:template>
 	<xsl:template match="lw:local">
 		<xsl:param name="DocumentRoot"/>
@@ -571,6 +622,7 @@
 		</plx:local>
 	</xsl:template>
 	<xsl:template name="DynamicAttributeRender">
+		<xsl:param name="DocumentRoot"/>
 		<xsl:param name="AttributeName" select="@attributeName"/>
 		<plx:branch>
 			<plx:condition>
@@ -596,6 +648,9 @@
 				</plx:passParam>
 			</plx:callThis>
 		</plx:branch>
+		<xsl:apply-templates select="lw:fallbackMap">
+			<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
+		</xsl:apply-templates>
 	</xsl:template>
 	<xsl:template match="lw:typeHandlerMap">
 		<xsl:param name="DocumentRoot"/>
@@ -877,8 +932,11 @@
 						<plx:callInstance name="{@property}" type="property">
 							<plx:callObject>
 								<xsl:choose>
-									<xsl:when test="string(@propertyOf)">
-										<plx:nameRef name="{@propertyOf}"/>
+									<xsl:when test="string(@localName)">
+										<plx:nameRef name="{@localName}"/>
+									</xsl:when>
+									<xsl:when test="string(@parameterName)">
+										<plx:nameRef name="{@parameterName}" type="parameter"/>
 									</xsl:when>
 									<xsl:otherwise>
 										<plx:nameRef name="value" type="parameter"/>
@@ -1043,8 +1101,13 @@
 				<xsl:variable name="modifiedAttributesFragment">
 					<lw:dummy>
 						<xsl:for-each select="@*">
-							<xsl:if test="substring(.,1,1)='?'">
-								<xsl:variable name="contextAttribute" select="$context/@*[local-name()=substring(current(),2)]"/>
+							<!-- Match the {?DATA} pattern for binding elements. Note that this also allows nested calls to
+							common constructs, for example {?{?DATA}}. The format for this was originally ?DATA, but PLiX
+							doesn't like the ? when used as a name, and assumes anything in {} is a template and does not
+							validate. Making the pattern look like an attribute-value template eliminated the schema validation
+							problems with parametrized common constructs. -->
+							<xsl:if test="(substring(.,1,2)='{?') and (substring(.,string-length(.))='}')">
+								<xsl:variable name="contextAttribute" select="$context/@*[local-name()=substring(current(),3,string-length(current())-3)]"/>
 								<xsl:attribute name="{local-name()}">
 									<xsl:if test="$contextAttribute">
 										<xsl:value-of select="$contextAttribute"/>
@@ -1429,13 +1492,13 @@
 			</xsl:if>
 		</plx:branch>
 	</xsl:template>
-	<xsl:template match="lw:defer">
+	<xsl:template match="lw:defer | lw:deferExpression">
 		<xsl:param name="DocumentRoot"/>
 		<xsl:call-template name="ResolveContextAttributes">
 			<xsl:with-param name="DocumentRoot" select="$DocumentRoot"/>
 		</xsl:call-template>
 	</xsl:template>
-	<xsl:template match="lw:defer" mode="ResolvedContext">
+	<xsl:template match="lw:defer | lw:deferExpression" mode="ResolvedContext">
 		<xsl:param name="DocumentRoot"/>
 		<xsl:variable name="localName" select="string(@localName)"/>
 		<xsl:variable name="deferRender" select="@deferRender"/>

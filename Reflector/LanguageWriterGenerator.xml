@@ -596,15 +596,6 @@
 						</plx:passParam>
 					</collection>
 					<collection collectionProperty="Methods" itemDataType="IMethodDeclaration" renderItem="Render">
-						<plx:passParam>
-							<plx:nameRef name="interfaceMemberInfo" type="parameter"/>
-						</plx:passParam>
-						<plx:passParam>
-							<plx:nameRef name="translateMethods" type="parameter"/>
-						</plx:passParam>
-						<plx:passParam>
-							<plx:nameRef name="isInterface"/>
-						</plx:passParam>
 						<plx:local name="interfaceMemberInfo" dataTypeName="InterfaceMemberInfo">
 							<plx:initialize>
 								<plx:callInstance name="GetInterfaceMemberInfo">
@@ -689,6 +680,15 @@
 							</plx:condition>
 							<plx:continue/>
 						</plx:branch>
+						<plx:passParam>
+							<plx:nameRef name="interfaceMemberInfo" type="parameter"/>
+						</plx:passParam>
+						<plx:passParam>
+							<plx:nameRef name="translateMethods" type="parameter"/>
+						</plx:passParam>
+						<plx:passParam>
+							<plx:nameRef name="isInterface"/>
+						</plx:passParam>
 					</collection>
 					<collection collectionProperty="NestedTypes" itemDataType="ITypeDeclaration" renderItem="Render">
 						<plx:passParam>
@@ -2376,13 +2376,7 @@
 	</handler>
 	<handler name="RenderForEachStatement" valueDataType="IForEachStatement" elementName="iterator">
 		<local name="variable" type="IVariableDeclaration" property="Variable"/>
-		<attribute name="localName">
-			<plx:callInstance name="Name" type="property">
-				<plx:callObject>
-					<plx:nameRef name="variable"/>
-				</plx:callObject>
-			</plx:callInstance>
-		</attribute>
+		<attribute name="localName" localName="variable" valueProperty="Name"/>
 		<typeReference>
 			<plx:callInstance name="VariableType" type="property">
 				<plx:callObject>
@@ -2945,7 +2939,7 @@
 							<plx:trueKeyword/>
 						</plx:passParam>
 						<plx:passParam>
-							<plx:nameRef name="?forward" type="parameter"/>
+							<plx:nameRef name="{?forward}" type="parameter"/>
 						</plx:passParam>
 						<plx:passParam>
 							<plx:nameRef name="argumentIndex" type="parameter"/>
@@ -2985,7 +2979,7 @@
 					<plx:nameRef name="retVal"/>
 				</plx:left>
 				<plx:right>
-					<defer deferRender="RenderArrayCreateExpressionAsParamArray">
+					<deferExpression deferRender="RenderArrayCreateExpressionAsParamArray">
 						<plx:passParam>
 							<plx:trueKeyword/>
 						</plx:passParam>
@@ -3002,7 +2996,7 @@
 						<plx:passParam>
 							<plx:nameRef name="allArguments" type="parameter"/>
 						</plx:passParam>
-					</defer>
+					</deferExpression>
 				</plx:right>
 			</plx:assign>
 		</plx:branch>
@@ -3016,7 +3010,7 @@
 				<plx:nameRef name="retVal"/>
 			</plx:left>
 			<plx:right>
-				<defer deferRender="RenderArrayCreateExpressionAsParamArray">
+				<deferExpression deferRender="RenderArrayCreateExpressionAsParamArray">
 					<plx:passParam>
 						<plx:trueKeyword/>
 					</plx:passParam>
@@ -3037,7 +3031,7 @@
 					<plx:passParam>
 						<plx:nameRef name="allArguments" type="parameter"/>
 					</plx:passParam>
-				</defer>
+				</deferExpression>
 			</plx:right>
 		</plx:assign>
 	</handler>
@@ -3050,7 +3044,7 @@
 				<plx:nameRef name="retVal"/>
 			</plx:left>
 			<plx:right>
-				<defer deferRender="RenderArrayCreateExpressionAsParamArray">
+				<deferExpression deferRender="RenderArrayCreateExpressionAsParamArray">
 					<plx:passParam>
 						<plx:trueKeyword/>
 					</plx:passParam>
@@ -3071,7 +3065,7 @@
 					<plx:passParam>
 						<plx:nameRef name="allArguments" type="parameter"/>
 					</plx:passParam>
-				</defer>
+				</deferExpression>
 			</plx:right>
 		</plx:assign>
 	</handler>
@@ -3438,12 +3432,12 @@
 	<handler name="RenderBinaryExpressionType" valueDataType="IBinaryExpression">
 		<attributeSwitchMap valueProperty="Operator" valueDataType="BinaryOperator" attributeName="dataTypeName">
 			<attributeCaseMap value="BooleanAnd BooleanOr GreaterThan GreaterThanOrEqual IdentityEquality IdentityInequality LessThan LessThanOrEqual ValueEquality ValueInequality" attributeValue=".boolean"/>
+			<fallbackMap>
+				<local name="leftClause" type="IExpression" property="Left"/>
+				<local name="rightClause" type="IExpression" property="Right"/>
+				<deferExpressionType localNames="leftClause rightClause"/>
+			</fallbackMap>
 		</attributeSwitchMap>
-		<plx:fallbackBranch>
-			<local name="leftClause" type="IExpression" property="Left"/>
-			<local name="rightClause" type="IExpression" property="Right"/>
-			<deferExpressionType localNames="leftClause rightClause"/>
-		</plx:fallbackBranch>
 	</handler>
 	<handler name="RenderCanCastExpression" valueDataType="ICanCastExpression" elementName="binaryOperator">
 		<attribute name="type" value="typeEquality"/>
@@ -4435,10 +4429,8 @@
 		</plx:branch>
 		<customElementName>
 			<elementNameSwitchMap localName="operatorType" valueDataType="UnaryOperator">
-				<elementNameCaseMap value="PreIncrement" elementName="increment"/>
-				<elementNameCaseMap value="PostIncrement" elementName="increment"/>
-				<elementNameCaseMap value="PreDecrement" elementName="decrement"/>
-				<elementNameCaseMap value="PostDecrement" elementName="decrement"/>
+				<elementNameCaseMap value="PreIncrement PostIncrement" elementName="increment"/>
+				<elementNameCaseMap value="PreDecrement PostDecrement" elementName="decrement"/>
 			</elementNameSwitchMap>
 		</customElementName>
 		<attributeSwitchMap localName="operatorType" valueDataType="UnaryOperator" attributeName="type">
@@ -4462,11 +4454,11 @@
 	<handler name="RenderUnaryExpressionType" valueDataType="IUnaryExpression">
 		<attributeSwitchMap valueProperty="Operator" valueDataType="UnaryOperator" attributeName="dataTypeName">
 			<attributeCaseMap value="BooleanNot" attributeValue=".boolean"/>
+			<fallbackMap>
+				<local name="expression" type="IExpression" property="Expression"/>
+				<deferExpressionType localNames="expression"/>
+			</fallbackMap>
 		</attributeSwitchMap>
-		<plx:fallbackBranch>
-			<local name="expression" type="IExpression" property="Expression"/>
-			<deferExpressionType localNames="expression"/>
-		</plx:fallbackBranch>
 	</handler>
 	<handler name="RenderUnhandledExpression" valueDataType="IExpression" elementName="UNHANDLED_EXPRESSION">
 		<attribute name="name">
@@ -5825,7 +5817,7 @@
 		</plx:local>
 	</commonConstruct>
 	<commonConstruct name="PopulateOwnerGenericArguments">
-		<local name="ownerGenericArgumentProvider"	type="IGenericArgumentProvider" testCast="true" property="?property" propertyOf="?propertyOf"/>
+		<local name="ownerGenericArgumentProvider"	type="IGenericArgumentProvider" testCast="true" property="{?property}" propertyOf="{?propertyOf}"/>
 		<plx:local name="ownerGenericArguments" dataTypeName="ITypeCollection">
 			<plx:initialize>
 				<plx:nullKeyword/>
@@ -5900,7 +5892,7 @@
 								<plx:nameRef name="ownerGenericArguments"/>
 							</plx:callObject>
 							<plx:passParam>
-								<plx:nameRef name="?itemName"/>
+								<plx:nameRef name="{?itemName}"/>
 							</plx:passParam>
 						</plx:callInstance>
 					</plx:right>
@@ -5917,7 +5909,7 @@
 		</plx:local>
 		<plx:local name="arguments" dataTypeName="IExpressionCollection">
 			<plx:initialize>
-				<plx:callInstance name="?collectionProperty" type="property">
+				<plx:callInstance name="{?collectionProperty}" type="property">
 					<plx:callObject>
 						<plx:nameRef name="value" type="parameter"/>
 					</plx:callObject>
@@ -6006,7 +5998,7 @@
 			</plx:condition>
 			<defer localName="argumentsItem" deferRender="RenderArrayCreateExpressionAsParamArray" delayEndElement="true">
 				<plx:passParam>
-					<plx:nameRef name="?target"/>
+					<plx:nameRef name="{?target}"/>
 				</plx:passParam>
 				<plx:passParam>
 					<plx:nameRef name="argumentIndex"/>
@@ -6041,7 +6033,7 @@
 			</plx:condition>
 			<defer localName="argumentsItem" deferRender="RenderArrayCreateExpressionAsParamArray" delayEndElement="true">
 				<plx:passParam>
-					<plx:nameRef name="?target"/>
+					<plx:nameRef name="{?target}"/>
 				</plx:passParam>
 				<plx:passParam>
 					<plx:nameRef name="argumentIndex"/>
