@@ -26,6 +26,8 @@
 	<String Id="CustomToolFeatureDescription">Install NUPlixLoader Custom Tool for Visual Studio</String>
 	<String Id="ReflectorAddinFeatureTitle">Reflector Add-In</String>
 	<String Id="ReflectorAddinFeatureDescription">Install Add-In for 'Lutz Roeder's .Net Reflector' program</String>
+	<String Id="PackageFeatureTitle">Visual Studio Tools</String>
+	<String Id="PackageFeatureDescription">Enable tools and commands in Visual Studio</String>
 
 	<String Id="ORMVBCustomToolDescription">Neumont VB PLiX Loader</String>
 	<String Id="ORMCSCustomToolDescription">Neumont C# PLiX Loader</String>

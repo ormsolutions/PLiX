@@ -23,17 +23,17 @@
 
 						<Component Id="LicenseFilesComponent" Guid="09282AC1-7437-43F5-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)" KeyPath="yes">
 							<File Id="CPL.txt" Name="CPL.txt" src="..\CPL.txt"
-								DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
+								DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.PLiX.dll"/>
 						</Component>
 
 						<Directory Id="BINDIR" Name="bin">
 
 							<!-- Executables and PDBs go here -->
 							<Component Id="CustomToolComponent" Guid="23DAD9F0-CEC3-432B-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
-								<File Id="Neumont.Tools.CodeGeneration.CustomTools.dll" Name="PLiXTool.dll" LongName="Neumont.Tools.CodeGeneration.CustomTools.dll" src="..\CodeGenCustomTool\bin\$(var.BuildConfiguration)\Neumont.Tools.CodeGeneration.CustomTools.dll"
-									DefaultVersion="$(var.ProductVersion)" DefaultLanguage="0" KeyPath="yes" Vital="yes" Assembly=".net" AssemblyManifest="Neumont.Tools.CodeGeneration.CustomTools.dll" ProcessorArchitecture="msil" AssemblyApplication="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
-								<File Id="Neumont.Tools.CodeGeneration.CustomTools.pdb" Name="PLiX.pdb" LongName="Neumont.Tools.CodeGeneration.CustomTools.pdb" src="..\CodeGenCustomTool\bin\$(var.BuildConfiguration)\Neumont.Tools.CodeGeneration.CustomTools.pdb"
-									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
+								<File Id="Neumont.Tools.CodeGeneration.PLiX.dll" Name="PLiXTool.dll" LongName="Neumont.Tools.CodeGeneration.PLiX.dll" src="..\CodeGenCustomTool\bin\$(var.BuildConfiguration)\Neumont.Tools.CodeGeneration.PLiX.dll"
+									DefaultVersion="$(var.ProductVersion)" DefaultLanguage="0" KeyPath="yes" Vital="yes" Assembly=".net" AssemblyManifest="Neumont.Tools.CodeGeneration.PLiX.dll" ProcessorArchitecture="msil" AssemblyApplication="Neumont.Tools.CodeGeneration.PLiX.dll"/>
+								<File Id="Neumont.Tools.CodeGeneration.PLiX.pdb" Name="PLiX.pdb" LongName="Neumont.Tools.CodeGeneration.PLiX.pdb" src="..\CodeGenCustomTool\bin\$(var.BuildConfiguration)\Neumont.Tools.CodeGeneration.PLiX.pdb"
+									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.PLiX.dll"/>
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.PLIXRegRoot)">
 									<Registry Type="string" Name="InstallDir" Value="[$(var.DefaultShortProductDir)]"/>
 									<Registry Type="string" Name="ProductVersion" Value="$(var.ProductVersion)"/>
@@ -46,7 +46,7 @@
 										<Registry Type="string" Name="ThreadingModel" Value="Both"/>
 										<Registry Type="string" Name="Class" Value="Neumont.Tools.CodeGeneration.PlixLoaderCustomTool"/>
 										<Registry Type="string" Name="Assembly" Value="$(var.PLIXCustomToolAssemblyName)"/>
-										<Registry Type="string" Name="CodeBase" Value="[#Neumont.Tools.CodeGeneration.CustomTools.dll]"/>
+										<Registry Type="string" Name="CodeBase" Value="[#Neumont.Tools.CodeGeneration.PLiX.dll]"/>
 									</Registry>
 								</Registry>
 							</Component>
@@ -59,8 +59,19 @@
 										<Registry Type="string" Name="ThreadingModel" Value="Both"/>
 										<Registry Type="string" Name="Class" Value="Neumont.Tools.CodeGeneration.PlixLoaderCustomTool"/>
 										<Registry Type="string" Name="Assembly" Value="$(var.PLIXCustomToolAssemblyName)"/>
-										<Registry Type="string" Name="CodeBase" Value="[#Neumont.Tools.CodeGeneration.CustomTools.dll]"/>
+										<Registry Type="string" Name="CodeBase" Value="[#Neumont.Tools.CodeGeneration.PLiX.dll]"/>
 									</Registry>
+								</Registry>
+							</Component>
+							<Component Id="PackageComponent" Guid="88C0811C-C410-4009-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Registry Root="HKLM" Key="$(var.VSRegRoot)">
+									<?include PLiXPackageRegistry.wxi?>
+								</Registry>
+							</Component>
+							<Component Id="PackageComponentExp" Guid="19542282-E96E-4F96-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>VSEXPINSTALL OR Installed</Condition>
+								<Registry Root="HKLM" Key="$(var.VSRegExpRoot)">
+									<?include PLiXPackageRegistry.wxi?>
 								</Registry>
 							</Component>
 							<Component Id="VBCustomToolComponent" Guid="6A5DB292-7051-447A-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
@@ -101,11 +112,11 @@
 						<Directory Id="HELPDIR" Name="Help">
 							<Component Id="HTMLSchemaFilesComponent" Guid="5AA0F7DD-44DB-471F-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 								<File Id="PlixXsd.html" Name="PlixXsd.htm" LongName="PlixXsd.html" src="..\CodeGenCustomTool\PlixXsd.html"
-									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
+									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.PLiX.dll"/>
 								<File Id="PlixLoaderXsd.html" Name="PlxLdXsd.htm" LongName="PlixLoaderXsd.html" src="..\CodeGenCustomTool\PlixLoaderXsd.html"
-									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
+									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.PLiX.dll"/>
 								<File Id="VSIntegrationInstructions.html" Name="VSInteg.htm" LongName="VSIntegrationInstructions.html" src="..\CodeGenCustomTool\VSIntegrationInstructions.html"
-									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.CustomTools.dll"/>
+									DefaultLanguage="0" CompanionFile="Neumont.Tools.CodeGeneration.PLiX.dll"/>
 								<File Id="ReflectorIntegration.html" Name="RefInteg.htm" LongName="ReflectorIntegration.html" src="..\Reflector\ReflectorIntegration.html"
 									DefaultLanguage="0" CompanionFile="Reflector.PLiXLanguage.dll"/>
 							</Component>

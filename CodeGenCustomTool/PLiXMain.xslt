@@ -376,10 +376,30 @@
 			</xsl:call-template>
 		</xsl:for-each>
 	</xsl:template>
+	<xsl:template match="plx:left|plx:right|plx:callObject|plx:condition|plx:initialize|plx:beforeLoop|plx:initializeLoop" mode="TopLevel">
+		<xsl:param name="Indent"/>
+		<!-- Pass through common container children for snippet support, each has a single child expression -->
+		<xsl:for-each select="child::*">
+			<xsl:call-template name="RenderElement">
+				<xsl:with-param name="Indent" select="$Indent"/>
+			</xsl:call-template>
+		</xsl:for-each>
+	</xsl:template>
+	<xsl:template match="plx:leadingInfo|plx:trailingInfo|plx:blockLeadingInfo|plx:blockTrailingInfo" mode="TopLevel">
+		<xsl:param name="Indent"/>
+		<!-- Pass through common container children for snippet support, render as statement to support multiple elements -->
+		<xsl:for-each select="child::*">
+			<xsl:call-template name="RenderElement">
+				<xsl:with-param name="Indent" select="$Indent"/>
+				<xsl:with-param name="Statement" select="true()"/>
+			</xsl:call-template>
+		</xsl:for-each>
+	</xsl:template>
 	<xsl:template match="*" mode="TopLevel">
 		<xsl:param name="Indent"/>
 		<xsl:call-template name="RenderElement">
 			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="TopLevel" select="true()"/>
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:inlineStatement">
@@ -602,8 +622,16 @@
 		<xsl:param name="Statement" select="false()"/>
 		<xsl:param name="CaseLabels"/>
 		<xsl:param name="SkipLeadingIndent" select="false()"/>
+		<xsl:param name="TopLevel" select="false()"/>
 		<xsl:variable name="indentInfoFragment">
-			<xsl:apply-templates select="." mode="IndentInfo"/>
+			<xsl:choose>
+				<xsl:when test="$TopLevel">
+					<xsl:apply-templates select="." mode="TopLevelIndentInfo"/>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:apply-templates select="." mode="IndentInfo"/>
+				</xsl:otherwise>
+			</xsl:choose>
 		</xsl:variable>
 		<xsl:variable name="indentInfo" select="exsl:node-set($indentInfoFragment)/child::*"/>
 		<xsl:variable name="indentStyle" select="string($indentInfo/@style)"/>
@@ -1320,6 +1348,44 @@
 
 	<!-- 
 	*********************************************************
+	Modification of indent information for top level elements to improve snippet presentation
+	*********************************************************
+	-->
+	<xsl:template match="*" mode="TopLevelIndentInfo">
+		<xsl:variable name="normalIndentInfoFragment">
+			<xsl:apply-templates select="." mode="IndentInfo"/>
+		</xsl:variable>
+		<xsl:variable name="normalIndentInfo" select="exsl:node-set($normalIndentInfoFragment)/child::plxGen:indentInfo"/>
+		<xsl:choose>
+			<xsl:when test="$normalIndentInfo">
+				<xsl:for-each select="$normalIndentInfo">
+					<xsl:variable name="style" select="string(@style)"/>
+					<xsl:copy>
+						<xsl:copy-of select="@*"/>
+						<xsl:attribute name="style">
+							<xsl:choose>
+								<xsl:when test="$style='blockDecorator'">
+									<xsl:text>simpleMember</xsl:text>
+								</xsl:when>
+								<xsl:when test="$style='secondaryBlock' or $style='blockSibling'">
+									<xsl:text>block</xsl:text>
+								</xsl:when>
+								<xsl:otherwise>
+									<xsl:value-of select="$style"/>
+								</xsl:otherwise>
+							</xsl:choose>
+						</xsl:attribute>
+						<xsl:copy-of select="*"/>
+					</xsl:copy>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:copy-of select="$normalIndentInfoFragment"/>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+	<!-- 
+	*********************************************************
 	Default indentation information for native plix elements
 	*********************************************************
 	-->
@@ -1401,14 +1467,13 @@
 	<xsl:template mode="IndentInfo" match="plx:field | plx:enumItem | plx:delegate">
 		<plxGen:indentInfo style="simpleMember"/>
 	</xsl:template>
-	<xsl:template mode="IndentInfo" match="plx:loop | plx:iterator | plx:lock | plx:autoDispose">
+	<xsl:template mode="IndentInfo" match="plx:loop | plx:iterator | plx:lock | plx:autoDispose | plx:switch">
 		<plxGen:indentInfo style="block"/>
 	</xsl:template>
 	<xsl:template mode="IndentInfo" match="plx:branch">
 		<plxGen:indentInfo style="blockWithSecondarySiblings"/>
 	</xsl:template>
-	<xsl:template mode="IndentInfo" match="plx:try | plx:switch">
-		<!-- Put plx:switch here so it picks up blockLeadingInfo/blockTrailingInfo on the nested case statements -->
+	<xsl:template mode="IndentInfo" match="plx:try">
 		<plxGen:indentInfo style="blockWithNestedSiblings"/>
 	</xsl:template>
 	<xsl:template mode="IndentInfo" match="plx:alternateBranch | plx:fallbackBranch">
@@ -1788,7 +1853,7 @@
 			</xsl:for-each>
 		</xsl:copy>
 	</xsl:template>
-	<xsl:template match="plx:arrayInitializer | plx:concatenate" mode="CollectInline">
+	<xsl:template match="plx:*/plx:arrayInitializer | plx:concatenate" mode="CollectInline">
 		<xsl:param name="LocalItemKey"/>
 		<xsl:param name="ContextField"/>
 		<xsl:for-each select="child::*">
@@ -1798,7 +1863,7 @@
 			</xsl:apply-templates>
 		</xsl:for-each>
 	</xsl:template>
-	<xsl:template match="plx:arrayInitializer | plx:concatenate" mode="ReplaceInline">
+	<xsl:template match="plx:*/plx:arrayInitializer | plx:concatenate" mode="ReplaceInline">
 		<xsl:param name="LocalItemKey"/>
 		<xsl:param name="Expansions"/>
 		<xsl:copy>
@@ -1811,6 +1876,63 @@
 			</xsl:for-each>
 		</xsl:copy>
 	</xsl:template>
+	
+	<!-- TopeLevel snippet inline expansion.
+	Note that all other explicitly handled elements (left, right, callObject, initialize, condition, beforeLoop, initializeLoop) defer directly to their child elements and
+	do not need to be directly expanded.  -->
+	<xsl:template match="plx:passParam[not(parent::plx:*)]" priority="-.4" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:apply-templates select="child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'p')"/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="plx:passParam[not(parent::plx:*)]" priority="-.4" mode="ReplaceInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="Expansions"/>
+		<xsl:copy>
+			<xsl:copy-of select="@*"/>
+			<xsl:apply-templates select="child::*" mode="ReplaceInline">
+				<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'p')"/>
+				<xsl:with-param name="Expansions" select="$Expansions"/>
+			</xsl:apply-templates>
+		</xsl:copy>
+	</xsl:template>
+	<xsl:template match="plx:passParamArray[not(parent::plx:*)]" priority="-.4" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:apply-templates select="child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'p',position())"/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="plx:passParamArray[not(parent::plx:*)]" priority="-.4" mode="ReplaceInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="Expansions"/>
+		<xsl:copy>
+			<xsl:copy-of select="@*"/>
+			<xsl:apply-templates select="child::*" mode="ReplaceInline">
+				<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'p',position())"/>
+				<xsl:with-param name="Expansions" select="$Expansions"/>
+			</xsl:apply-templates>
+		</xsl:copy>
+	</xsl:template>
+	<xsl:template match="plx:arrayInitializer[not(parent::plx:*)]" priority="-.4" mode="CollectInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:apply-templates select="child::*" mode="CollectInline">
+			<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'ai')"/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<xsl:template match="plx:arrayInitializer[not(parent::plx:*)]" priority="-.4" mode="ReplaceInline">
+		<xsl:param name="LocalItemKey"/>
+		<xsl:param name="Expansions"/>
+		<xsl:copy>
+			<xsl:copy-of select="@*"/>
+			<xsl:apply-templates select="child::*" mode="ReplaceInline">
+				<xsl:with-param name="LocalItemKey" select="concat($LocalItemKey,'ai')"/>
+				<xsl:with-param name="Expansions" select="$Expansions"/>
+			</xsl:apply-templates>
+		</xsl:copy>
+	</xsl:template>
+	
+	<!-- Loop inline expansion -->
 	<xsl:template match="plx:loop" mode="CollectInline">
 		<xsl:param name="LocalItemKey"/>
 		<xsl:variable name="loopDecorators" select="plx:initializeLoop | plx:condition | plx:beforeLoop"/>

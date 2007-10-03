@@ -29,7 +29,7 @@ using System.Xml.XPath;
 using System.Xml.Xsl;
 using VSLangProj;
 
-namespace Neumont.Tools.CodeGeneration
+namespace Neumont.Tools.CodeGeneration.Plix
 {
 	/// <summary>
 	/// A custom tool to generate code using the Plix code generation framework
@@ -139,82 +139,6 @@ namespace Neumont.Tools.CodeGeneration
 			}
 		}
 		#endregion // PlixLoaderNameTable class
-		#region PlixSettingsSchema class
-		private static class PlixSettingsSchema
-		{
-			#region String Constants
-			public const string SchemaNamespace = "http://schemas.neumont.edu/CodeGeneration/PLiXSettings";
-			public const string FormatterElement = "formatter";
-			public const string FormattersElement = "formatters";
-			public const string FileExtensionAttribute = "fileExtension";
-			public const string TransformAttribute = "transform";
-			#endregion // String Constants
-			#region Static properties
-			private static PlixSettingsNameTable myNames;
-			public static PlixSettingsNameTable Names
-			{
-				get
-				{
-					PlixSettingsNameTable retVal = myNames;
-					if (retVal == null)
-					{
-						lock (LockObject)
-						{
-							retVal = myNames;
-							if (retVal == null)
-							{
-								retVal = myNames = new PlixSettingsNameTable();
-							}
-						}
-					}
-					return retVal;
-				}
-			}
-			private static XmlReaderSettings myReaderSettings;
-			public static XmlReaderSettings ReaderSettings
-			{
-				get
-				{
-					XmlReaderSettings retVal = myReaderSettings;
-					if (retVal == null)
-					{
-						lock (LockObject)
-						{
-							retVal = myReaderSettings;
-							if (retVal == null)
-							{
-								retVal = myReaderSettings = new XmlReaderSettings();
-								retVal.ValidationType = ValidationType.Schema;
-								retVal.Schemas.Add(SchemaNamespace, new XmlTextReader(typeof(PlixLoaderCustomTool).Assembly.GetManifestResourceStream(typeof(PlixLoaderCustomTool), "PlixSettings.xsd")));
-								retVal.NameTable = Names;
-							}
-						}
-					}
-					return retVal;
-				}
-			}
-			#endregion // Static properties
-		}
-		#endregion // PlixSettingsSchema class
-		#region PlixSettingsNameTable class
-		private class PlixSettingsNameTable : NameTable
-		{
-			public readonly string SchemaNamespace;
-			public readonly string FormatterElement;
-			public readonly string FormattersElement;
-			public readonly string FileExtensionAttribute;
-			public readonly string TransformAttribute;
-			public PlixSettingsNameTable()
-				: base()
-			{
-				SchemaNamespace = Add(PlixSettingsSchema.SchemaNamespace);
-				FormatterElement = Add(PlixSettingsSchema.FormatterElement);
-				FormattersElement = Add(PlixSettingsSchema.FormattersElement);
-				TransformAttribute = Add(PlixSettingsSchema.TransformAttribute);
-				FileExtensionAttribute = Add(PlixSettingsSchema.FileExtensionAttribute);
-			}
-		}
-		#endregion // PlixSettingsNameTable class
 		#region PLiX ReaderSettings
 		private const string PlixSchemaNamespace = "http://schemas.neumont.edu/CodeGeneration/PLiX";
 		private static XmlReaderSettings myPlixReaderSettings;
@@ -250,13 +174,8 @@ namespace Neumont.Tools.CodeGeneration
 		private const string RedirectNamespace = "http://schemas.neumont.edu/CodeGeneration/PLiXRedirect";
 		private const string RedirectElementName = "redirectSourceFile";
 		private const string RedirectTargetAttribute = "target";
-		private const string PlixInstallDirectory = @"\Neumont\PLiX\";
-		private const string FormattersDirectory = @"Formatters\";
-		private const string PlixGlobalSettingsFile = "PLiXSettings.xml";
 		#endregion // Member Variables
 		#region Static variables
-		private static Dictionary<string, Formatter> myFormattersDictionary;
-		private static string myPlixDirectory;
 		private static object myLockObject;
 		private static object LockObject
 		{
@@ -372,20 +291,6 @@ namespace Neumont.Tools.CodeGeneration
 			}
 		}
 		#endregion // Service Properties
-		#region XmlFileResolver class
-		private class XmlFileResolver : XmlUrlResolver
-		{
-			private Uri myBaseUri;
-			public XmlFileResolver(string baseFile)
-			{
-				myBaseUri = new Uri(baseFile, UriKind.Absolute);
-			}
-			public override Uri ResolveUri(Uri baseUri, string relativeUri)
-			{
-				return base.ResolveUri((baseUri == null) ? myBaseUri : baseUri, relativeUri);
-			}
-		}
-		#endregion // XmlFileResolver class
 		#region Plix specific
 		/// <summary>
 		/// Generate a code file for the current xml file contents. Loads
@@ -438,7 +343,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 
 			// Load a language formatter for this file extension
 			string fileExtension = CodeDomProvider.FileExtension;
-			XslCompiledTransform formatter = GetFormatterTransform(fileExtension);
+			XslCompiledTransform formatter = FormatterManager.GetFormatterTransform(fileExtension);
 			if (formatter == null)
 			{
 				StringWriter writer = new StringWriter();
@@ -591,7 +496,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 					{
 						using (StreamReader reader = new StreamReader(transformStream))
 						{
-							transform.Load(new XmlTextReader(reader), XsltSettings.TrustedXslt, new XmlFileResolver(transformFile));
+							transform.Load(new XmlTextReader(reader), XsltSettings.TrustedXslt, XmlUtility.CreateFileResolver(transformFile));
 						}
 					}
 				}
@@ -684,7 +589,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 						{
 							// Use an XmlTextReader here instead of an XPathDocument
 							// so that our transforms support the xsl:preserve-space element
-							transform.Transform(new XmlTextReader(reader), arguments, xmlTextWriter, new XmlFileResolver(sourceFile));
+							transform.Transform(new XmlTextReader(reader), arguments, xmlTextWriter, XmlUtility.CreateFileResolver(sourceFile));
 							plixStream.Position = 0;
 						}
 						// From the plix stream, generate the code
@@ -821,28 +726,6 @@ There is no way to both successfully trigger regeneration and avoid writing this
 			}
 		}
 		#endregion // Plix specific
-		#region PlixDirectory property
-		private string PlixDirectory
-		{
-			get
-			{
-				string retVal = myPlixDirectory;
-				if (retVal == null)
-				{
-					lock (LockObject)
-					{
-						if (null == (retVal = myPlixDirectory))
-						{
-							string commonProgramFiles = Environment.GetEnvironmentVariable("CommonProgramFiles", EnvironmentVariableTarget.Process);
-							retVal = commonProgramFiles + PlixInstallDirectory;
-							myPlixDirectory = retVal;
-						}
-					}
-				}
-				return retVal;
-			}
-		}
-		#endregion // PlixDirectory property
 		#region Project Settings Loader
 		/// <summary>
 		/// Load the project settings for a specific transform file and return it
@@ -906,7 +789,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 											XmlNodeType nodeType = reader.NodeType;
 											if (nodeType == XmlNodeType.Element)
 											{
-												Debug.Assert(TestElementName(reader.LocalName, names.SourceFileElement)); // Only value allowed by the validating loader
+												Debug.Assert(XmlUtility.TestElementName(reader.LocalName, names.SourceFileElement)); // Only value allowed by the validating loader
 												string testFileName = reader.GetAttribute(names.FileAttribute);
 												if (0 == string.Compare(testFileName, sourceFileIdentifier, true, CultureInfo.CurrentCulture))
 												{
@@ -929,18 +812,18 @@ There is no way to both successfully trigger regeneration and avoid writing this
 															if (nodeType == XmlNodeType.Element)
 															{
 																string localName = reader.LocalName;
-																if (TestElementName(localName, names.TransformParameterElement))
+																if (XmlUtility.TestElementName(localName, names.TransformParameterElement))
 																{
 																	// Add an argument for the transform
 																	arguments.AddParam(reader.GetAttribute(names.NameAttribute), "", reader.GetAttribute(names.ValueAttribute));
 																}
-																else if (TestElementName(localName, names.ExtensionClassElement))
+																else if (XmlUtility.TestElementName(localName, names.ExtensionClassElement))
 																{
 																	// Load an extension class and associate it with an extension namespace
 																	// used by the transform
 																	arguments.AddExtensionObject(reader.GetAttribute(names.XslNamespaceAttribute), Type.GetType(reader.GetAttribute(names.ClassNameAttribute), true, false).GetConstructor(Type.EmptyTypes).Invoke(new object[0]));
 																}
-																else if (TestElementName(localName, names.ProjectReferenceElement))
+																else if (XmlUtility.TestElementName(localName, names.ProjectReferenceElement))
 																{
 																	// The generated code requires project references, add them
 																	if (null == references)
@@ -956,7 +839,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 																{
 																	Debug.Assert(false); // Not allowed by schema definition
 																}
-																PassEndElement(reader);
+																XmlUtility.PassEndElement(reader);
 															}
 															else if (nodeType == XmlNodeType.EndElement)
 															{
@@ -966,7 +849,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 													}
 													break;
 												}
-												PassEndElement(reader);
+												XmlUtility.PassEndElement(reader);
 											}
 											else if (nodeType == XmlNodeType.EndElement)
 											{
@@ -1000,172 +883,6 @@ There is no way to both successfully trigger regeneration and avoid writing this
 			}
 			return transformFile;
 		}
-		private static bool TestElementName(string localName, string elementName)
-		{
-			return object.ReferenceEquals(localName, elementName);
-		}
-		/// <summary>
-		/// Move the reader to the node immediately after the end element corresponding to the current open element
-		/// </summary>
-		/// <param name="reader">The XmlReader to advance</param>
-		private static void PassEndElement(XmlReader reader)
-		{
-			if (!reader.IsEmptyElement)
-			{
-				bool finished = false;
-				while (!finished && reader.Read())
-				{
-					switch (reader.NodeType)
-					{
-						case XmlNodeType.Element:
-							PassEndElement(reader);
-							break;
-
-						case XmlNodeType.EndElement:
-							finished = true;
-							break;
-					}
-				}
-			}
-		}
 		#endregion // Project Settings Loader
-		#region Global Settings Loader
-		private struct Formatter
-		{
-			private string myTransformFile;
-			private XslCompiledTransform myTransform;
-			/// <summary>
-			/// Create a formatter structure for the given transform file
-			/// </summary>
-			/// <param name="transformFile">The full path to a transform file</param>
-			public Formatter(string transformFile)
-			{
-				myTransformFile = transformFile;
-				myTransform = null;
-			}
-			/// <summary>
-			/// Has the transform been successfully loaded?
-			/// </summary>
-			public bool HasTransform
-			{
-				get
-				{
-					return myTransform != null;
-				}
-			}
-			/// <summary>
-			/// The compile transform
-			/// </summary>
-			public XslCompiledTransform Transform
-			{
-				get
-				{
-					XslCompiledTransform retVal = myTransform;
-					if (retVal == null)
-					{
-						lock (LockObject)
-						{
-							if (null == (retVal = myTransform))
-							{
-								retVal = new XslCompiledTransform();
-								string transformFile = myTransformFile;
-								using (FileStream transformStream = new FileStream(transformFile, FileMode.Open, FileAccess.Read))
-								{
-									using (StreamReader reader = new StreamReader(transformStream))
-									{
-										retVal.Load(new XmlTextReader(reader), XsltSettings.TrustedXslt, new XmlFileResolver(transformFile));
-										myTransform = retVal;
-									}
-								}
-							}
-						}
-					}
-					return retVal;
-				}
-			}
-		}
-		private XslCompiledTransform GetFormatterTransform(string fileExtension)
-		{
-			XslCompiledTransform retVal = null;
-			Dictionary<string, Formatter> dictionary = myFormattersDictionary;
-			if (dictionary == null)
-			{
-				lock (LockObject)
-				{
-					if (null == (dictionary = myFormattersDictionary))
-					{
-						dictionary = new Dictionary<string, Formatter>();
-						LoadGlobalSettings(dictionary);
-						myFormattersDictionary = dictionary;
-					}
-				}
-			}
-			Formatter langFormatter;
-			if (dictionary.TryGetValue(fileExtension.ToLowerInvariant(), out langFormatter))
-			{
-				bool resetDictionary = !langFormatter.HasTransform;
-				retVal = langFormatter.Transform;
-				if (retVal != null && resetDictionary)
-				{
-					lock (LockObject)
-					{
-						dictionary[fileExtension] = langFormatter;
-					}
-				}
-			}
-			return retVal;
-		}
-		private void LoadGlobalSettings(Dictionary<string, Formatter> languageTransforms)
-		{
-			string settingsFile = PlixDirectory + PlixGlobalSettingsFile;
-			if (File.Exists(settingsFile))
-			{
-				PlixSettingsNameTable names = PlixSettingsSchema.Names;
-				using (FileStream plixSettingsStream = new FileStream(settingsFile, FileMode.Open, FileAccess.Read))
-				{
-					using (XmlTextReader settingsReader = new XmlTextReader(new StreamReader(plixSettingsStream), names))
-					{
-						using (XmlReader reader = XmlReader.Create(settingsReader, PlixSettingsSchema.ReaderSettings))
-						{
-							if (XmlNodeType.Element == reader.MoveToContent())
-							{
-								while (reader.Read())
-								{
-									XmlNodeType nodeType1 = reader.NodeType;
-									if (nodeType1 == XmlNodeType.Element)
-									{
-										Debug.Assert(TestElementName(reader.LocalName, names.FormattersElement)); // Only value allowed by the validating reader
-										if (reader.IsEmptyElement)
-										{
-											break;
-										}
-										string formattersDir = PlixDirectory + FormattersDirectory;
-										while (reader.Read())
-										{
-											XmlNodeType nodeType2 = reader.NodeType;
-											if (nodeType2 == XmlNodeType.Element)
-											{
-												Debug.Assert(TestElementName(reader.LocalName, names.FormatterElement)); // Only value allowed by the validating reader
-												languageTransforms[reader.GetAttribute(PlixSettingsSchema.FileExtensionAttribute)] = new Formatter(formattersDir + reader.GetAttribute(PlixSettingsSchema.TransformAttribute));
-												PassEndElement(reader);
-											}
-											else if (nodeType2 == XmlNodeType.EndElement)
-											{
-												break;
-											}
-										}
-									}
-									else if (nodeType1 == XmlNodeType.EndElement)
-									{
-										break;
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		#endregion // Global Settings Loader
 	}
 }

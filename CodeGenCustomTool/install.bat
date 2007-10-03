@@ -1,5 +1,11 @@
 @echo off
 setlocal
+
+:: TargetVisualStudioNumericVersion settings:
+::   8.0 = Visual Studio 2005 (Code Name "Whidbey")
+::   9.0 = Visual Studio 2008 (Code Name "Orcas")
+SET TargetVisualStudioNumericVersion=8.0
+
 if '%1'=='' (
 set rootPath=%~dp0
 ) else (
@@ -15,13 +21,24 @@ set envPath=%ProgramFiles%\Microsoft Visual Studio 8\
 ) else (
 set envPath=%~3
 )
+
+SET VSRegistryRootBase=SOFTWARE\Microsoft\VisualStudio
+SET VSRegistryRootVersion=%TargetVisualStudioNumericVersion%
+FOR /F "usebackq skip=2 tokens=2*" %%A IN (`REG QUERY "HKLM\%VSRegistryRootBase%\VSIP\%VSRegistryRootVersion%" /v "InstallDir"`) DO SET VSIPDir=%%~fB
+IF "%TargetVisualStudioNumericVersion%"=="9.0" (SET vsipbin=%VSIPDir%VisualStudioIntegration\Tools\Bin\VS2005\) ELSE (SET vsipbin=%VSIPDir%VisualStudioIntegration\Tools\Bin\)
+
 set plixBinaries=%ProgramFiles%\Neumont\PLiX for Visual Studio\bin\
 set plixHelp=%ProgramFiles%\Neumont\PLiX for Visual Studio\Help\
 set plixXML=%CommonProgramFiles%\Neumont\PLiX\
-set plixTool=Neumont.Tools.CodeGeneration.CustomTools
-set plixToolClass=Neumont.Tools.CodeGeneration.PlixLoaderCustomTool
+set plixTool=Neumont.Tools.CodeGeneration.PLiX
+set plixToolClass=Neumont.Tools.CodeGeneration.Plix.PlixLoaderCustomTool
 
-:: Clean old install location
+IF EXIST "%plixBinaries%%plixTool%.dll" (
+"%vsipbin%regpkg.exe" /root:"%VSRegistryRootBase%\%VSRegistryRootVersion%" /unregister "%plixBinaries%%plixTool%.dll"
+"%vsipbin%regpkg.exe" /root:"%VSRegistryRootBase%\%VSRegistryRootVersion%Exp" /unregister "%plixBinaries%%plixTool%.dll"
+)
+
+:: Clean old install locations
 if exist "%envPath%Common7\IDE\PrivateAssemblies\Neumont.Tools.CodeGeneration.CustomTools.dll" (
 del "%envPath%Common7\IDE\PrivateAssemblies\Neumont.Tools.CodeGeneration.CustomTools.dll"
 )
@@ -30,6 +47,12 @@ del "%envPath%Common7\IDE\PrivateAssemblies\Neumont.Tools.CodeGeneration.CustomT
 )
 del /f /q "%envPath%Xml\Schemas\Plix*.xsd" 1>NUL 2>&1
 if exist "%envPath%Neumont" rd /s /q "%envPath%Neumont"
+if exist "%plixBinaries%Neumont.Tools.CodeGeneration.CustomTools.dll" (
+del "%plixBinaries%Neumont.Tools.CodeGeneration.CustomTools.dll"
+)
+if exist "%plixBinaries%Neumont.Tools.CodeGeneration.CustomTools.pdb" (
+del "%plixBinaries%Neumont.Tools.CodeGeneration.CustomTools.pdb"
+)
 
 :: Create new directories
 if not exist "%plixBinaries%" md "%plixBinaries%"
@@ -49,17 +72,20 @@ del "%plixBinaries%%plixTool%.pdb"
 xcopy /Y /D /Q "%rootPath%PlixXsd.html" "%plixHelp%"
 xcopy /Y /D /Q "%rootPath%PlixLoaderXsd.html" "%plixHelp%"
 xcopy /Y /D /Q "%rootPath%VSIntegrationInstructions.html" "%plixHelp%"
-xcopy /Y /D /Q "%rootPath%%outDir%PlixLoader.xsd" "%plixXML%\Schemas"
-xcopy /Y /D /Q "%rootPath%%outDir%Plix.xsd" "%plixXML%\Schemas"
-xcopy /Y /D /Q "%rootPath%%outDir%PlixRedirect.xsd" "%plixXML%\Schemas"
-xcopy /Y /D /Q "%rootPath%%outDir%PlixSettings.xsd" "%plixXML%\Schemas"
-xcopy /Y /D /Q "%rootPath%%outDir%catalog.xml" "%plixXML%\Schemas"
+xcopy /Y /D /Q "%rootPath%%outDir%PlixLoader.xsd" "%plixXML%Schemas"
+xcopy /Y /D /Q "%rootPath%%outDir%Plix.xsd" "%plixXML%Schemas"
+xcopy /Y /D /Q "%rootPath%%outDir%PlixRedirect.xsd" "%plixXML%Schemas"
+xcopy /Y /D /Q "%rootPath%%outDir%PlixSettings.xsd" "%plixXML%Schemas"
+xcopy /Y /D /Q "%rootPath%%outDir%catalog.xml" "%plixXML%Schemas"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixSettings.xml" "%plixXML%"
-xcopy /Y /D /Q "%rootPath%%outDir%PlixMain.xslt" "%plixXML%\Formatters"
+xcopy /Y /D /Q "%rootPath%%outDir%PlixMain.xslt" "%plixXML%Formatters"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixCS.xslt" "%plixXML%Formatters"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixVB.xslt" "%plixXML%Formatters"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixPHP.xslt" "%plixXML%Formatters"
 xcopy /Y /D /Q "%rootPath%..\Setup\PLiXSchemaCatalog.xml" "%envPath%Xml\Schemas"
+
+"%vsipbin%regpkg.exe" /root:"%VSRegistryRootBase%\%VSRegistryRootVersion%" /codebase "%plixBinaries%%plixTool%.dll"
+"%vsipbin%regpkg.exe" /root:"%VSRegistryRootBase%\%VSRegistryRootVersion%Exp" /codebase "%plixBinaries%%plixTool%.dll"
 
 CALL:_InstallCustomTool "8.0"
 CALL:_InstallCustomTool "8.0Exp"

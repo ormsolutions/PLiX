@@ -32,6 +32,10 @@
 					Level="1" TypicalDefault="install" InstallDefault="followParent" AllowAdvertise="no">
 					<ComponentGroupRef Id="ReflectorComponents"/>
 				</Feature>
+				<Feature Id="PackageComponents" Title="$(loc.PackageFeatureTitle)" Description="$(loc.PackageFeatureDescription)"
+					Level="1" TypicalDefault="install" InstallDefault="followParent" AllowAdvertise="no">
+					<ComponentGroupRef Id="PackageComponents"/>
+				</Feature>
 			</Feature>
 			
 		</Feature>

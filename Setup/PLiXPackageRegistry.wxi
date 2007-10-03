@@ -1,0 +1,53 @@
+<!--
+	Neumont PLiX (Programming Language in XML) Code Generator for Visual Studio
+
+	Copyright © Neumont University and Matthew Curland. All rights reserved.
+
+	The use and distribution terms for this software are covered by the
+	Common Public License 1.0 (http://opensource.org/licenses/cpl) which
+	can be found in the file CPL.txt at the root of this distribution.
+	By using this software in any fashion, you are agreeing to be bound by
+	the terms of this license.
+
+	You must not remove this notice, or any other, from this software.
+-->
+<Include xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
+
+	<Registry Action="createKeyAndRemoveKeyOnUninstall" Key="InstalledProducts\Neumont PLiX Code Generator">
+		<Registry Name="Package" Value="{bc129a03-26c4-4667-8e12-96225b2d3cd2}" Type="string" />
+		<Registry Name="UseRegNameAsSplashName" Value="1" Type="integer" />
+		<Registry Name="UseInterface" Value="1" Type="integer" />
+	</Registry>
+
+	<Registry Action="createKeyAndRemoveKeyOnUninstall" Key="Packages\{bc129a03-26c4-4667-8e12-96225b2d3cd2}">
+		<Registry Value="Neumont.Tools.CodeGeneration.Plix.Shell.PlixPackage, Neumont.Tools.CodeGeneration.PLiX, Version=1.0.0.0, Culture=neutral, PublicKeyToken=7a0c83ac6f8a469f" Type="string" />
+		<Registry Name="InprocServer32" Value="[SystemFolder]mscoree.dll" Type="string" />
+		<Registry Name="Class" Value="Neumont.Tools.CodeGeneration.Plix.Shell.PlixPackage" Type="string" />
+		<Registry Name="CodeBase" Value="[#File_Neumont.Tools.CodeGeneration.PLiX.dll]" Type="string" />
+		<Registry Name="ID" Value="150" Type="integer" />
+		<Registry Name="MinEdition" Value="Standard" Type="string" />
+		<Registry Name="ProductVersion" Value="1.0" Type="string" />
+		<Registry Name="ProductName" Value="Neumont PLiX Tools for Visual Studio" Type="string" />
+		<Registry Name="CompanyName" Value="Neumont University" Type="string" />
+	</Registry>
+
+	<Registry Key="Menus">
+		<Registry Name="{bc129a03-26c4-4667-8e12-96225b2d3cd2}" Value=", 1000, 1" Type="string" />
+	</Registry>
+
+	<Registry Action="createKeyAndRemoveKeyOnUninstall" Key="UserSettings\ProgrammingLanguageInXml_SnippetPreviewWindow">
+		<Registry Value="#116" Type="string" />
+		<Registry Name="Package" Value="{bc129a03-26c4-4667-8e12-96225b2d3cd2}" Type="string" />
+		<Registry Name="Category" Value="{3c59d6f9-6c1a-42e4-bae4-26cc5a944edf}" Type="string" />
+		<Registry Name="Description" Value="#118" Type="string" />
+	</Registry>
+
+	<Registry Action="createKeyAndRemoveKeyOnUninstall" Key="ToolWindows\{db70cd81-fe98-3ea7-ba27-68fe79428c43}">
+		<Registry Value="{bc129a03-26c4-4667-8e12-96225b2d3cd2}" Type="string" />
+		<Registry Name="Name" Value="Neumont.Tools.CodeGeneration.Plix.Shell.PlixPackage+SnippetPreviewWindow" Type="string" />
+		<Registry Name="Orientation" Value="Right" Type="string" />
+		<Registry Name="Style" Value="Tabbed" Type="string" />
+		<Registry Name="Window" Value="{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}" Type="string" />
+		<Registry Name="DontForceCreate" Value="1" Type="integer" />
+	</Registry>
+</Include>

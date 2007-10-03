@@ -18,9 +18,9 @@ using System.Resources;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Neumont.Tools.CodeGeneration.CustomTools.dll")]
-[assembly: AssemblyProduct("Neumont PLiX (Programming Language in XML) Code Generator")]
-[assembly: AssemblyDescription("Neumont PLiX (Programming Language in XML) Code Generator - NUPlixLoader Custom Tool")]
+[assembly: AssemblyTitle("Neumont.Tools.CodeGeneration.PLiX.dll")]
+[assembly: AssemblyProduct("Neumont PLiX Tools for Visual Studio")]
+[assembly: AssemblyDescription("Neumont PLiX (Programming Language in XML) Tools for Visual Studio")]
 [assembly: AssemblyCompany("Neumont University")]
 [assembly: AssemblyCopyright("Copyright © Neumont University and Matthew Curland. All rights reserved.")]
 [assembly: AssemblyTrademark("")]

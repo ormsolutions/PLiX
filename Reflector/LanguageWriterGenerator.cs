@@ -33,7 +33,7 @@ namespace Reflector
 				{
 					elementName = "interface";
 				}
-				else if ((baseType != null) && (baseType.Namespace == "System"))
+				else if (baseType != null && baseType.Namespace == "System")
 				{
 					string baseTypeName = baseType.Name;
 					if (baseTypeName == "Enum")
@@ -44,7 +44,7 @@ namespace Reflector
 					{
 						elementName = "structure";
 					}
-					else if ((baseTypeName == "Delegate") || (baseTypeName == "MulticastDelegate"))
+					else if (baseTypeName == "Delegate" || baseTypeName == "MulticastDelegate")
 					{
 						elementName = "delegate";
 					}
@@ -83,14 +83,14 @@ namespace Reflector
 				{
 					this.WriteAttribute("visibility", visibilityAttributeValue);
 				}
-				if (!(isInterface))
+				if (!isInterface)
 				{
 					string modifierAttributeValue = "";
 					if (value.Abstract)
 					{
 						modifierAttributeValue = "abstract";
 					}
-					else if (value.Sealed && (elementName == "class"))
+					else if (value.Sealed && elementName == "class")
 					{
 						modifierAttributeValue = "sealed";
 					}
@@ -115,13 +115,13 @@ namespace Reflector
 							ITypeReference attributeType = testCustomAttribute.Constructor.DeclaringType as ITypeReference;
 							if (attributeType != null)
 							{
-								if ((attributeType.Name == "DefaultMemberAttribute") && (attributeType.Namespace == "System.Reflection"))
+								if (attributeType.Name == "DefaultMemberAttribute" && attributeType.Namespace == "System.Reflection")
 								{
 									ILiteralExpression defaultMemberNameLiteral;
 									string defaultMemberName;
 									object literalValue;
 									IExpressionCollection arguments = testCustomAttribute.Arguments;
-									if ((((arguments.Count == 1) && ((defaultMemberNameLiteral = arguments[0] as ILiteralExpression) != null)) && (((literalValue = defaultMemberNameLiteral.Value) != null) && (Type.GetTypeCode(literalValue.GetType()) == TypeCode.String))) && (null != (defaultMemberName = (string)literalValue)))
+									if (arguments.Count == 1 && (defaultMemberNameLiteral = arguments[0] as ILiteralExpression) != null && (literalValue = defaultMemberNameLiteral.Value) != null && Type.GetTypeCode(literalValue.GetType()) == TypeCode.String && null != (defaultMemberName = (string)literalValue))
 									{
 										defaultMemberAttributeIndex = attributeIndex;
 										this.WriteAttribute("defaultMember", defaultMemberName, false, true);
@@ -155,7 +155,7 @@ namespace Reflector
 					}
 					foreach (IGenericParameter GenericArgumentsItem in value.GenericArguments)
 					{
-						if ((ownerGenericArguments != null) && ownerGenericArguments.Contains(GenericArgumentsItem))
+						if (ownerGenericArguments != null && ownerGenericArguments.Contains(GenericArgumentsItem))
 						{
 							continue;
 						}
@@ -174,7 +174,7 @@ namespace Reflector
 					{
 						if (elementName == "class")
 						{
-							if ((baseType != null) && ((baseType.Namespace != "System") || (baseType.Name != "Object")))
+							if (baseType != null && (baseType.Namespace != "System" || baseType.Name != "Object"))
 							{
 								this.WriteElement("derivesFromClass");
 								this.RenderTypeReference(baseType);
@@ -218,7 +218,7 @@ namespace Reflector
 							foreach (IMethodDeclaration MethodsItem in value.Methods)
 							{
 								InterfaceMemberInfo interfaceMemberInfo = this.myMemberMap.GetInterfaceMemberInfo(MethodsItem);
-								if ((interfaceMemberInfo.Style == InterfaceMemberStyle.DeferredExplicitImplementation) || ((MethodsItem.SpecialName && !(MethodsItem.RuntimeSpecialName)) && !(MethodsItem.Static && MethodsItem.Name.StartsWith("op_"))))
+								if (interfaceMemberInfo.Style == InterfaceMemberStyle.DeferredExplicitImplementation || MethodsItem.SpecialName && !MethodsItem.RuntimeSpecialName && !(MethodsItem.Static && MethodsItem.Name.StartsWith("op_")))
 								{
 									continue;
 								}
@@ -277,7 +277,7 @@ namespace Reflector
 					this.WriteAttribute("const", constAttributeValue);
 				}
 				string staticAttributeValue = "";
-				if (value.Static && !(value.Literal))
+				if (value.Static && !value.Literal)
 				{
 					staticAttributeValue = "true";
 				}
@@ -315,7 +315,7 @@ namespace Reflector
 			private void Render(IPropertyDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool translateMethods)
 			{
 				ITypeReference declaringType = value.DeclaringType as ITypeReference;
-				bool isInterfaceMember = (declaringType != null) && declaringType.Resolve().Interface;
+				bool isInterfaceMember = declaringType != null && declaringType.Resolve().Interface;
 				this.Render(value, interfaceMemberInfo, translateMethods, isInterfaceMember);
 			}
 			private void Render(IPropertyDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool translateMethods, bool isInterfaceMember)
@@ -328,7 +328,7 @@ namespace Reflector
 				{
 					this.RenderMethodVisibilityAttribute(referenceMethod);
 				}
-				if (!(isInterfaceMember))
+				if (!isInterfaceMember)
 				{
 					if (referenceMethod != null)
 					{
@@ -378,7 +378,7 @@ namespace Reflector
 			private void Render(IEventDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool translateMethods)
 			{
 				ITypeReference declaringType = value.DeclaringType as ITypeReference;
-				bool isInterfaceMember = (declaringType != null) && declaringType.Resolve().Interface;
+				bool isInterfaceMember = declaringType != null && declaringType.Resolve().Interface;
 				this.Render(value, interfaceMemberInfo, translateMethods, isInterfaceMember);
 			}
 			private void Render(IEventDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool translateMethods, bool isInterfaceMember)
@@ -393,7 +393,7 @@ namespace Reflector
 				{
 					this.RenderMethodVisibilityAttribute(referenceMethod);
 				}
-				if (!(isInterfaceMember))
+				if (!isInterfaceMember)
 				{
 					if (referenceMethod != null)
 					{
@@ -416,7 +416,7 @@ namespace Reflector
 						foreach (ICustomAttribute referenceMethodAttributesItem in referenceMethod.Attributes)
 						{
 							ITypeReference attributeType = referenceMethodAttributesItem.Constructor.DeclaringType as ITypeReference;
-							if ((attributeType != null) && ((attributeType.Name == "DebuggerNonUserCodeAttribute") && (attributeType.Namespace == "System.Diagnostics")))
+							if (attributeType != null && attributeType.Name == "DebuggerNonUserCodeAttribute" && attributeType.Namespace == "System.Diagnostics")
 							{
 								continue;
 							}
@@ -456,7 +456,7 @@ namespace Reflector
 				}
 				foreach (IType eventTypeGenericArgumentsItem in eventType.GenericArguments)
 				{
-					if ((ownerGenericArguments != null) && ownerGenericArguments.Contains(eventTypeGenericArgumentsItem))
+					if (ownerGenericArguments != null && ownerGenericArguments.Contains(eventTypeGenericArgumentsItem))
 					{
 						continue;
 					}
@@ -558,7 +558,7 @@ namespace Reflector
 			private void RenderAccessorMethod(IMethodReference value, IMethodDeclaration referenceMethod, bool renderParameterAttributes, bool translateMethod)
 			{
 				IMethodDeclaration accessorDeclaration = value.Resolve();
-				if ((referenceMethod != null) && (CompareMethodVisibilityStrength(referenceMethod.Visibility, accessorDeclaration.Visibility) < 0))
+				if (referenceMethod != null && CompareMethodVisibilityStrength(referenceMethod.Visibility, accessorDeclaration.Visibility) < 0)
 				{
 					if (accessorDeclaration != null)
 					{
@@ -605,12 +605,12 @@ namespace Reflector
 			private void Render(IMethodDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool translateMethod)
 			{
 				ITypeReference declaringType = value.DeclaringType as ITypeReference;
-				bool isInterfaceMember = (declaringType != null) && declaringType.Resolve().Interface;
+				bool isInterfaceMember = declaringType != null && declaringType.Resolve().Interface;
 				this.Render(value, interfaceMemberInfo, translateMethod, isInterfaceMember);
 			}
 			private void Render(IMethodDeclaration value, InterfaceMemberInfo interfaceMemberInfo, bool translateMethod, bool isInterfaceMember)
 			{
-				translateMethod = translateMethod && !(isInterfaceMember);
+				translateMethod = translateMethod && !isInterfaceMember;
 				if (translateMethod)
 				{
 					try
@@ -621,7 +621,7 @@ namespace Reflector
 					}
 					catch
 					{
-						if (!(this.myFirstWrite))
+						if (!this.myFirstWrite)
 						{
 							this.myFormatter.WriteLine();
 						}
@@ -654,11 +654,11 @@ namespace Reflector
 				IConstructorDeclaration constructorDeclaration = value as IConstructorDeclaration;
 				string methodName = value.Name;
 				string operatorType = null;
-				if ((constructorDeclaration != null) || (value.RuntimeSpecialName && ((methodName == ".ctor") || (methodName == ".cctor"))))
+				if (constructorDeclaration != null || value.RuntimeSpecialName && (methodName == ".ctor" || methodName == ".cctor"))
 				{
 					methodName = ".construct";
 				}
-				else if (((value.SpecialName && !(value.RuntimeSpecialName)) && value.Static) && methodName.StartsWith("op_"))
+				else if (value.SpecialName && !value.RuntimeSpecialName && value.Static && methodName.StartsWith("op_"))
 				{
 					switch (methodName)
 					{
@@ -761,7 +761,7 @@ namespace Reflector
 				{
 					this.WriteAttribute("name", methodName, true, false);
 					this.RenderMethodVisibilityAttribute(value);
-					if (!(isInterfaceMember))
+					if (!isInterfaceMember)
 					{
 						this.RenderMethodModifierAttribute(value);
 					}
@@ -794,7 +794,7 @@ namespace Reflector
 				}
 				foreach (IGenericParameter GenericArgumentsItem in value.GenericArguments)
 				{
-					if ((ownerGenericArguments != null) && ownerGenericArguments.Contains(GenericArgumentsItem))
+					if (ownerGenericArguments != null && ownerGenericArguments.Contains(GenericArgumentsItem))
 					{
 						continue;
 					}
@@ -811,7 +811,7 @@ namespace Reflector
 				IMethodReturnType methodReturnType = value.ReturnType;
 				IType methodReturnTypeType = methodReturnType.Type;
 				this.WriteElementDelayed("returns");
-				if ((methodReturnTypeType != null) && !(IsVoidType(methodReturnTypeType)))
+				if (methodReturnTypeType != null && !IsVoidType(methodReturnTypeType))
 				{
 					this.RenderType(methodReturnTypeType);
 				}
@@ -828,7 +828,7 @@ namespace Reflector
 						if (initializer != null)
 						{
 							IMethodReferenceExpression initializerMethod = initializer.Method as IMethodReferenceExpression;
-							if (!(((initializerMethod != null) && (initializerMethod.Target is IBaseReferenceExpression)) && (initializer.Arguments.Count == 0)))
+							if (!(initializerMethod != null && initializerMethod.Target is IBaseReferenceExpression && initializer.Arguments.Count == 0))
 							{
 								if (initializer != null)
 								{
@@ -882,7 +882,7 @@ namespace Reflector
 			private void RenderMethodModifierAttribute(IMethodDeclaration value)
 			{
 				bool isVirtual = value.Virtual;
-				bool isOverride = isVirtual && !(value.NewSlot);
+				bool isOverride = isVirtual && !value.NewSlot;
 				string modifierAttributeValue = "";
 				if (value.Static)
 				{
@@ -904,7 +904,7 @@ namespace Reflector
 				{
 					modifierAttributeValue = "abstract";
 				}
-				else if (isVirtual && !(value.Final))
+				else if (isVirtual && !value.Final)
 				{
 					modifierAttributeValue = "virtual";
 				}
@@ -1234,11 +1234,11 @@ namespace Reflector
 				}
 				this.WriteElement(elementName);
 				string variableName = variable.Name;
-				if (!(string.IsNullOrEmpty(variableName)) && (this.myCurrentMethodBody.LocalVariables.Count > variable.Identifier))
+				if (!string.IsNullOrEmpty(variableName) && this.myCurrentMethodBody.LocalVariables.Count > variable.Identifier)
 				{
 					this.WriteAttribute("localName", variableName);
 				}
-				if (!(isFallbackCatch))
+				if (!isFallbackCatch)
 				{
 					if (variableType != null)
 					{
@@ -1332,7 +1332,7 @@ namespace Reflector
 					IMethodReturnType methodReturnType = value.ReturnType;
 					IType methodReturnTypeType = methodReturnType.Type;
 					this.WriteElementDelayed("returns");
-					if ((methodReturnTypeType != null) && !(IsVoidType(methodReturnTypeType)))
+					if (methodReturnTypeType != null && !IsVoidType(methodReturnTypeType))
 					{
 						this.RenderType(methodReturnTypeType);
 					}
@@ -1348,7 +1348,7 @@ namespace Reflector
 				if (this.myShowDocumentation)
 				{
 					string documentation = value.Documentation;
-					if (!(string.IsNullOrEmpty(documentation)))
+					if (!string.IsNullOrEmpty(documentation))
 					{
 						this.WriteElement("leadingInfo");
 						this.WriteElement("docComment");
@@ -1363,13 +1363,13 @@ namespace Reflector
 				IFieldDeclarationCollection fields = value.Fields;
 				foreach (IFieldDeclaration testField in fields)
 				{
-					if (!(testField.Literal))
+					if (!testField.Literal)
 					{
 						ITypeReference testFieldType = testField.FieldType as ITypeReference;
 						if (testFieldType != null)
 						{
 							string typeName = MapKnownSystemType(testFieldType);
-							if (!(string.IsNullOrEmpty(typeName)) && (typeName != "i4"))
+							if (!string.IsNullOrEmpty(typeName) && typeName != "i4")
 							{
 								this.WriteAttribute("elementType", typeName);
 							}
@@ -1551,7 +1551,7 @@ namespace Reflector
 			{
 				IStatementCollection statements = value.Statements;
 				int statementCount = statements.Count;
-				if ((statementCount != 0) && (statements[statementCount - 1] is IBreakStatement))
+				if (statementCount != 0 && statements[statementCount - 1] is IBreakStatement)
 				{
 					--statementCount;
 				}
@@ -1565,7 +1565,7 @@ namespace Reflector
 			private void RenderSwitchCaseConditions(IExpression value)
 			{
 				IBinaryExpression binaryExpression = value as IBinaryExpression;
-				if ((binaryExpression != null) && (binaryExpression.Operator == BinaryOperator.BooleanOr))
+				if (binaryExpression != null && binaryExpression.Operator == BinaryOperator.BooleanOr)
 				{
 					this.RenderSwitchCaseConditions(binaryExpression.Left);
 					this.RenderSwitchCaseConditions(binaryExpression.Right);
@@ -2243,7 +2243,7 @@ namespace Reflector
 				}
 				IType returnType = value.ReturnType.Type;
 				this.WriteElementDelayed("returns");
-				if ((returnType != null) && !(IsVoidType(returnType)))
+				if (returnType != null && !IsVoidType(returnType))
 				{
 					this.RenderType(returnType);
 				}
@@ -2357,12 +2357,12 @@ namespace Reflector
 				bool retVal = false;
 				ICustomAttributeCollection parameterAttributes;
 				int parameterAttributesCount;
-				if (((value.Dimensions.Count == 1) && (value.Type is ITypeReference)) && (0 != (parameterAttributesCount = (parameterAttributes = parameters[argumentIndex].Resolve().Attributes).Count)))
+				if (value.Dimensions.Count == 1 && value.Type is ITypeReference && 0 != (parameterAttributesCount = (parameterAttributes = parameters[argumentIndex].Resolve().Attributes).Count))
 				{
 					for (int i = 0; i < parameterAttributesCount; ++i)
 					{
 						ITypeReference attributeType = parameterAttributes[i].Constructor.DeclaringType as ITypeReference;
-						if ((attributeType.Name == "ParamArrayAttribute") && (attributeType.Namespace == "System"))
+						if (attributeType.Name == "ParamArrayAttribute" && attributeType.Namespace == "System")
 						{
 							retVal = true;
 							break;
@@ -2626,8 +2626,8 @@ namespace Reflector
 				IExpression target = value.Target;
 				ITypeReferenceExpression staticTypeReference = target as ITypeReferenceExpression;
 				bool staticCall = staticTypeReference != null;
-				bool thisCall = !(staticCall) && (target is IThisReferenceExpression);
-				bool baseCall = !(thisCall) && (target is IBaseReferenceExpression);
+				bool thisCall = !staticCall && target is IThisReferenceExpression;
+				bool baseCall = !thisCall && target is IBaseReferenceExpression;
 				if (staticCall)
 				{
 					elementName = "callStatic";
@@ -2647,7 +2647,7 @@ namespace Reflector
 				{
 					this.WriteAttribute("accessor", "base");
 				}
-				else if (!(thisCall))
+				else if (!thisCall)
 				{
 					IExpression TargetChild = value.Target;
 					if (TargetChild != null)
@@ -2674,8 +2674,8 @@ namespace Reflector
 				IExpression target = value.Target;
 				ITypeReferenceExpression staticTypeReference = target as ITypeReferenceExpression;
 				bool staticCall = staticTypeReference != null;
-				bool thisCall = !(staticCall) && (target is IThisReferenceExpression);
-				bool baseCall = !(thisCall) && (target is IBaseReferenceExpression);
+				bool thisCall = !staticCall && target is IThisReferenceExpression;
+				bool baseCall = !thisCall && target is IBaseReferenceExpression;
 				if (staticCall)
 				{
 					elementName = "callStatic";
@@ -2695,7 +2695,7 @@ namespace Reflector
 				{
 					this.WriteAttribute("accessor", "base");
 				}
-				else if (!(thisCall))
+				else if (!thisCall)
 				{
 					IExpression TargetChild = value.Target;
 					if (TargetChild != null)
@@ -2811,7 +2811,7 @@ namespace Reflector
 							break;
 					}
 				}
-				if (!(isSpecialValue) && (xmlValue == null))
+				if (!isSpecialValue && xmlValue == null)
 				{
 					elementName = "nullKeyword";
 				}
@@ -2958,8 +2958,8 @@ namespace Reflector
 				IExpression target = value.Target;
 				ITypeReferenceExpression staticTypeReference = target as ITypeReferenceExpression;
 				bool staticCall = staticTypeReference != null;
-				bool thisCall = !(staticCall) && (target is IThisReferenceExpression);
-				bool baseCall = !(thisCall) && (target is IBaseReferenceExpression);
+				bool thisCall = !staticCall && target is IThisReferenceExpression;
+				bool baseCall = !thisCall && target is IBaseReferenceExpression;
 				if (staticCall)
 				{
 					elementName = "callStatic";
@@ -2979,7 +2979,7 @@ namespace Reflector
 				{
 					this.WriteAttribute("accessor", "base");
 				}
-				else if (!(thisCall))
+				else if (!thisCall)
 				{
 					IExpression TargetChild = value.Target;
 					if (TargetChild != null)
@@ -3029,8 +3029,8 @@ namespace Reflector
 				IExpression target = value.Target;
 				ITypeReferenceExpression staticTypeReference = target as ITypeReferenceExpression;
 				bool staticCall = staticTypeReference != null;
-				bool thisCall = !(staticCall) && (target is IThisReferenceExpression);
-				bool baseCall = !(thisCall) && (target is IBaseReferenceExpression);
+				bool thisCall = !staticCall && target is IThisReferenceExpression;
+				bool baseCall = !thisCall && target is IBaseReferenceExpression;
 				if (staticCall)
 				{
 					elementName = "callStatic";
@@ -3048,7 +3048,7 @@ namespace Reflector
 				else
 				{
 					memberName = member.Name;
-					if ((thisCall || baseCall) && (memberName == ".ctor"))
+					if ((thisCall || baseCall) && memberName == ".ctor")
 					{
 						memberName = ".implied";
 					}
@@ -3066,7 +3066,7 @@ namespace Reflector
 				{
 					this.WriteAttribute("accessor", "base");
 				}
-				else if (!(thisCall))
+				else if (!thisCall)
 				{
 					IExpression TargetChild = value.Target;
 					if (TargetChild != null)
@@ -3107,13 +3107,13 @@ namespace Reflector
 								ITypeReference attributeType = testCustomAttribute.Constructor.DeclaringType as ITypeReference;
 								if (attributeType != null)
 								{
-									if ((attributeType.Name == "DefaultMemberAttribute") && (attributeType.Namespace == "System.Reflection"))
+									if (attributeType.Name == "DefaultMemberAttribute" && attributeType.Namespace == "System.Reflection")
 									{
 										ILiteralExpression defaultMemberNameLiteral;
 										string defaultMemberName;
 										object literalValue;
 										IExpressionCollection arguments = testCustomAttribute.Arguments;
-										if (((((arguments.Count == 1) && ((defaultMemberNameLiteral = arguments[0] as ILiteralExpression) != null)) && (((literalValue = defaultMemberNameLiteral.Value) != null) && (Type.GetTypeCode(literalValue.GetType()) == TypeCode.String))) && (null != (defaultMemberName = (string)literalValue))) && (memberName == defaultMemberName))
+										if (arguments.Count == 1 && (defaultMemberNameLiteral = arguments[0] as ILiteralExpression) != null && (literalValue = defaultMemberNameLiteral.Value) != null && Type.GetTypeCode(literalValue.GetType()) == TypeCode.String && null != (defaultMemberName = (string)literalValue) && memberName == defaultMemberName)
 										{
 											this.WriteAttribute("defaultMember", "true");
 										}
@@ -3307,8 +3307,8 @@ namespace Reflector
 				IExpression target = value.Target;
 				ITypeReferenceExpression staticTypeReference = target as ITypeReferenceExpression;
 				bool staticCall = staticTypeReference != null;
-				bool thisCall = !(staticCall) && (target is IThisReferenceExpression);
-				bool baseCall = !(thisCall) && (target is IBaseReferenceExpression);
+				bool thisCall = !staticCall && target is IThisReferenceExpression;
+				bool baseCall = !thisCall && target is IBaseReferenceExpression;
 				if (staticCall)
 				{
 					elementName = "callStatic";
@@ -3336,7 +3336,7 @@ namespace Reflector
 				{
 					this.WriteAttribute("accessor", "base");
 				}
-				else if (!(thisCall))
+				else if (!thisCall)
 				{
 					IExpression TargetChild = value.Target;
 					if (TargetChild != null)
@@ -3477,7 +3477,7 @@ namespace Reflector
 				string elementName = "unaryOperator";
 				UnaryOperator operatorType = value.Operator;
 				bool renderInline = false;
-				if (!(topLevel))
+				if (!topLevel)
 				{
 					switch (operatorType)
 					{
@@ -3520,7 +3520,7 @@ namespace Reflector
 						break;
 					case UnaryOperator.PostIncrement:
 					case UnaryOperator.PostDecrement:
-						if (!(topLevel))
+						if (!topLevel)
 						{
 							typeAttributeValue = "post";
 						}
@@ -3573,7 +3573,7 @@ namespace Reflector
 			}
 			private void RenderAssignExpression(IAssignExpression value, bool topLevel)
 			{
-				if (!(topLevel))
+				if (!topLevel)
 				{
 					this.WriteElement("inlineStatement");
 					this.RenderAssignExpressionType(value);
@@ -3611,7 +3611,7 @@ namespace Reflector
 					}
 					this.WriteEndElement();
 				}
-				if (!(topLevel))
+				if (!topLevel)
 				{
 					this.WriteEndElement();
 				}
@@ -3645,12 +3645,12 @@ namespace Reflector
 						ITypeReference attributeType = testCustomAttribute.Constructor.DeclaringType as ITypeReference;
 						if (attributeType != null)
 						{
-							if ((attributeType.Name == "ParamArrayAttribute") && (attributeType.Namespace == "System"))
+							if (attributeType.Name == "ParamArrayAttribute" && attributeType.Namespace == "System")
 							{
 								paramsAttributeIndex = attributeIndex;
 								break;
 							}
-							if ((attributeType.Name == "OutAttribute") && (attributeType.Namespace == "System.Runtime.InteropServices"))
+							if (attributeType.Name == "OutAttribute" && attributeType.Namespace == "System.Runtime.InteropServices")
 							{
 								outAttributeIndex = attributeIndex;
 								break;
@@ -3685,7 +3685,7 @@ namespace Reflector
 				foreach (ICustomAttribute customAttributesItem in customAttributes)
 				{
 					++customAttributeIndex;
-					if ((customAttributeIndex == paramsAttributeIndex) || (customAttributeIndex == outAttributeIndex))
+					if (customAttributeIndex == paramsAttributeIndex || customAttributeIndex == outAttributeIndex)
 					{
 						continue;
 					}
@@ -3775,30 +3775,30 @@ namespace Reflector
 			private static bool IsVoidType(IType type)
 			{
 				ITypeReference typeReference = type as ITypeReference;
-				return (typeReference != null) && ((typeReference.Namespace == "System") && (typeReference.Name == "Void"));
+				return typeReference != null && typeReference.Namespace == "System" && typeReference.Name == "Void";
 			}
 			private static bool IsObjectType(IType type)
 			{
 				ITypeReference typeReference = type as ITypeReference;
-				return (typeReference != null) && ((typeReference.Namespace == "System") && (typeReference.Name == "Object"));
+				return typeReference != null && typeReference.Namespace == "System" && typeReference.Name == "Object";
 			}
 			private static bool IsValueTypeType(IType type)
 			{
 				ITypeReference typeReference = type as ITypeReference;
-				return (typeReference != null) && ((typeReference.Namespace == "System") && (typeReference.Name == "ValueType"));
+				return typeReference != null && typeReference.Namespace == "System" && typeReference.Name == "ValueType";
 			}
 			private void RenderArrayType(IArrayType value)
 			{
 				IType elementType;
 				Queue<IArrayDimensionCollection> dimensionsQueue = ResolveArrayDimensions(value, out elementType);
 				bool isSimpleArray = dimensionsQueue == null;
-				if (!(isSimpleArray) && (dimensionsQueue.Count == 1))
+				if (!isSimpleArray && dimensionsQueue.Count == 1)
 				{
 					IArrayDimensionCollection firstDimensions = dimensionsQueue.Peek();
 					if (firstDimensions.Count == 1)
 					{
 						IArrayDimension firstDimension = firstDimensions[0];
-						isSimpleArray = (firstDimension.LowerBound == 0) && (firstDimension.UpperBound == -1);
+						isSimpleArray = firstDimension.LowerBound == 0 && firstDimension.UpperBound == -1;
 					}
 				}
 				string dataTypeIsSimpleArrayAttributeValue = "";
@@ -3814,7 +3814,7 @@ namespace Reflector
 				{
 					this.RenderType(elementType);
 				}
-				if (!(isSimpleArray))
+				if (!isSimpleArray)
 				{
 					IArrayDimensionCollection currentDimensions = dimensionsQueue.Dequeue();
 					this.RenderArrayDimensions(currentDimensions, dimensionsQueue);
@@ -3964,21 +3964,21 @@ namespace Reflector
 									lastNamespace = owningType.Namespace;
 									owningType = owningType.Owner as ITypeReference;
 								} while (owningType != null);
-								if (!(string.IsNullOrEmpty(lastNamespace)))
+								if (!string.IsNullOrEmpty(lastNamespace))
 								{
 									resolvedNamespace = string.Concat(lastNamespace, ".", resolvedNamespace);
 								}
 							}
 						}
 					}
-					if (!(string.IsNullOrEmpty(resolvedNamespace)))
+					if (!string.IsNullOrEmpty(resolvedNamespace))
 					{
 						string contextQualifier = this.myContextDataTypeQualifier;
 						if (contextQualifier != null)
 						{
 							int qualifierLength = contextQualifier.Length;
 							int resolvedLength = resolvedNamespace.Length;
-							if ((qualifierLength <= resolvedLength) && resolvedNamespace.StartsWith(contextQualifier))
+							if (qualifierLength <= resolvedLength && resolvedNamespace.StartsWith(contextQualifier))
 							{
 								if (qualifierLength == resolvedLength)
 								{
@@ -3989,7 +3989,7 @@ namespace Reflector
 									resolvedNamespace = resolvedNamespace.Substring(qualifierLength + 1);
 								}
 							}
-							if (!(string.IsNullOrEmpty(resolvedNamespace)))
+							if (!string.IsNullOrEmpty(resolvedNamespace))
 							{
 								this.WriteAttribute("dataTypeQualifier", resolvedNamespace);
 							}
@@ -4023,7 +4023,7 @@ namespace Reflector
 				}
 				foreach (IType GenericArgumentsItem in value.GenericArguments)
 				{
-					if ((ownerGenericArguments != null) && ownerGenericArguments.Contains(GenericArgumentsItem))
+					if (ownerGenericArguments != null && ownerGenericArguments.Contains(GenericArgumentsItem))
 					{
 						continue;
 					}
@@ -4097,7 +4097,7 @@ namespace Reflector
 					this.WriteAttribute("requireValueType", requireValueTypeAttributeValue);
 				}
 				string requireDefaultConstructorAttributeValue = "";
-				if (isDefaultConstructorType && !(isValueType))
+				if (isDefaultConstructorType && !isValueType)
 				{
 					requireDefaultConstructorAttributeValue = "true";
 				}
@@ -4114,7 +4114,7 @@ namespace Reflector
 			}
 			private void RenderConstraintType(IType value)
 			{
-				if (!(IsValueTypeType(value)))
+				if (!IsValueTypeType(value))
 				{
 					this.RenderType(value);
 				}

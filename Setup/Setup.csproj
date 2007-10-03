@@ -31,6 +31,7 @@
     <None Include="Strings.wxl" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="PLiXPackageRegistry.wxi" />
     <None Include="PLiXSchemaCatalog.xml" />
   </ItemGroup>
 </Project>

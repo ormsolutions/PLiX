@@ -67,6 +67,93 @@ schemas:
 		</plxGen:languageInfo>
 	</xsl:template>
 
+	<!-- Operator Precedence Resolution -->
+	<xsl:template match="*" mode="ResolvePrecedence">
+		<xsl:param name="Indent"/>
+		<xsl:param name="Context"/>
+		<xsl:variable name="contextPrecedenceFragment">
+			<xsl:apply-templates select="$Context" mode="Precedence"/>
+		</xsl:variable>
+		<xsl:variable name="contextPrecedence" select="number($contextPrecedenceFragment)"/>
+		<xsl:choose>
+			<!-- NaN tests false (which we want to ignore), but so does 0 (which we don't) -->
+			<xsl:when test="$contextPrecedence or ($contextPrecedence=0)">
+				<xsl:variable name="currentPrecedenceFragment">
+					<xsl:apply-templates select="."  mode="Precedence"/>
+				</xsl:variable>
+				<xsl:variable name="currentPrecedence" select="number($currentPrecedenceFragment)"/>
+				<xsl:choose>
+					<xsl:when test="($currentPrecedence or ($currentPrecedence=0)) and ($contextPrecedence&lt;$currentPrecedence)">
+						<xsl:text>(</xsl:text>
+						<xsl:apply-templates select=".">
+							<xsl:with-param name="Indent" select="$Indent"/>
+						</xsl:apply-templates>
+						<xsl:text>)</xsl:text>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:apply-templates select=".">
+							<xsl:with-param name="Indent" select="$Indent"/>
+						</xsl:apply-templates>
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:apply-templates select=".">
+					<xsl:with-param name="Indent" select="$Indent"/>
+				</xsl:apply-templates>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+	<xsl:template match="plx:expression[@parens='true' or @parens='1']" mode="ResolvePrecedence">
+		<xsl:param name="Indent"/>
+		<xsl:apply-templates select=".">
+			<xsl:with-param name="Indent" select="$Indent"/>
+		</xsl:apply-templates>
+	</xsl:template>
+	<!-- Assume elements without explicit precedence are autonomous expression  (indicated by 0) -->
+	<xsl:template match="*" mode="Precedence">0</xsl:template>
+	<xsl:template match="plx:inlineStatement" mode="Precedence">
+		<xsl:apply-templates select="child::*" mode="Precedence"/>
+	</xsl:template>
+	<!-- Specific precedence values -->
+	<xsl:template match="plx:callInstance|plx:attachEvent|plx:detachEvent" mode="Precedence">6</xsl:template>
+	<xsl:template match="plx:callNew" mode="Precedence">8</xsl:template>
+	<xsl:template match="plx:cast|plx:unaryOperator|plx:increment|plx:decrement" mode="Precedence">20</xsl:template>
+	<xsl:template match="plx:concatenate" mode="Precedence">40</xsl:template>
+	<xsl:template match="plx:binaryOperator" mode="Precedence">
+		<xsl:variable name="type" select="string(@type)"/>
+		<xsl:choose>
+			<xsl:when test="$type='add'">40</xsl:when>
+			<xsl:when test="$type='assignNamed'">0</xsl:when>
+			<xsl:when test="$type='bitwiseAnd'">80</xsl:when>
+			<xsl:when test="$type='bitwiseExclusiveOr'">82</xsl:when>
+			<xsl:when test="$type='bitwiseOr'">84</xsl:when>
+			<xsl:when test="$type='booleanAnd'">90</xsl:when>
+			<xsl:when test="$type='booleanOr'">92</xsl:when>
+			<xsl:when test="$type='divide'">30</xsl:when>
+			<xsl:when test="$type='equality'">70</xsl:when>
+			<xsl:when test="$type='greaterThan'">60</xsl:when>
+			<xsl:when test="$type='greaterThanOrEqual'">60</xsl:when>
+			<xsl:when test="$type='identityEquality'">70</xsl:when>
+			<xsl:when test="$type='identityInequality'">70</xsl:when>
+			<xsl:when test="$type='inequality'">70</xsl:when>
+			<xsl:when test="$type='lessThan'">60</xsl:when>
+			<xsl:when test="$type='lessThanOrEqual'">60</xsl:when>
+			<xsl:when test="$type='modulus'">30</xsl:when>
+			<xsl:when test="$type='multiply'">30</xsl:when>
+			<xsl:when test="$type='shiftLeft'">50</xsl:when>
+			<xsl:when test="$type='shiftRight'">50</xsl:when>
+			<xsl:when test="$type='shiftRightZero'">50</xsl:when>
+			<xsl:when test="$type='shiftRightPreserve'">50</xsl:when>
+			<xsl:when test="$type='subtract'">40</xsl:when>
+			<xsl:when test="$type='typeEquality'">60</xsl:when>
+			<xsl:when test="$type='typeInequality'">60</xsl:when>
+			<xsl:otherwise>0</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+	<xsl:template match="plx:conditionalOperator" mode="Precedence">96</xsl:template>
+	<xsl:template match="plx:assign" mode="Precedence">100</xsl:template>
+
 	<!-- Matched templates -->
 	<xsl:template match="plx:alternateBranch">
 		<xsl:param name="Indent"/>
@@ -78,16 +165,26 @@ schemas:
 	</xsl:template>
 	<xsl:template match="plx:assign">
 		<xsl:param name="Indent"/>
-		<xsl:apply-templates select="plx:left/child::*">
-			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:apply-templates>
-		<xsl:variable name="leftCall" select="child::plx:left/child::plx:*[self::plx:callInstance | self::plx:callThis | self::plx:callStatic]"/>
-		<xsl:if test="not($leftCall[@type='property' or @type='indexerCall'])">
-			<xsl:text> = </xsl:text>
-			<xsl:apply-templates select="plx:right/child::*">
-				<xsl:with-param name="Indent" select="$Indent"/>
-			</xsl:apply-templates>
-		</xsl:if>
+		<xsl:variable name="left" select="plx:left/child::*"/>
+		<xsl:variable name="leftCall" select="$left[self::plx:callInstance | self::plx:callThis | self::plx:callStatic]"/>
+		<xsl:choose>
+			<xsl:when test="not($leftCall[@type='property' or @type='indexerCall'])">
+				<xsl:apply-templates select="$left" mode="ResolvePrecedence">
+					<xsl:with-param name="Indent" select="$Indent"/>
+					<xsl:with-param name="Context" select="."/>
+				</xsl:apply-templates>
+				<xsl:text> = </xsl:text>
+				<xsl:apply-templates select="plx:right/child::*" mode="ResolvePrecedence">
+					<xsl:with-param name="Indent" select="$Indent"/>
+					<xsl:with-param name="Context" select="."/>
+				</xsl:apply-templates>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:apply-templates select="$left">
+					<xsl:with-param name="Indent" select="$Indent"/>
+				</xsl:apply-templates>
+			</xsl:otherwise>
+		</xsl:choose>
 	</xsl:template>
 	<xsl:template match="plx:attachEvent">
 		<xsl:param name="Indent"/>
@@ -163,22 +260,13 @@ schemas:
 		<xsl:param name="Indent"/>
 		<xsl:variable name="type" select="string(@type)"/>
 		<xsl:variable name="negate" select="$type='typeInequality'"/>
-		<xsl:variable name="left" select="plx:left/child::*"/>
-		<xsl:variable name="right" select="plx:right/child::*"/>
-		<!-- UNDONE: Add operator precedence tables to the language info and
-			 automatically determine when we need to add additional parentheses -->
 		<xsl:if test="$negate">
 			<xsl:text>!(</xsl:text>
 		</xsl:if>
-		<xsl:if test="local-name($left)='binaryOperator'">
-			<xsl:text>(</xsl:text>
-		</xsl:if>
-		<xsl:apply-templates select="$left">
+		<xsl:apply-templates select="plx:left/child::*" mode="ResolvePrecedence">
 			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Context" select="."/>
 		</xsl:apply-templates>
-		<xsl:if test="local-name($left)='binaryOperator'">
-			<xsl:text>)</xsl:text>
-		</xsl:if>
 		<xsl:choose>
 			<xsl:when test="$type='add'">
 				<xsl:text> + </xsl:text>
@@ -214,10 +302,10 @@ schemas:
 				<xsl:text> &gt;= </xsl:text>
 			</xsl:when>
 			<xsl:when test="$type='identityEquality'">
-				<xsl:text> == </xsl:text>
+				<xsl:text> === </xsl:text>
 			</xsl:when>
 			<xsl:when test="$type='identityInequality'">
-				<xsl:text> != </xsl:text>
+				<xsl:text> !== </xsl:text>
 			</xsl:when>
 			<xsl:when test="$type='inequality'">
 				<xsl:text> != </xsl:text>
@@ -254,18 +342,13 @@ schemas:
 			</xsl:when>
 			<xsl:when test="$type='typeInequality'">
 				<!-- This whole expression is negated -->
-				<xsl:text> is </xsl:text>
+				<xsl:text> instanceof </xsl:text>
 			</xsl:when>
 		</xsl:choose>
-		<xsl:if test="local-name($right)='binaryOperator'">
-			<xsl:text>(</xsl:text>
-		</xsl:if>
-		<xsl:apply-templates select="$right">
+		<xsl:apply-templates select="plx:right/child::*" mode="ResolvePrecedence">
 			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Context" select="."/>
 		</xsl:apply-templates>
-		<xsl:if test="local-name($right)='binaryOperator'">
-			<xsl:text>)</xsl:text>
-		</xsl:if>
 		<xsl:if test="$negate">
 			<xsl:text>)</xsl:text>
 		</xsl:if>
@@ -283,33 +366,10 @@ schemas:
 	</xsl:template>
 	<xsl:template match="plx:callInstance">
 		<xsl:param name="Indent"/>
-		<xsl:variable name="caller" select="plx:callObject/child::*"/>
-		<!--<xsl:variable name="callerNeedsParensFragment">
-			<xsl:for-each select="$caller">
-				<xsl:variable name="tagName" select="local-name()"/>
-				<xsl:choose>
-					<xsl:when test="$tagName='cast' or $tagName='binaryOperator' or $tagName='unaryOperator' or $tagName='callNew'">
-						<xsl:text>1</xsl:text>
-					</xsl:when>
-					<xsl:when test="$tagName='expression' and not(@parens='true' or @parens='1')">
-						<xsl:variable name="tagName2" select="local-name()"/>
-						<xsl:if test="$tagName2='cast' or $tagName2='binaryOperator' or $tagName2='unaryOperator' or $tagName2='callNew'">
-							<xsl:text>1</xsl:text>
-						</xsl:if>
-					</xsl:when>
-				</xsl:choose>
-			</xsl:for-each>
-		</xsl:variable>-->
-		<!--<xsl:variable name="callerNeedsParens" select="string-length($callerNeedsParensFragment)"/>-->
-		<!--<xsl:if test="$callerNeedsParens">
-			<xsl:text>(</xsl:text>
-		</xsl:if>-->
-		<xsl:apply-templates select="$caller">
+		<xsl:apply-templates select="plx:callObject/child::*" mode="ResolvePrecedence">
 			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Context" select="."/>
 		</xsl:apply-templates>
-		<!--<xsl:if test="$callerNeedsParens">
-			<xsl:text>)</xsl:text>
-		</xsl:if>-->
 		<xsl:choose>
 			<xsl:when test="@type = 'delegateCall'">
 				<xsl:text>->Invoke</xsl:text>
@@ -561,24 +621,18 @@ schemas:
 		<xsl:param name="Indent"/>
 		<xsl:variable name="castTarget" select="child::plx:*[position()=last()]"/>
 		<xsl:variable name="castType" select="string(@type)"/>
-		<!-- UNDONE: Need more work on operator precedence -->
-		<xsl:variable name="extraParens" select="local-name($castTarget)='binaryOperator'"/>
 		<xsl:choose>
 			<xsl:when test="$castType='testCast'">
-				<xsl:if test="$extraParens">
-					<xsl:text>(</xsl:text>
-				</xsl:if>
-				<xsl:apply-templates select="$castTarget">
+				<xsl:apply-templates select="$castTarget" mode="ResolvePrecedence">
 					<xsl:with-param name="Indent" select="$Indent"/>
+					<xsl:with-param name="Context" select="."/>
 				</xsl:apply-templates>
-				<xsl:if test="$extraParens">
-					<xsl:text>)</xsl:text>
-				</xsl:if>
 				<xsl:text> instanceof </xsl:text>
 				<xsl:call-template name="RenderType"/>
 				<xsl:text> ? </xsl:text>
-				<xsl:apply-templates select="$castTarget">
+				<xsl:apply-templates select="$castTarget" mode="ResolvePrecedence">
 					<xsl:with-param name="Indent" select="$Indent"/>
+					<xsl:with-param name="Context" select="."/>
 				</xsl:apply-templates>
 				<xsl:text> : null</xsl:text>
 			</xsl:when>
@@ -588,15 +642,10 @@ schemas:
 				<xsl:text>/*(</xsl:text>
 				<xsl:call-template name="RenderType"/>
 				<xsl:text>)*/</xsl:text>
-				<xsl:if test="$extraParens">
-					<xsl:text>(</xsl:text>
-				</xsl:if>
-				<xsl:apply-templates select="$castTarget">
+				<xsl:apply-templates select="$castTarget" mode="ResolvePrecedence">
 					<xsl:with-param name="Indent" select="$Indent"/>
+					<xsl:with-param name="Context" select="."/>
 				</xsl:apply-templates>
-				<xsl:if test="$extraParens">
-					<xsl:text>)</xsl:text>
-				</xsl:if>
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
@@ -702,50 +751,28 @@ schemas:
 	</xsl:template>
 	<xsl:template match="plx:conditionalOperator">
 		<xsl:param name="Indent"/>
-		<xsl:variable name="condition" select="plx:condition/child::*"/>
-		<xsl:variable name="left" select="plx:left/child::*"/>
-		<xsl:variable name="right" select="plx:right/child::*"/>
-		<!-- UNDONE: Add operator precedence tables to the language info and
-			 automatically determine when we need to add additional parentheses -->
-		<xsl:variable name="conditionalParens" select="$condition[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator | self::plx:inlineStatement]"/>
-		<xsl:variable name="leftParens" select="$left[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator | self::plx:inlineStatement]"/>
-		<xsl:variable name="rightParens" select="$right[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator | self::plx:inlineStatement]"/>
-		<xsl:if test="$conditionalParens">
-			<xsl:text>(</xsl:text>
-		</xsl:if>
-		<xsl:apply-templates select="$condition">
+		<xsl:apply-templates select="plx:condition/child::*" mode="ResolvePrecedence">
 			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Context" select="."/>
 		</xsl:apply-templates>
-		<xsl:if test="$conditionalParens">
-			<xsl:text>)</xsl:text>
-		</xsl:if>
 		<xsl:text> ? </xsl:text>
-		<xsl:if test="$leftParens">
-			<xsl:text>(</xsl:text>
-		</xsl:if>
-		<xsl:apply-templates select="$left">
+		<xsl:apply-templates select="plx:left/child::*" mode="ResolvePrecedence">
 			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Context" select="."/>
 		</xsl:apply-templates>
-		<xsl:if test="$leftParens">
-			<xsl:text>)</xsl:text>
-		</xsl:if>
 		<xsl:text> : </xsl:text>
-		<xsl:if test="$rightParens">
-			<xsl:text>(</xsl:text>
-		</xsl:if>
-		<xsl:apply-templates select="$right">
+		<xsl:apply-templates select="plx:right/child::*" mode="ResolvePrecedence">
 			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Context" select="."/>
 		</xsl:apply-templates>
-		<xsl:if test="$rightParens">
-			<xsl:text>)</xsl:text>
-		</xsl:if>
 	</xsl:template>
 	<xsl:template match="plx:concatenate">
 		<xsl:param name="Indent"/>
 		<xsl:call-template name="RenderExpressionList">
 			<xsl:with-param name="Indent" select="$Indent"/>
 			<xsl:with-param name="BracketPair" select="''"/>
-			<xsl:with-param name="ListSeparator" select="'.'"/>
+			<xsl:with-param name="ListSeparator" select="' . '"/>
+			<xsl:with-param name="PrecedenceContext" select="."/>
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:continue">
@@ -756,14 +783,16 @@ schemas:
 		<xsl:text>continue</xsl:text>
 	</xsl:template>
 	<xsl:template match="plx:decrement">
-		<!-- UNDONE: Add operator precedence tables to the language info and
-			 automatically determine when we need to add additional parentheses -->
+		<xsl:param name="Indent"/>
 		<!-- UNDONE: Can we always render like this, or only for nameRef and call* type='field' -->
 		<xsl:variable name="postfix" select="@type='post'"/>
 		<xsl:if test="not($postfix)">
 			<xsl:text>--</xsl:text>
 		</xsl:if>
-		<xsl:apply-templates select="child::*"/>
+		<xsl:apply-templates select="child::*" mode="ResolvePrecedence">
+			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Context" select="."/>
+		</xsl:apply-templates>
 		<xsl:if test="$postfix">
 			<xsl:text>--</xsl:text>
 		</xsl:if>
@@ -1372,14 +1401,16 @@ schemas:
 		</xsl:apply-templates>
 	</xsl:template>
 	<xsl:template match="plx:increment">
-		<!-- UNDONE: Add operator precedence tables to the language info and
-			 automatically determine when we need to add additional parentheses -->
+		<xsl:param name="Indent"/>
 		<!-- UNDONE: Can we always render like this, or only for nameRef and call* type='field' -->
 		<xsl:variable name="postfix" select="@type='post'"/>
 		<xsl:if test="not($postfix)">
 			<xsl:text>++</xsl:text>
 		</xsl:if>
-		<xsl:apply-templates select="child::*"/>
+		<xsl:apply-templates select="child::*" mode="ResolvePrecedence">
+			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Context" select="."/>
+		</xsl:apply-templates>
 		<xsl:if test="$postfix">
 			<xsl:text>++</xsl:text>
 		</xsl:if>
@@ -1560,34 +1591,6 @@ schemas:
 			<xsl:text> = </xsl:text>
 		</xsl:if>
 		<xsl:value-of select="@name"/>
-	</xsl:template>
-	<xsl:template match="plx:nullFallbackOperator">
-		<xsl:param name="Indent"/>
-		<xsl:variable name="left" select="plx:left/child::*"/>
-		<xsl:variable name="right" select="plx:right/child::*"/>
-		<!-- UNDONE: Add operator precedence tables to the language info and
-			 automatically determine when we need to add additional parentheses -->
-		<xsl:variable name="leftParens" select="$left[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator | self::plx:inlineStatement]"/>
-		<xsl:variable name="rightParens" select="$right[self::plx:conditionalOperator | self::plx:binaryOperator | self::plx:assign | self::plx:nullFallbackOperator | self::plx:inlineStatement]"/>
-		<xsl:if test="$leftParens">
-			<xsl:text>(</xsl:text>
-		</xsl:if>
-		<xsl:apply-templates select="$left">
-			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:apply-templates>
-		<xsl:if test="$leftParens">
-			<xsl:text>)</xsl:text>
-		</xsl:if>
-		<xsl:text> ?? </xsl:text>
-		<xsl:if test="$rightParens">
-			<xsl:text>(</xsl:text>
-		</xsl:if>
-		<xsl:apply-templates select="$right">
-			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:apply-templates>
-		<xsl:if test="$rightParens">
-			<xsl:text>)</xsl:text>
-		</xsl:if>
 	</xsl:template>
 	<xsl:template match="plx:nullKeyword">
 		<xsl:text>null</xsl:text>
@@ -2085,9 +2088,6 @@ schemas:
 	<xsl:template match="plx:unaryOperator">
 		<xsl:param name="Indent"/>
 		<xsl:variable name="type" select="string(@type)"/>
-		<!-- UNDONE: Add operator precedence tables to the language info and
-			 automatically determine when we need to add additional parentheses -->
-		<xsl:variable name="parens" select="$type='booleanNot'"/>
 		<xsl:choose>
 			<xsl:when test="$type='booleanNot'">
 				<xsl:text>!</xsl:text>
@@ -2102,15 +2102,10 @@ schemas:
 				<xsl:text>+</xsl:text>
 			</xsl:when>
 		</xsl:choose>
-		<xsl:if test="$parens">
-			<xsl:text>(</xsl:text>
-		</xsl:if>
-		<xsl:apply-templates select="child::*">
+		<xsl:apply-templates select="child::*" mode="ResolvePrecedence">
 			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Context" select="."/>
 		</xsl:apply-templates>
-		<xsl:if test="$parens">
-			<xsl:text>)</xsl:text>
-		</xsl:if>
 	</xsl:template>
 	<xsl:template match="plx:value">
 		<xsl:variable name="type" select="string(@type)"/>
@@ -2152,6 +2147,78 @@ schemas:
 	</xsl:template>
 	<xsl:template match="plx:valueKeyword">
 		<xsl:text>value</xsl:text>
+	</xsl:template>
+
+	<!-- TopLevel templates, used for rendering snippets only -->
+	<xsl:template match="plx:arrayDescriptor" mode="TopLevel">
+		<xsl:call-template name="RenderArrayDescriptor"/>
+	</xsl:template>
+	<xsl:template match="plx:arrayInitializer">
+		<!-- Note not TopLevel to allow inline expansion -->
+		<xsl:param name="Indent"/>
+		<xsl:call-template name="RenderArrayInitializer">
+			<xsl:with-param name="Indent" select="$Indent"/>
+		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="plx:interfaceMember" mode="TopLevel">
+		<xsl:call-template name="RenderType"/>
+		<xsl:text>.</xsl:text>
+		<xsl:value-of select="@name"/>
+	</xsl:template>
+	<xsl:template match="plx:derivesFromClass" mode="TopLevel">
+		<xsl:text>extends </xsl:text>
+		<xsl:call-template name="RenderType"/>
+	</xsl:template>
+	<xsl:template match="plx:implementsInterface" mode="TopLevel">
+		<xsl:text>implements </xsl:text>
+		<xsl:call-template name="RenderType"/>
+	</xsl:template>
+	<xsl:template match="plx:passTypeParam|plx:passMemberTypeParam|plx:returns|plx:explicitDelegateType|plx:typeConstraint" mode="TopLevel">
+		<xsl:call-template name="RenderType"/>
+	</xsl:template>
+	<xsl:template match="plx:parametrizedDataTypeQualifier" mode="TopLevel">
+		<xsl:call-template name="RenderType">
+			<!-- No reason to check for an array here -->
+			<xsl:with-param name="RenderArray" select="false()"/>
+		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="plx:passParam">
+		<!-- Note not TopLevel to allow inline expansion -->
+		<xsl:param name="Indent"/>
+		<xsl:call-template name="RenderPassParams">
+			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="PassParams" select="."/>
+			<xsl:with-param name="BracketPair" select="''"/>
+		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="plx:passParamArray">
+		<!-- Note not TopLevel to allow inline expansion -->
+		<xsl:param name="Indent"/>
+		<xsl:text>array</xsl:text>
+		<xsl:call-template name="RenderPassParams">
+			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="PassParams" select="plx:passParam"/>
+		</xsl:call-template>
+	</xsl:template>
+	<xsl:template match="plx:param" mode="TopLevel">
+		<xsl:for-each select="..">
+			<xsl:call-template name="RenderParams">
+				<xsl:with-param name="BracketPair" select="''"/>
+			</xsl:call-template>
+		</xsl:for-each>
+	</xsl:template>
+	<xsl:template match="plx:typeParam" mode="TopLevel">
+		<xsl:param name="Indent"/>
+		<!-- Note that this isn't quite a type param (the constraints go after the params),
+		but gives us the information we want. -->
+		<xsl:call-template name="RenderTypeParams">
+			<xsl:with-param name="TypeParams" select="."/>
+		</xsl:call-template>
+		<xsl:call-template name="RenderTypeParamConstraints">
+			<xsl:with-param name="TypeParams" select="."/>
+			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="SnippetFormat" select="true()"/>
+		</xsl:call-template>
 	</xsl:template>
 
 	<!-- Named templates -->
@@ -2392,6 +2459,8 @@ schemas:
 		<xsl:param name="BracketPair" select="'()'"/>
 		<xsl:param name="ListSeparator" select="', '"/>
 		<xsl:param name="BeforeFirstItem" select="''"/>
+		<xsl:param name="PrecedenceContext"/>
+		<xsl:variable name="hasPrecedenceContext" select="boolean($PrecedenceContext)"/>
 		<xsl:value-of select="substring($BracketPair,1,1)"/>
 		<xsl:for-each select="$Expressions">
 			<xsl:choose>
@@ -2402,9 +2471,19 @@ schemas:
 					<xsl:value-of select="$ListSeparator"/>
 				</xsl:otherwise>
 			</xsl:choose>
-			<xsl:apply-templates select=".">
-				<xsl:with-param name="Indent" select="$Indent"/>
-			</xsl:apply-templates>
+			<xsl:choose>
+				<xsl:when test="$hasPrecedenceContext">
+					<xsl:apply-templates select="." mode="ResolvePrecedence">
+						<xsl:with-param name="Indent" select="$Indent"/>
+						<xsl:with-param name="Context" select="$PrecedenceContext"/>
+					</xsl:apply-templates>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:apply-templates select=".">
+						<xsl:with-param name="Indent" select="$Indent"/>
+					</xsl:apply-templates>
+				</xsl:otherwise>
+			</xsl:choose>
 		</xsl:for-each>
 		<xsl:value-of select="substring($BracketPair,2)"/>
 	</xsl:template>
@@ -2969,6 +3048,7 @@ schemas:
 	<xsl:template name="RenderTypeParamConstraints">
 		<xsl:param name="TypeParams"/>
 		<xsl:param name="Indent"/>
+		<xsl:param name="SnippetFormat" select="false()"/>
 		<!-- There are 4 constraint types c=class,s=structure,n=new,t=typed. Track them
 			 for each type param so we know where to put the commas -->
 		<xsl:for-each select="$TypeParams">
@@ -2992,9 +3072,16 @@ schemas:
 			</xsl:variable>
 			<xsl:variable name="constraints" select="string($constraintsFragment)"/>
 			<xsl:if test="string-length($constraints)">
-				<xsl:value-of select="$NewLine"/>
-				<xsl:value-of select="$Indent"/>
-				<xsl:value-of select="$SingleIndent"/>
+				<xsl:choose>
+					<xsl:when test="$SnippetFormat">
+						<xsl:text> </xsl:text>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:value-of select="$NewLine"/>
+						<xsl:value-of select="$Indent"/>
+						<xsl:value-of select="$SingleIndent"/>
+					</xsl:otherwise>
+				</xsl:choose>
 				<xsl:text>where </xsl:text>
 				<xsl:value-of select="@name"/>
 				<xsl:text> : </xsl:text>
