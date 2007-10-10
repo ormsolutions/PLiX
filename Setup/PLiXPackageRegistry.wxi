@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 	Neumont PLiX (Programming Language in XML) Code Generator for Visual Studio
 
 	Copyright © Neumont University and Matthew Curland. All rights reserved.
@@ -42,12 +42,11 @@
 		<Registry Name="Description" Value="#118" Type="string" />
 	</Registry>
 
-	<Registry Action="createKeyAndRemoveKeyOnUninstall" Key="ToolWindows\{db70cd81-fe98-3ea7-ba27-68fe79428c43}">
+	<Registry Action="createKeyAndRemoveKeyOnUninstall" Key="ToolWindows\{976d6fa2-8d5a-4edf-b5b5-1edfcaeeb841}">
 		<Registry Value="{bc129a03-26c4-4667-8e12-96225b2d3cd2}" Type="string" />
 		<Registry Name="Name" Value="Neumont.Tools.CodeGeneration.Plix.Shell.PlixPackage+SnippetPreviewWindow" Type="string" />
 		<Registry Name="Orientation" Value="Right" Type="string" />
 		<Registry Name="Style" Value="Tabbed" Type="string" />
 		<Registry Name="Window" Value="{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}" Type="string" />
-		<Registry Name="DontForceCreate" Value="1" Type="integer" />
 	</Registry>
 </Include>

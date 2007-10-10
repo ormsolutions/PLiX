@@ -33,7 +33,7 @@ using System.ComponentModel;
 
 namespace Neumont.Tools.CodeGeneration.Plix.Shell
 {
-	[ProvideToolWindow(typeof(PlixPackage.SnippetPreviewWindow), Style = VsDockStyle.Tabbed, Transient = true, Orientation = ToolWindowOrientation.Right, Window = ToolWindowGuids.Outputwindow)]
+	[ProvideToolWindow(typeof(PlixPackage.SnippetPreviewWindow), Style = VsDockStyle.Tabbed, Orientation = ToolWindowOrientation.Right, Window = ToolWindowGuids.Outputwindow)]
 	[ProvideProfile(typeof(PlixPackage.SnippetPreviewWindowSettings), "ProgrammingLanguageInXml", "SnippetPreviewWindow", 114, 116, false, DescriptionResourceID=118)]
 	partial class PlixPackage
 	{
@@ -107,6 +107,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			#endregion // Base overrides
 		}
 		#endregion // SnippetPreviewWindowSettings class
+		[Guid(GuidList.SnippetPreviewWindowGuidString)]
 		private sealed class SnippetPreviewWindow : IVsSelectionEvents
 		{
 			#region Constants
