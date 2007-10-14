@@ -23,7 +23,7 @@
 		<Registry Value="Neumont.Tools.CodeGeneration.Plix.Shell.PlixPackage, Neumont.Tools.CodeGeneration.PLiX, Version=1.0.0.0, Culture=neutral, PublicKeyToken=7a0c83ac6f8a469f" Type="string" />
 		<Registry Name="InprocServer32" Value="[SystemFolder]mscoree.dll" Type="string" />
 		<Registry Name="Class" Value="Neumont.Tools.CodeGeneration.Plix.Shell.PlixPackage" Type="string" />
-		<Registry Name="CodeBase" Value="[#File_Neumont.Tools.CodeGeneration.PLiX.dll]" Type="string" />
+		<Registry Name="CodeBase" Value="[#Neumont.Tools.CodeGeneration.PLiX.dll]" Type="string" />
 		<Registry Name="ID" Value="150" Type="integer" />
 		<Registry Name="MinEdition" Value="Standard" Type="string" />
 		<Registry Name="ProductVersion" Value="1.0" Type="string" />
