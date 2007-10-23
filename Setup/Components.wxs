@@ -40,11 +40,11 @@
 									<Registry Type="string" Name="SchemaVersion" Value="$(var.PLIXSchemaVersion)"/>
 								</Registry>
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot)\CLSID\{$(var.PLIXCustomToolGuid)}">
-									<Registry Type="string" Value="Neumont.Tools.CodeGeneration.PlixLoaderCustomTool"/>
+									<Registry Type="string" Value="Neumont.Tools.CodeGeneration.Plix.PlixLoaderCustomTool"/>
 									<Registry Action="createKey" Key="InprocServer32">
 										<Registry Type="string" Value="[$(var.SystemFolder)]mscoree.dll"/>
 										<Registry Type="string" Name="ThreadingModel" Value="Both"/>
-										<Registry Type="string" Name="Class" Value="Neumont.Tools.CodeGeneration.PlixLoaderCustomTool"/>
+										<Registry Type="string" Name="Class" Value="Neumont.Tools.CodeGeneration.Plix.PlixLoaderCustomTool"/>
 										<Registry Type="string" Name="Assembly" Value="$(var.PLIXCustomToolAssemblyName)"/>
 										<Registry Type="string" Name="CodeBase" Value="[#Neumont.Tools.CodeGeneration.PLiX.dll]"/>
 									</Registry>
@@ -53,11 +53,11 @@
 							<Component Id="CustomToolComponentExp" Guid="ED2AEF85-0EF9-4F88-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 								<Condition>VSEXPINSTALL OR Installed</Condition>
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegExpRoot)\CLSID\{$(var.PLIXCustomToolGuid)}">
-									<Registry Type="string" Value="Neumont.Tools.CodeGeneration.PlixLoaderCustomTool"/>
+									<Registry Type="string" Value="Neumont.Tools.CodeGeneration.Plix.PlixLoaderCustomTool"/>
 									<Registry Action="createKey" Key="InprocServer32">
 										<Registry Type="string" Value="[$(var.SystemFolder)]mscoree.dll"/>
 										<Registry Type="string" Name="ThreadingModel" Value="Both"/>
-										<Registry Type="string" Name="Class" Value="Neumont.Tools.CodeGeneration.PlixLoaderCustomTool"/>
+										<Registry Type="string" Name="Class" Value="Neumont.Tools.CodeGeneration.Plix.PlixLoaderCustomTool"/>
 										<Registry Type="string" Name="Assembly" Value="$(var.PLIXCustomToolAssemblyName)"/>
 										<Registry Type="string" Name="CodeBase" Value="[#Neumont.Tools.CodeGeneration.PLiX.dll]"/>
 									</Registry>

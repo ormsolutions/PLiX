@@ -40,7 +40,7 @@
 	<?define PublicKeyToken="7a0c83ac6f8a469f"?>
 	<!-- GUID for NORMA Visual Studio Package (NOT MSI package!) -->
 	<?define PLIXCustomToolGuid="12F1FC1E-20A6-4286-9C43-25209BBA5997"?>
-	<?define PLIXCustomToolAssemblyName="Neumont.Tools.CodeGeneration.CustomTools, Version=$(var.MajorMinorVersion).0.0, Culture=neutral, PublicKeyToken=$(var.PublicKeyToken)"?>
+	<?define PLIXCustomToolAssemblyName="Neumont.Tools.CodeGeneration.PLiX, Version=$(var.MajorMinorVersion).0.0, Culture=neutral, PublicKeyToken=$(var.PublicKeyToken)"?>
 	<!-- The LCID of the MSI and the fallback resources. This should NOT be changed. -->
 	<?define DefaultLCID="1033"?>
 
