@@ -61,8 +61,11 @@
 		<?define BuildConfiguration="Release"?>
 	<?endif?>
 	<!-- The Visual Studio registry root used for installation. -->
-	<?define VSRegRoot="SOFTWARE\Microsoft\VisualStudio\8.0"?>
-	<?define VSRegExpRoot="SOFTWARE\Microsoft\VisualStudio\8.0Exp"?>
+	<?define VSRegRoot2005="SOFTWARE\Microsoft\VisualStudio\8.0"?>
+	<?define VSRegRoot2008="SOFTWARE\Microsoft\VisualStudio\9.0"?>
+	<?define VSRegExpRoot2005="SOFTWARE\Microsoft\VisualStudio\8.0Exp"?>
+	<?define VSRegExpRoot2008LM="SOFTWARE\Microsoft\VisualStudio\9.0Exp"?>
+	<?define VSRegExpRoot2008CU="SOFTWARE\Microsoft\VisualStudio\9.0Exp\Configuration"?>
 	<?define PLIXRegRoot="SOFTWARE\Neumont\PLiX for Visual Studio"?>
 	<?define PLIXSchemaVersion="4"?>
 	<!-- The default target directory for installation (under ProgramFilesFolder). -->

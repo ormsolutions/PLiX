@@ -22,22 +22,36 @@
 			<!-- Formatters and schemas go here -->
 			<ComponentRef Id="PLIXFormatterSettings"/>
 			<ComponentRef Id="PLIXSchemasLocalCatalogComponent"/>
-			<ComponentRef Id="PLIXSchemasVSCatalogComponent"/>
+			<ComponentRef Id="PLIXSchemasVSCatalogComponent2005"/>
+			<ComponentRef Id="PLIXSchemasVSCatalogComponent2008"/>
 			<ComponentRef Id="PLIXSchemasComponent"/>
 			<ComponentRef Id="PLIXFormattersComponent"/>
 		</ComponentGroup>
 		<ComponentGroup Id="CustomToolComponents">
 			<!-- VS integration pieces go here -->
 			<ComponentRef Id="CustomToolComponent"/>
-			<ComponentRef Id="VBCustomToolComponent"/>
-			<ComponentRef Id="CSCustomToolComponent"/>
-			<ComponentRef Id="CustomToolComponentExp"/>
-			<ComponentRef Id="VBCustomToolComponentExp"/>
-			<ComponentRef Id="CSCustomToolComponentExp"/>
+			<ComponentRef Id="CustomToolComponent2005"/>
+			<ComponentRef Id="CustomToolComponent2008"/>
+			<ComponentRef Id="VBCustomToolComponent2005"/>
+			<ComponentRef Id="VBCustomToolComponent2008"/>
+			<ComponentRef Id="CSCustomToolComponent2005"/>
+			<ComponentRef Id="CSCustomToolComponent2008"/>
+			<ComponentRef Id="CustomToolComponentExp2005"/>
+			<ComponentRef Id="CustomToolComponentExp2008LM"/>
+			<ComponentRef Id="CustomToolComponentExp2008CU"/>
+			<ComponentRef Id="VBCustomToolComponentExp2005"/>
+			<ComponentRef Id="VBCustomToolComponentExp2008LM"/>
+			<ComponentRef Id="VBCustomToolComponentExp2008CU"/>
+			<ComponentRef Id="CSCustomToolComponentExp2005"/>
+			<ComponentRef Id="CSCustomToolComponentExp2008LM"/>
+			<ComponentRef Id="CSCustomToolComponentExp2008CU"/>
 		</ComponentGroup>
 		<ComponentGroup Id="PackageComponents">
-			<ComponentRef Id="PackageComponent"/>
-			<ComponentRef Id="PackageComponentExp"/>
+			<ComponentRef Id="PackageComponent2005"/>
+			<ComponentRef Id="PackageComponent2008"/>
+			<ComponentRef Id="PackageComponentExp2005"/>
+			<ComponentRef Id="PackageComponentExp2008LM"/>
+			<ComponentRef Id="PackageComponentExp2008CU"/>
 		</ComponentGroup>
 		<ComponentGroup Id="ReflectorComponents">
 			<ComponentRef Id="ReflectorAddinComponent"/>

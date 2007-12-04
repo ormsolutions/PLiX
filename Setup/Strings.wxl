@@ -40,7 +40,7 @@
 	<!-- Some of the following strings were taken from the DSL Tools generated setup. They will not normally need to be changed. -->
 	<String Id="Windows2000OrHigherRequired">This setup requires Microsoft Windows 2000 or later.</String>
 	<String Id="NetFrameworkRequired">This setup requires the Microsoft .NET Framework 2.0.  Please install the .NET Framework and run this setup again.</String>
-	<String Id="VisualStudio2005Required">This setup requires Microsoft Visual Studio 2005.  Please install Microsoft Visual Studio 2005 and run this setup again.</String>
+	<String Id="VisualStudioRequired">This setup requires Microsoft Visual Studio 2005 or 2008.  Please install Microsoft Visual Studio 2005 or 2008 and run this setup again.</String>
 	<String Id="ExistingVersionInstalled">Unable to install because an existing version of this product is already installed.  You must uninstall this version before installing the product.</String>
 	<String Id="AdminOrAdvertised">This installer package does not support Admin or Advertised installations.</String>
 	<String Id="MenuLocal">Will be installed on local hard drive</String>
