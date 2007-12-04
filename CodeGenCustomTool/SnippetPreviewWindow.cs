@@ -90,14 +90,16 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			}
 
 			/// <summary>
-			/// Invalidate each loaded ORM diagram to force a redraw of the shapes
+			/// Cache the current instance values as the static values
 			/// </summary>
-			/// <param name="e"></param>
 			protected override void OnApply(DialogPage.PageApplyEventArgs e)
 			{
 				myCurrentFormatterExtension = FormatterExtension;
 				base.OnApply(e);
 			}
+			/// <summary>
+			/// Apply updated settings change
+			/// </summary>
 			public void Apply()
 			{
 				PageApplyEventArgs args = new PageApplyEventArgs();
@@ -276,8 +278,13 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				int retVal = 0;
 				do
 				{
+					RecognizedElementInfo info = elements[elementIndex];
+					if (!info.IsPure)
+					{
+						break;
+					}
 					++retVal;
-					elementIndex = elements[elementIndex].ParentIndex;
+					elementIndex = info.ParentIndex;
 				} while (elementIndex != RecognizedElementInfo.NullParentIndex);
 				return retVal;
 			}
@@ -840,7 +847,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 										{
 											int startPosition;
 											// LineInfo gives one-based numbers, and the line position is after the opening
-											// element <
+											// element < symbol, so we back up two
 											textLines.GetPositionOfLineIndex(lineInfo.LineNumber - 1, lineInfo.LinePosition - 2, out startPosition);
 											elements.Add(new RecognizedElementInfo(startPosition, 0, lastParentIndex, elementNumber, reader.LocalName, namespaceUri));
 											if (!reader.IsEmptyElement)
@@ -1040,7 +1047,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					/// <param name="elementIndex">The index of this element in the document.</param>
 					public void OpenElement(XmlReader reader, int elementIndex)
 					{
-						// Don't both with empty elements. The point of this class is to get an XmlNamespaceManager
+						// Don't bother with empty elements. The point of this class is to get an XmlNamespaceManager
 						// ready for use by a given element. An namespaces added in an empty element itself
 						// will be handled natively by the reader.
 						Debug.Assert(reader.NodeType == XmlNodeType.Element);
