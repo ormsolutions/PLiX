@@ -42,6 +42,7 @@
 #define cmdidPlixCSharpFormatter 0x1011
 #define cmdidPlixVBFormatter 0x1012
 #define cmdidPlixPHPFormatter 0x1013
+#define cmdidPlixJSharpFormatter 0x1014
 // Additional commands for formatter ids must be sequential and match the order in PlixPackage.SnippetPreviewWindow.FormatterInfo.InitializeCommands
 
 #define cmdidPlixSnippetPreviewParentChoice 0x1100
@@ -55,6 +56,7 @@
 #define bmpPicCSharp 4
 #define bmpPicVB 5
 #define bmpPicPHP 6
+#define bmpPicJSL 7
 
 
 #endif // __COMMANDIDS_H_

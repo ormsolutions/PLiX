@@ -121,6 +121,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			// does not work well.
 			private static readonly Guid PHPLanguageServiceGuid = new Guid("DF38847E-CC19-11D2-8ADA-00C04F79E479");
 			private static readonly Guid XmlLanguageServiceGuid = new Guid("f6819a78-a205-47b5-be1c-675b3c7f0b8e");
+			private static readonly Guid JSharpLanguageServiceGuid = new Guid("E6FDF88A-F3D1-11D4-8576-0002A516ECE8");
 			#endregion // Constants
 			#region Member variables
 			// Tool window management fields
@@ -171,10 +172,11 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					FormatterInfo[] newFormatters = new FormatterInfo[]{
 						// Assume sequential matching the Formatters order, softly enforced by
 						// notes in CommandIds.h and PkgCmdID.cs
-				        new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixCSharpFormatter), "cs", CSharpLanguageServiceGuid),
-				        new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixVBFormatter), "vb", VBLanguageServiceGuid),
-				        new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixPHPFormatter), "php", PHPLanguageServiceGuid),
-				        };
+						new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixCSharpFormatter), "cs", CSharpLanguageServiceGuid),
+						new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixVBFormatter), "vb", VBLanguageServiceGuid),
+						new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixPHPFormatter), "php", PHPLanguageServiceGuid),  
+						new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixJSharpFormatter), "jsl", JSharpLanguageServiceGuid),
+						};
 					Formatters = newFormatters;
 					for (int i = 0; i < newFormatters.Length; ++i)
 					{

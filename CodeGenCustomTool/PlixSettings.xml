@@ -17,5 +17,6 @@
 		<plxs:formatter fileExtension="cs" transform="PLiXCS.xslt"/>
 		<plxs:formatter fileExtension="vb" transform="PLiXVB.xslt"/>
 		<plxs:formatter fileExtension="php" transform="PLiXPHP.xslt"/>
+		<plxs:formatter fileExtension="jsl" transform="PLiXJSL.xslt"/>
 	</plxs:formatters>
 </plxs:settings>

@@ -96,6 +96,7 @@ CMDS_SECTION guidPlixPackagePkg
     guidPlixPackageCmdSet:cmdidPlixCSharpFormatter,         guidPlixPackageCmdSet:groupidFormatterChoiceCommands,  0x0000,        guidPlixPackageCmdSet:bmpPicCSharp,    BUTTON,    ,            "C#";
     guidPlixPackageCmdSet:cmdidPlixVBFormatter,             guidPlixPackageCmdSet:groupidFormatterChoiceCommands,  0x0010,        guidPlixPackageCmdSet:bmpPicVB,        BUTTON,    ,            "VB";
     guidPlixPackageCmdSet:cmdidPlixPHPFormatter,            guidPlixPackageCmdSet:groupidFormatterChoiceCommands,  0x0030,        guidPlixPackageCmdSet:bmpPicPHP,        BUTTON,    ,            "PHP";
+guidPlixPackageCmdSet:cmdidPlixJSharpFormatter,         guidPlixPackageCmdSet:groupidFormatterChoiceCommands,  0x0040,        guidPlixPackageCmdSet:bmpPicJSL,        BUTTON,    ,            "J#";
     guidPlixPackageCmdSet:cmdidPlixSnippetPreviewParentChoice, guidPlixPackageCmdSet:groupidParentChoice,          0x0000,        guidPlixPackageCmdSet:bmpPicParent,     BUTTON, DYNAMICITEMSTART|DEFAULTINVISIBLE|DYNAMICVISIBILITY|TEXTCHANGES,            "Parent Element";
     guidPlixPackageCmdSet:cmdidPlixSnippetPreviewSelfChoice, guidPlixPackageCmdSet:groupidParentChoice,          0x0001,        guidPlixPackageCmdSet:bmpPicSelf,     BUTTON, DONTCACHE|DEFAULTINVISIBLE|DYNAMICVISIBILITY|TEXTCHANGES,            "Self Element";
   BUTTONS_END
@@ -109,7 +110,7 @@ CMDS_SECTION guidPlixPackagePkg
   // must be the actual index (1-based) of the bitmap inside the bitmap strip.
 
   // Bitmap                          Bitmap Index, Bitmap Index, ...
-  guidPlixPackageCmdSet:IDB_MENU_IMAGES,    bmpPicPlixPreview, bmpPicSelf, bmpPicParent, bmpPicCSharp, bmpPicVB, bmpPicPHP;
+  guidPlixPackageCmdSet:IDB_MENU_IMAGES,    bmpPicPlixPreview, bmpPicSelf, bmpPicParent, bmpPicCSharp, bmpPicVB, bmpPicPHP, bmpPicJSL;
   BITMAPS_END
 
 CMDS_END

@@ -137,6 +137,9 @@
   <ItemGroup>
     <None Include="CtcComponents\PLiXPackage.cto" />
     <None Include="Resources\Images.bmp" />
+    <None Include="PLiXJSL.xslt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <Content Include="Resources\Package.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSHARP.Targets" />

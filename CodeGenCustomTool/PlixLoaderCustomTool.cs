@@ -201,7 +201,12 @@ namespace Neumont.Tools.CodeGeneration.Plix
 		#region IVsSingleFileGenerator Implementation
 		int IVsSingleFileGenerator.DefaultExtension(out string pbstrDefaultExtension)
 		{
-			pbstrDefaultExtension = "." + CodeDomProvider.FileExtension;
+			string retVal = CodeDomProvider.FileExtension;
+			if (retVal[0] != '.')
+			{
+				retVal = "." + retVal;
+			}
+			pbstrDefaultExtension = retVal;
 			return VSConstants.S_OK;
 		}
 		int IVsSingleFileGenerator.Generate(string wszInputFilePath, string bstrInputFileContents, string wszDefaultNamespace, IntPtr[] rgbOutputFileContents, out uint pcbOutput, IVsGeneratorProgress pGenerateProgress)
@@ -343,6 +348,10 @@ There is no way to both successfully trigger regeneration and avoid writing this
 
 			// Load a language formatter for this file extension
 			string fileExtension = CodeDomProvider.FileExtension;
+			if (fileExtension.StartsWith("."))
+			{
+				fileExtension = fileExtension.Substring(1);
+			}
 			XslCompiledTransform formatter = FormatterManager.GetFormatterTransform(fileExtension);
 			if (formatter == null)
 			{
