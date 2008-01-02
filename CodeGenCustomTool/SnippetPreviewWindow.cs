@@ -160,8 +160,14 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				private string myExtension;
 				private Guid myLanguageService;
 				private MenuCommand myMenuCommand;
-				private FormatterInfo(MenuCommand menuCommand, string extension, Guid languageService)
+				private FormatterInfo(MenuCommand menuCommand, string extension, Guid languageService, RegistryKey servicesKey)
 				{
+					if (!FormatterManager.IsFormatterRegistered(extension) || !IsRegisteredService(servicesKey, languageService))
+					{
+						menuCommand.Visible = false;
+						menuCommand.Enabled = false;
+						menuCommand.Supported = true;
+					}
 					myExtension = extension;
 					myLanguageService = languageService;
 					myMenuCommand = menuCommand;
@@ -169,14 +175,21 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				public static void InitializeCommands(SnippetPreviewWindow window, OleMenuCommandService commandService)
 				{
 					string currentExtension = SnippetPreviewWindowSettings.CurrentFormatterExtension;
-					FormatterInfo[] newFormatters = new FormatterInfo[]{
-						// Assume sequential matching the Formatters order, softly enforced by
-						// notes in CommandIds.h and PkgCmdID.cs
-						new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixCSharpFormatter), "cs", CSharpLanguageServiceGuid),
-						new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixVBFormatter), "vb", VBLanguageServiceGuid),
-						new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixPHPFormatter), "php", PHPLanguageServiceGuid),  
-						new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixJSharpFormatter), "jsl", JSharpLanguageServiceGuid),
-						};
+					FormatterInfo[] newFormatters = null;
+					using (RegistryKey applicationRegistryRoot = window.myPackage.ApplicationRegistryRoot)
+					{
+						using (RegistryKey servicesKey = applicationRegistryRoot.OpenSubKey("Services", RegistryKeyPermissionCheck.ReadSubTree))
+						{
+							newFormatters = new FormatterInfo[]{
+								// Assume sequential matching the Formatters order, softly enforced by
+								// notes in CommandIds.h and PkgCmdID.cs
+								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixCSharpFormatter), "cs", CSharpLanguageServiceGuid, servicesKey),
+								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixVBFormatter), "vb", VBLanguageServiceGuid, servicesKey),
+								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixPHPFormatter), "php", PHPLanguageServiceGuid, servicesKey),
+								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixJSharpFormatter), "jsl", JSharpLanguageServiceGuid, servicesKey),
+							};
+						}
+					}
 					Formatters = newFormatters;
 					for (int i = 0; i < newFormatters.Length; ++i)
 					{
@@ -190,9 +203,25 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 						commandService.AddCommand(menuCommand);
 					}
 				}
-				private static MenuCommand CreateMenuCommand(SnippetPreviewWindow window, int commandId)
+				/// <summary>
+				/// Determine if the requested service is registered
+				/// </summary>
+				/// <param name="servicesKey">An open Services key from the Visual Studio registry</param>
+				/// <param name="serviceGuid">The guid for the expected service</param>
+				/// <returns>true if registered</returns>
+				private static bool IsRegisteredService(RegistryKey servicesKey, Guid serviceGuid)
 				{
-					return new MenuCommand(new EventHandler(window.SwitchToFormatter), new CommandID(GuidList.guidPlixPackageCmdSet, commandId));
+					RegistryKey key = servicesKey.OpenSubKey(serviceGuid.ToString("B"));
+					if (key == null)
+					{
+						return false;
+					}
+					key.Close();
+					return true;
+				}
+				private static MenuCommand CreateMenuCommand(SnippetPreviewWindow window, int commandIdValue)
+				{
+					return new MenuCommand(new EventHandler(window.SwitchToFormatter), new CommandID(GuidList.guidPlixPackageCmdSet, commandIdValue));
 				}
 				public static void SwitchToFormatter(SnippetPreviewWindow window, MenuCommand command)
 				{

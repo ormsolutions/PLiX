@@ -93,10 +93,10 @@ CMDS_SECTION guidPlixPackagePkg
 
   // Command                    Parent Group                Priority    Image            Type    Visibility        
     guidPlixPackageCmdSet:cmdidPlixSnippetPreviewWindow,    guidSHLMainMenu:IDG_VS_WNDO_OTRWNDWS1,                 0x0101,        guidPlixPackageCmdSet:bmpPicPlixPreview,    BUTTON,    ,            "&PLiX Snippet Preview Window";
-    guidPlixPackageCmdSet:cmdidPlixCSharpFormatter,         guidPlixPackageCmdSet:groupidFormatterChoiceCommands,  0x0000,        guidPlixPackageCmdSet:bmpPicCSharp,    BUTTON,    ,            "C#";
-    guidPlixPackageCmdSet:cmdidPlixVBFormatter,             guidPlixPackageCmdSet:groupidFormatterChoiceCommands,  0x0010,        guidPlixPackageCmdSet:bmpPicVB,        BUTTON,    ,            "VB";
-    guidPlixPackageCmdSet:cmdidPlixPHPFormatter,            guidPlixPackageCmdSet:groupidFormatterChoiceCommands,  0x0030,        guidPlixPackageCmdSet:bmpPicPHP,        BUTTON,    ,            "PHP";
-guidPlixPackageCmdSet:cmdidPlixJSharpFormatter,         guidPlixPackageCmdSet:groupidFormatterChoiceCommands,  0x0040,        guidPlixPackageCmdSet:bmpPicJSL,        BUTTON,    ,            "J#";
+    guidPlixPackageCmdSet:cmdidPlixCSharpFormatter,         guidPlixPackageCmdSet:groupidFormatterChoiceCommands,  0x0000,        guidPlixPackageCmdSet:bmpPicCSharp,    BUTTON,    DEFAULTINVISIBLE|DYNAMICVISIBILITY,            "C#";
+    guidPlixPackageCmdSet:cmdidPlixVBFormatter,             guidPlixPackageCmdSet:groupidFormatterChoiceCommands,  0x0010,        guidPlixPackageCmdSet:bmpPicVB,        BUTTON,    DEFAULTINVISIBLE|DYNAMICVISIBILITY,            "VB";
+    guidPlixPackageCmdSet:cmdidPlixPHPFormatter,            guidPlixPackageCmdSet:groupidFormatterChoiceCommands,  0x0030,        guidPlixPackageCmdSet:bmpPicPHP,        BUTTON,    DEFAULTINVISIBLE|DYNAMICVISIBILITY,            "PHP";
+    guidPlixPackageCmdSet:cmdidPlixJSharpFormatter,         guidPlixPackageCmdSet:groupidFormatterChoiceCommands,  0x0040,        guidPlixPackageCmdSet:bmpPicJSL,        BUTTON,    DEFAULTINVISIBLE|DYNAMICVISIBILITY,            "J#";
     guidPlixPackageCmdSet:cmdidPlixSnippetPreviewParentChoice, guidPlixPackageCmdSet:groupidParentChoice,          0x0000,        guidPlixPackageCmdSet:bmpPicParent,     BUTTON, DYNAMICITEMSTART|DEFAULTINVISIBLE|DYNAMICVISIBILITY|TEXTCHANGES,            "Parent Element";
     guidPlixPackageCmdSet:cmdidPlixSnippetPreviewSelfChoice, guidPlixPackageCmdSet:groupidParentChoice,          0x0001,        guidPlixPackageCmdSet:bmpPicSelf,     BUTTON, DONTCACHE|DEFAULTINVISIBLE|DYNAMICVISIBILITY|TEXTCHANGES,            "Self Element";
   BUTTONS_END

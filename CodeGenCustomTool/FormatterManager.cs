@@ -236,6 +236,28 @@ namespace Neumont.Tools.CodeGeneration.Plix
 			}
 			return retVal;
 		}
+		/// <summary>
+		/// Determine if the file extension has a registered formatter without attempting to load the transform
+		/// </summary>
+		/// <param name="fileExtension">The file extension for the type of code file. For example, 'cs' or 'vb'.</param>
+		/// <returns><see langword="true"/> if registered</returns>
+		public static bool IsFormatterRegistered(string fileExtension)
+		{
+			Dictionary<string, Formatter> dictionary = myFormattersDictionary;
+			if (dictionary == null)
+			{
+				lock (LockObject)
+				{
+					if (null == (dictionary = myFormattersDictionary))
+					{
+						dictionary = new Dictionary<string, Formatter>();
+						LoadGlobalSettings(dictionary);
+						myFormattersDictionary = dictionary;
+					}
+				}
+			}
+			return dictionary.ContainsKey(fileExtension.ToLowerInvariant());
+		}
 		private static void LoadGlobalSettings(Dictionary<string, Formatter> languageTransforms)
 		{
 			string settingsFile = PlixDirectory + PlixGlobalSettingsFile;
