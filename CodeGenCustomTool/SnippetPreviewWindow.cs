@@ -35,8 +35,22 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 {
 	[ProvideToolWindow(typeof(PlixPackage.SnippetPreviewWindow), Style = VsDockStyle.Tabbed, Orientation = ToolWindowOrientation.Right, Window = ToolWindowGuids.Outputwindow)]
 	[ProvideProfile(typeof(PlixPackage.SnippetPreviewWindowSettings), "ProgrammingLanguageInXml", "SnippetPreviewWindow", 114, 116, false, DescriptionResourceID=118)]
-	partial class PlixPackage
+	partial class PlixPackage : IVsToolWindowFactory
 	{
+		#region IVsToolWindowFactory Implementation
+		/// <summary>
+		/// Shadow the toolwindow creation in the base Package code. Enables use
+		/// of the ProvideToolWindow attribute without being a ToolWindowPane
+		/// </summary>
+		int IVsToolWindowFactory.CreateToolWindow(ref Guid rguidPersistenceSlot, uint dwToolWindowId)
+		{
+			if (rguidPersistenceSlot == GuidList.SnippetPreviewWindowGuid && myPreviewWindow != null)
+			{
+				myPreviewWindow.EnsureWindowFrame();
+			}
+			return 0;
+		}
+		#endregion // IVsToolWindowFactory Implementation
 		#region SnippetPreviewWindowSettings class
 		// As crazy as it sounds, it is much easier to provide a dialog page
 		// than implementing simple settings. There is a lot more plumbing

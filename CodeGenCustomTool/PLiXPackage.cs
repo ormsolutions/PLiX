@@ -83,7 +83,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				GetDialogPage(typeof(SnippetPreviewWindowSettings));
 
 				// Create the preview window
-				(myPreviewWindow = new SnippetPreviewWindow(this)).EnsureWindowFrame();
+				myPreviewWindow = new SnippetPreviewWindow(this);
 
 				// Enable idle handling
 				IOleComponentManager componentManager;
