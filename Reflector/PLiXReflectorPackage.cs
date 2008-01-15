@@ -297,10 +297,49 @@ namespace Reflector
 			(myDisplayContextDataTypeQualifierCheckBox = menuItems.AddCheckBox("Display Context Type &Qualifier")).Click += new EventHandler(OnDisplayContextDataTypeQualifierChanged);
 			myTopMenu = topMenu;
 
-			ICommandBarControl appRefresh = GetCommandbarControl(commandBarManager, "ToolBar", "Application.Refresh");
-			if (appRefresh != null)
+			ICommandBarControl appRefresh1 = GetCommandbarControl(commandBarManager, "ToolBar", "Application.Refresh");
+			if (appRefresh1 != null)
 			{
-				appRefresh.Click += new EventHandler(OnApplicationRefresh);
+				appRefresh1.Click += new EventHandler(OnApplicationRefresh);
+			}
+			ICommandBarControl appRefresh2 = GetCommandbarControl(commandBarManager, "View", "Application.Refresh");
+			if (appRefresh2 != null && appRefresh2 != appRefresh1)
+			{
+				appRefresh2.Click += new EventHandler(OnApplicationRefresh);
+			}
+			//DumpMenus(commandBarManager);
+		}
+		private void DumpMenus(ICommandBarManager commandBarManager)
+		{
+			foreach (ICommandBar cb in commandBarManager.CommandBars)
+			{
+				DumpCommandBar(cb, 0);
+			}
+		}
+		private void DumpCommandBar(ICommandBar commandBar, int indent)
+		{
+			for (int i = 0; i < indent; ++i)
+			{
+				System.Diagnostics.Debug.Write("\t");
+			}
+			System.Diagnostics.Debug.WriteLine(commandBar.Identifier);
+			++indent;
+			foreach (ICommandBarItem childItem in commandBar.Items)
+			{
+				ICommandBarControl control;
+				ICommandBarMenu menu;
+				if (null != (control = childItem as ICommandBarControl))
+				{
+					for (int i = 0; i < indent; ++i)
+					{
+						System.Diagnostics.Debug.Write("\t");
+					}
+					System.Diagnostics.Debug.WriteLine(control.Value);
+				}
+				else if (null != (menu = childItem as ICommandBarMenu))
+				{
+					DumpCommandBar(menu, indent);
+				}
 			}
 		}
 		void IPackage.Unload()
@@ -312,10 +351,15 @@ namespace Reflector
 
 			ICommandBarManager commandBarManager = (ICommandBarManager)myServiceProvider.GetService(typeof(ICommandBarManager));
 			commandBarManager.CommandBars["MenuBar"].Items.Remove(myTopMenu);
-			ICommandBarControl appRefresh = GetCommandbarControl(commandBarManager, "ToolBar", "Application.Refresh");
-			if (appRefresh != null)
+			ICommandBarControl appRefresh1 = GetCommandbarControl(commandBarManager, "ToolBar", "Application.Refresh");
+			if (appRefresh1 != null)
 			{
-				appRefresh.Click -= new EventHandler(OnApplicationRefresh);
+				appRefresh1.Click -= new EventHandler(OnApplicationRefresh);
+			}
+			ICommandBarControl appRefresh2 = GetCommandbarControl(commandBarManager, "View", "Application.Refresh");
+			if (appRefresh2 != null && appRefresh2 != appRefresh1)
+			{
+				appRefresh2.Click -= new EventHandler(OnApplicationRefresh);
 			}
 		}
 		private static ICommandBarControl GetCommandbarControl(ICommandBarManager manager, string barIdentifier, string controlValue)

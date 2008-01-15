@@ -347,10 +347,12 @@ namespace Reflector
 						this.RenderInterfaceMember(InterfaceMemberCollectionItem);
 					}
 				}
-				foreach (IParameterDeclaration referenceMethodParametersItem in referenceMethod.Parameters)
+				IParameterDeclarationCollection parameters = referenceMethod.Parameters;
+				int parameterCount = parameters.Count - (IsVoidType(referenceMethod.ReturnType.Type) ? 1 : 0);
+				for (int i = 0; i < parameterCount; ++i)
 				{
 					this.WriteElement("param");
-					this.RenderParameterDeclaration(referenceMethodParametersItem);
+					this.RenderParameterDeclaration(parameters[i]);
 					this.WriteEndElement();
 				}
 				if (value.PropertyType != null)
@@ -555,7 +557,7 @@ namespace Reflector
 				this.WriteEndElement();
 				this.WriteEndElement();
 			}
-			private void RenderAccessorMethod(IMethodReference value, IMethodDeclaration referenceMethod, bool renderParameterAttributes, bool translateMethod)
+			private void RenderAccessorMethod(IMethodReference value, IMethodDeclaration referenceMethod, bool hasValueParameter, bool translateMethod)
 			{
 				IMethodDeclaration accessorDeclaration = value.Resolve();
 				if (referenceMethod != null && CompareMethodVisibilityStrength(referenceMethod.Visibility, accessorDeclaration.Visibility) < 0)
@@ -573,13 +575,16 @@ namespace Reflector
 				{
 					this.RenderCustomAttribute(accessorDeclarationAttributesItem);
 				}
-				if (renderParameterAttributes)
+				string valueParameterName = null;
+				if (hasValueParameter)
 				{
-					IParameterDeclaration firstParam = accessorDeclaration.Parameters[0];
-					foreach (ICustomAttribute firstParamAttributesItem in firstParam.Attributes)
+					IParameterDeclarationCollection parameters = accessorDeclaration.Parameters;
+					IParameterDeclaration valueParam = parameters[parameters.Count - 1];
+					foreach (ICustomAttribute valueParamAttributesItem in valueParam.Attributes)
 					{
-						this.RenderCustomAttribute(firstParamAttributesItem, CustomAttributeTarget.ImplicitValueParameter);
+						this.RenderCustomAttribute(valueParamAttributesItem, CustomAttributeTarget.ImplicitValueParameter);
 					}
+					valueParameterName = valueParam.Name;
 				}
 				IMethodBody accessorBody = translateMethod ? accessorDeclaration.Body as IMethodBody : null;
 				if (accessorBody != null)
@@ -587,6 +592,10 @@ namespace Reflector
 					accessorDeclaration = this.myTranslator.TranslateMethodDeclaration(accessorDeclaration);
 					this.myCurrentMethodDeclaration = accessorDeclaration;
 					this.myCurrentMethodBody = accessorBody;
+					if (valueParameterName != null)
+					{
+						this.myValueParameterName = valueParameterName;
+					}
 					try
 					{
 						IBlockStatement BodyChild = accessorDeclaration.Body as IBlockStatement;
@@ -599,6 +608,7 @@ namespace Reflector
 					{
 						this.myCurrentMethodDeclaration = null;
 						this.myCurrentMethodBody = null;
+						this.myValueParameterName = null;
 					}
 				}
 			}
@@ -2266,9 +2276,19 @@ namespace Reflector
 			private void RenderArgumentReferenceExpression(IArgumentReferenceExpression value)
 			{
 				string elementName = "nameRef";
+				IMethodDeclaration methodDecl = this.myCurrentMethodDeclaration;
+				bool isValueParameter = methodDecl.SpecialName && this.myValueParameterName != null && value.Parameter.Name == this.myValueParameterName;
+				if (isValueParameter)
+				{
+					elementName = "valueKeyword";
+				}
 				this.WriteElement(elementName);
-				this.WriteAttribute("name", value.Parameter.Name);
-				this.WriteAttribute("type", "parameter");
+				if (!isValueParameter)
+				{
+					string name = value.Parameter.Name;
+					this.WriteAttribute("name", name);
+					this.WriteAttribute("type", "parameter");
+				}
 				this.WriteEndElement();
 			}
 			private void RenderArgumentReferenceExpressionType(IArgumentReferenceExpression value)

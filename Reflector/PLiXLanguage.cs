@@ -185,6 +185,7 @@ namespace Reflector
 			private bool myShowCustomAttributes;
 			private string myContextDataTypeQualifier;
 			private IMethodBody myCurrentMethodBody;
+			private string myValueParameterName;
 			private IMethodDeclaration myCurrentMethodDeclaration;
 			private StringBuilder myEscapeTextStringBuilder;
 			private StringWriter myEscapeTextStringWriter;
@@ -1451,7 +1452,7 @@ namespace Reflector
 						{
 							foreach (IMemberReference interfaceMember in memberReferences)
 							{
-								myStyle = (interfaceMember.DeclaringType == memberDeclaration.DeclaringType) ?
+								myStyle = (interfaceMember.DeclaringType.Equals(memberDeclaration.DeclaringType)) ?
 									InterfaceMemberStyle.DeferredExplicitImplementation :
 									InterfaceMemberStyle.HasInterfaceMembers;
 							}
@@ -1580,10 +1581,10 @@ namespace Reflector
 						IFieldReference fieldReference;
 						IFieldDeclaration fieldDecl;
 						if (null != (fieldReference = GetFieldReferenceForEventMethod(eventDecl.AddMethod, "Combine")) &&
-							fieldReference.FieldType == eventDecl.EventType &&
+							fieldReference.FieldType.Equals(eventDecl.EventType) &&
 							null != (fieldDecl = fieldReference.Resolve()) &&
 							fieldDecl.Visibility == FieldVisibility.Private &&
-							fieldReference == GetFieldReferenceForEventMethod(eventDecl.RemoveMethod, "Remove"))
+							fieldReference.Equals(GetFieldReferenceForEventMethod(eventDecl.RemoveMethod, "Remove")))
 						{
 							eventMaps[fieldDecl] = eventDecl;
 							eventMaps[eventDecl] = fieldDecl;
@@ -1638,13 +1639,13 @@ namespace Reflector
 							((fieldTarget = fieldReferenceExpression.Target) is IThisReferenceExpression ||
 							(methodDecl.Static &&
 							null != (fieldTypeReferenceExpression = fieldTarget as ITypeReferenceExpression) &&
-							accessorMethod.DeclaringType == fieldTypeReferenceExpression.Type)) &&
+							accessorMethod.DeclaringType.Equals(fieldTypeReferenceExpression.Type))) &&
 							// Verify that the arguments to the delegate method are correct. There is only one
 							// argument to these methods, so any argument reference expression will do. Then we
 							// verify that we're referencing the same field as the assignment target.
 							(arguments = invokeExpression.Arguments)[1] is IArgumentReferenceExpression &&
 							null != (fieldReferenceExpression = arguments[0] as IFieldReferenceExpression) &&
-							fieldReference == fieldReferenceExpression.Field &&
+							fieldReference.Equals(fieldReferenceExpression.Field) &&
 							(fieldTypeReferenceExpression != null ||
 							fieldReferenceExpression.Target is IThisReferenceExpression))
 						{
@@ -1766,9 +1767,9 @@ namespace Reflector
 												null != (methodReferenceExpression = methodInvokeExpression.Method as IMethodReferenceExpression) &&
 												((targetExpression = methodReferenceExpression.Target) is IThisReferenceExpression ||
 												(null != (targetTypeReferenceExpression = targetExpression as ITypeReferenceExpression) &&
-												targetTypeReferenceExpression.Type == typeDeclaration)) &&
+												targetTypeReferenceExpression.Type.Equals(typeDeclaration))) &&
 												null != (methodReference = methodReferenceExpression.Method) &&
-												methodReference.DeclaringType == typeDeclaration &&
+												methodReference.DeclaringType.Equals(typeDeclaration) &&
 												AreSignaturesEqual(methodDecl, methodReference))
 											{
 												IExpressionCollection invokeArguments = methodInvokeExpression.Arguments;
@@ -1897,9 +1898,9 @@ namespace Reflector
 													null != (propertyReferenceExpression = propertyIndexerExpression.Target))) &&
 													((targetExpression = propertyReferenceExpression.Target) is IThisReferenceExpression ||
 													(null != (targetTypeReferenceExpression = targetExpression as ITypeReferenceExpression) &&
-													targetTypeReferenceExpression.Type == typeDeclaration)) &&
+													targetTypeReferenceExpression.Type.Equals(typeDeclaration))) &&
 													null != (propertyReference = propertyReferenceExpression.Property) &&
-													propertyReference.DeclaringType == typeDeclaration &&
+													propertyReference.DeclaringType.Equals(typeDeclaration) &&
 													null != (propertyDeclaration = propertyReference.Resolve()) &&
 													null != (methodReference = propertyDeclaration.GetMethod) &&
 													AreSignaturesEqual(methodDecl, methodReference))
@@ -1922,9 +1923,9 @@ namespace Reflector
 													null != (propertyReferenceExpression = propertyIndexerExpression.Target))) &&
 													((targetExpression = propertyReferenceExpression.Target) is IThisReferenceExpression ||
 													(null != (targetTypeReferenceExpression = targetExpression as ITypeReferenceExpression) &&
-													targetTypeReferenceExpression.Type == typeDeclaration)) &&
+													targetTypeReferenceExpression.Type.Equals(typeDeclaration))) &&
 													null != (propertyReference = propertyReferenceExpression.Property) &&
-													propertyReference.DeclaringType == typeDeclaration &&
+													propertyReference.DeclaringType.Equals(typeDeclaration) &&
 													null != (propertyDeclaration = propertyReference.Resolve()) &&
 													null != (methodReference = propertyDeclaration.SetMethod) &&
 													AreSignaturesEqual(methodDecl, methodReference))
@@ -2034,9 +2035,9 @@ namespace Reflector
 													null != (eventReferenceExpression = detachEvent.Event) &&
 													((targetExpression = eventReferenceExpression.Target) is IThisReferenceExpression ||
 													(null != (targetTypeReferenceExpression = targetExpression as ITypeReferenceExpression) &&
-													targetTypeReferenceExpression.Type == typeDeclaration)) &&
+													targetTypeReferenceExpression.Type.Equals(typeDeclaration))) &&
 													null != (eventReference = eventReferenceExpression.Event) &&
-													eventReference.DeclaringType == typeDeclaration &&
+													eventReference.DeclaringType.Equals(typeDeclaration) &&
 													null != (eventDeclaration = eventReference.Resolve()) &&
 													null != (methodReference = eventDeclaration.RemoveMethod) &&
 													AreSignaturesEqual(methodDecl, methodReference))
@@ -2187,7 +2188,7 @@ namespace Reflector
 												// accessor methods.
 												if (!propertyDecl.SpecialName &&
 													0 == string.CompareOrdinal(propertyDecl.Name, searchForName) &&
-													propertyDecl.PropertyType == searchForPropertyType &&
+													propertyDecl.PropertyType.Equals(searchForPropertyType) &&
 													((unboundGetter == null) || (null != (accessorMethod = ResolveAccessorMethod(propertyDecl.GetMethod)) && accessorMethod.Visibility == MethodVisibility.Public && AreSignaturesEqual(accessorMethod, unboundGetter))) &&
 													((unboundSetter == null) || (null != (accessorMethod = ResolveAccessorMethod(propertyDecl.SetMethod)) && accessorMethod.Visibility == MethodVisibility.Public && AreSignaturesEqual(accessorMethod, unboundSetter))))
 												{
@@ -2292,7 +2293,7 @@ namespace Reflector
 											{
 												if (!eventDecl.SpecialName &&
 													0 == string.CompareOrdinal(eventDecl.Name, searchForName) &&
-													eventDecl.EventType == searchForEventType &&
+													eventDecl.EventType.Equals(searchForEventType) &&
 													(!checkAttach || (null != (accessorMethod = ResolveAccessorMethod(eventDecl.AddMethod)) && accessorMethod.Visibility == MethodVisibility.Public)) &&
 													(!checkDetach || (null != (accessorMethod = ResolveAccessorMethod(eventDecl.RemoveMethod)) && accessorMethod.Visibility == MethodVisibility.Public)))
 												{
