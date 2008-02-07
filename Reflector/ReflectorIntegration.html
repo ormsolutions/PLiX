@@ -24,11 +24,12 @@ Note that if you want to build the PLiXReflector.sln solution you will need to p
 <h3>PLiX Language Rendering Options</h3>
 You will see a PLiX menu (right before the Help menu) when PLiX is selected as the current language. This menu allows you to select PLiX rendering options as follows:
 <ul>
-<li>The <em>Example Language</em> menu lists all languages currently loaded in Reflector, except for PLiX and IL, plus the special value <em>None</em>. The default value is C#. The PLiX language renderer adds an XML comment rendered by the selected example language for all top-level statements. The comment includes only lines at the current indentation level. This is a simple mechanism to keep comments at a reasonable length (you don't want to see the full contents of a loop listed both before the loop and inside the loop), but the results are language dependent. C#, Visual Basic, and MC++ example languages work well. The Pascal languages (Delphi and Chrome) are not as clean. For example, 'return x;' in C# renders inside a begin/end block in Pascal, and the PLiX example comment will show only the begin/end statements, not the contents. Refining the algorithm would require detailed knowledge of each language. You can switch your current Reflector language to your example language at any time to see a full rendering in the target language.</li>
+<li>The <em>Example Language</em> menu lists all languages currently loaded in Reflector, except for PLiX and IL, plus the special value <em>None</em>. The default value is C#. The PLiX language renderer adds an XML comment rendered by the selected example language for all top-level statements. The comment includes only lines at the current indentation level. This is a simple mechanism to keep comments at a reasonable length (you don't want to see the full contents of a loop listed both before the loop and inside the loop), but the results are language dependent. C#, Visual Basic, and MC++ example languages work well. The Pascal languages (Delphi and Chrome) are not as clean. For example, 'return x;' in C# renders inside a begin/end block in Pascal, and the PLiX example comment will show only the begin/end statements, not the contents. Refining the algorithm would require detailed knowledge of each language and is not planned. You can switch your current Reflector language to your example language at any time to see a full rendering in the target language.</li>
 <li>The <em>Expand Current Type Declaration</em> menu item expands all type members of the current selected type. This provides the same behavior as the 'Expand Methods' command offered in the code window by Reflector.</li>
 <li>The <em>Expand Current Namespace Declaration</em> menu item expands all members of the current selected namespace. <em>Warning</em> use with caution, this can be very slow and is provided for rapid copy of a large block of code.</li>
 <li>The <em>Expand All Type Declarations</em> menu item automatically automatically expands type members when a type is selected. The Reflector-provided Expand/Collapse commands are ignore if this is set. Note that namespace expansion is never automatic.</li>
-<li>The <em>Display Context Type Qualifier</em> adds the dataTypeQualifier attribute for all type references to elements in the namespace of the currently selected item. By default these qualifiers are not displayed.</li>
+<li>The <em>Display Context Type Qualifier</em> menu item adds the dataTypeQualifier attribute for all type references to elements in the namespace of the currently selected item. By default these qualifiers are not displayed.</li>
+<li>The <em>Static Call Options</em> menu sets rendering options for static calls to the context type or base types. The <em>Explicit</em> choice always renders static calls as a &lt;plx:callStatic&gt; elements, the <em>Implicit (Current Type)</em> option replaces the callStatic elements with &lt;plx:callThis accessor="static"&gt; elements if the called type is the same as the declaring type of the calling code, and the <em>Implicit (Base Types)</em> option uses the &lt;callThis accessor="static"&gt; output for the current type and any of its base types. Explicit qualification is used by default. The implicit options, combined with the <em>Display Context Type Qualifier</em> settings, can drastically reduce the number of references to the current type in the relfected PLiX xml, making it easier to use in generators that dynamically set the class name.</li>
 </ul>
 <br />
 <h3>Notes on Rendering</h3>
@@ -71,7 +72,7 @@ Dim z As Object = IIf((Not x Is Nothing), x.y, Nothing)
 &lt;/plx:local&gt;
 
 //C# (PLiX rendered)
-object z = (x != null) ? x.y : null;
+object z = x != null ? x.y : null;
 
 'Visual Basic (PLiX rendered)
 Dim PLiXVB_1ex As Object
@@ -82,11 +83,11 @@ Else
 End If
 Dim z As Object = PLiXVB_1ex
 </pre>
-<br />The Reflector Visual Basic rendering has two major mistakes. First, the Is operator has higher precedence than the Not operator. Second, IIf is a function (not an operator) and does not short circuit, so the x.y will always evaluate and throws a NullReferenceException if x is not set.<br /><br />
+<br />Reflector's Visual Basic rendering has two major mistakes. First, the Is operator has higher precedence than the Not operator. Second, IIf is a function (not an operator) and does not short circuit, so the x.y will always evaluate and throws a NullReferenceException if x is not set. Also note that PLiX-generated C# is aware of operator precedence and omits the unneeded parentheses in the C# code.<br /><br />
 <h3>UNDONE: Reflector add-in</h3>
-The is still an early crack at a reflector plugin. The following work items are not done (this is not necessarily a complete list).
+The reflector plugin is pretty good, but not yet perfect. The following work items are not done (this is not necessarily a complete list).
 <ul>
-<li>Unresolved types are not handled. If Reflector requests a type and you cancel the dialog then PLiX rendering will crash.</li>
+<li>Unresolved types are not handled. If Reflector requests a type and you cancel the dialog then PLiX rendering will crash. Note that the 'Automatically resolve assemblies' option (choose View/Options and select the 'Browse' item) will greatly reduce the number of dialogs you see.</li>
 </ul>
 <strong>Important:</strong> If you get a crash report from Reflector with the PLiX language active, first try the same selection with another language. If you still get the crash, report it to Lutz. If not, report it here.
 </div>

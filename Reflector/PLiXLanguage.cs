@@ -1285,6 +1285,42 @@ namespace Reflector
 				return null;
 			}
 			/// <summary>
+			/// Returns true if the static call should be rendered unqualified based
+			/// on the current user options and declaration type
+			/// </summary>
+			private bool ShouldRenderStaticThisCall(ITypeReferenceExpression staticTypeReference)
+			{
+				if (staticTypeReference != null)
+				{
+					IMethodDeclaration currentMethodDeclaration;
+					switch (myPLiXConfiguration.StaticCallRenderingOption)
+					{
+						case StaticCallRenderingOption.ImplicitCurrentType:
+							return null != (currentMethodDeclaration = myCurrentMethodDeclaration) &&
+								currentMethodDeclaration.DeclaringType.Equals(staticTypeReference.Type);
+						case StaticCallRenderingOption.ImplicitBaseTypes:
+							ITypeReference testReference;
+							if (null != (testReference = staticTypeReference.Type) &&
+								null != (currentMethodDeclaration = myCurrentMethodDeclaration))
+							{
+								IType contextType = currentMethodDeclaration.DeclaringType;
+								while (contextType != null)
+								{
+									if (contextType.Equals(testReference))
+									{
+										return true;
+									}
+									ITypeReference typeReference = contextType as ITypeReference;
+									ITypeDeclaration typeDeclaration;
+									contextType = (typeReference != null) ? (null != (typeDeclaration = typeReference.Resolve()) ? typeDeclaration.BaseType : null) : null;
+								}
+							}
+							break;
+					}
+				}
+				return false;
+			}
+			/// <summary>
 			/// Returns true if the passed type or any of its owning types are generic
 			/// </summary>
 			private static bool IsGenericTypeReference(ITypeReference typeReference)

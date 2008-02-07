@@ -3651,17 +3651,10 @@
 		<local name="member" type="IEventReference" property="Event"/>
 		<commonConstruct ref="InitializeCallVariables"/>
 		<customElementName elementName="callStatic">
-			<plx:nameRef name="staticCall"/>
+			<commonConstruct ref="TestCallStatic"/>
 		</customElementName>
 		<customElementName elementName="callThis">
-			<plx:binaryOperator type="booleanOr">
-				<plx:left>
-					<plx:nameRef name="thisCall"/>
-				</plx:left>
-				<plx:right>
-					<plx:nameRef name="baseCall"/>
-				</plx:right>
-			</plx:binaryOperator>
+			<commonConstruct ref="TestCallThis"/>
 		</customElementName>
 		<attribute name="name">
 			<plx:callInstance name="Name" type="property">
@@ -3693,17 +3686,10 @@
 		<local name="member" type="IFieldReference" property="Field"/>
 		<commonConstruct ref="InitializeCallVariables"/>
 		<customElementName elementName="callStatic">
-			<plx:nameRef name="staticCall"/>
+			<commonConstruct ref="TestCallStatic"/>
 		</customElementName>
 		<customElementName elementName="callThis">
-			<plx:binaryOperator type="booleanOr">
-				<plx:left>
-					<plx:nameRef name="thisCall"/>
-				</plx:left>
-				<plx:right>
-					<plx:nameRef name="baseCall"/>
-				</plx:right>
-			</plx:binaryOperator>
+			<commonConstruct ref="TestCallThis"/>
 		</customElementName>
 		<attribute name="name">
 			<plx:callInstance name="Name" type="property">
@@ -3864,17 +3850,10 @@
 		<local name="member" type="IMethodReference" property="Method"/>
 		<commonConstruct ref="InitializeCallVariables"/>
 		<customElementName elementName="callStatic">
-			<plx:nameRef name="staticCall"/>
+			<commonConstruct ref="TestCallStatic"/>
 		</customElementName>
 		<customElementName elementName="callThis">
-			<plx:binaryOperator type="booleanOr">
-				<plx:left>
-					<plx:nameRef name="thisCall"/>
-				</plx:left>
-				<plx:right>
-					<plx:nameRef name="baseCall"/>
-				</plx:right>
-			</plx:binaryOperator>
+			<commonConstruct ref="TestCallThis"/>
 		</customElementName>
 		<attribute name="name">
 			<plx:callInstance name="Name" type="property">
@@ -3923,17 +3902,10 @@
 		</plx:local>
 		<commonConstruct ref="InitializeCallVariables"/>
 		<customElementName elementName="callStatic">
-			<plx:nameRef name="staticCall"/>
+			<commonConstruct ref="TestCallStatic"/>
 		</customElementName>
 		<customElementName elementName="callThis">
-			<plx:binaryOperator type="booleanOr">
-				<plx:left>
-					<plx:nameRef name="thisCall"/>
-				</plx:left>
-				<plx:right>
-					<plx:nameRef name="baseCall"/>
-				</plx:right>
-			</plx:binaryOperator>
+			<commonConstruct ref="TestCallThis"/>
 		</customElementName>
 		<plx:local name="memberName" dataTypeName=".string"/>
 		<plx:branch>
@@ -4402,17 +4374,10 @@
 		<local name="member" type="IPropertyReference" property="Property"/>
 		<commonConstruct ref="InitializeCallVariables"/>
 		<customElementName elementName="callStatic">
-			<plx:nameRef name="staticCall"/>
+			<commonConstruct ref="TestCallStatic"/>
 		</customElementName>
 		<customElementName elementName="callThis">
-			<plx:binaryOperator type="booleanOr">
-				<plx:left>
-					<plx:nameRef name="thisCall"/>
-				</plx:left>
-				<plx:right>
-					<plx:nameRef name="baseCall"/>
-				</plx:right>
-			</plx:binaryOperator>
+			<commonConstruct ref="TestCallThis"/>
 		</customElementName>
 		<plx:branch>
 			<plx:condition>
@@ -5886,14 +5851,32 @@
 	<commonConstruct name="InitializeCallVariables">
 		<local name="target" type="IExpression" property="Target"/>
 		<local name="staticTypeReference" type="ITypeReferenceExpression" propertyOf="target" testCast="true"/>
+		<plx:local name="staticThisCall" dataTypeName=".boolean">
+			<plx:initialize>
+				<plx:callThis name="ShouldRenderStaticThisCall">
+					<plx:passParam>
+						<plx:nameRef name="staticTypeReference"/>
+					</plx:passParam>
+				</plx:callThis>
+			</plx:initialize>
+		</plx:local>
 		<plx:local name="staticCall" dataTypeName=".boolean">
 			<plx:initialize>
-				<plx:binaryOperator type="identityInequality">
+				<plx:binaryOperator type="booleanAnd">
 					<plx:left>
-						<plx:nameRef name="staticTypeReference"/>
+						<plx:unaryOperator type="booleanNot">
+							<plx:nameRef name="staticThisCall"/>
+						</plx:unaryOperator>
 					</plx:left>
 					<plx:right>
-						<plx:nullKeyword/>
+						<plx:binaryOperator type="identityInequality">
+							<plx:left>
+								<plx:nameRef name="staticTypeReference"/>
+							</plx:left>
+							<plx:right>
+								<plx:nullKeyword/>
+							</plx:right>
+						</plx:binaryOperator>
 					</plx:right>
 				</plx:binaryOperator>
 			</plx:initialize>
@@ -5941,8 +5924,38 @@
 			</plx:initialize>
 		</plx:local>
 	</commonConstruct>
+	<commonConstruct name="TestCallThis">
+		<!-- Used after InitializeCallVariable inside a customElementName for callThis
+		customElementName is treated specially by handler and cannot be in a commonConstruct -->
+		<plx:binaryOperator type="booleanOr">
+			<plx:left>
+				<plx:nameRef name="thisCall"/>
+			</plx:left>
+			<plx:right>
+				<plx:binaryOperator type="booleanOr">
+					<plx:left>
+						<plx:nameRef name="staticThisCall"/>
+					</plx:left>
+					<plx:right>
+						<plx:nameRef name="baseCall"/>
+					</plx:right>
+				</plx:binaryOperator>
+			</plx:right>
+		</plx:binaryOperator>
+	</commonConstruct>
+	<commonConstruct name="TestCallStatic">
+		<!-- Used after InitializeCallVariable inside a customElementName for callStatic
+		customElementName is treated specially by handler and cannot be in a commonConstruct -->
+		<plx:nameRef name="staticCall"/>
+	</commonConstruct>
 	<commonConstruct name="CommonCallSettings">
 		<plx:branch>
+			<plx:condition>
+				<plx:nameRef name="staticThisCall"/>
+			</plx:condition>
+			<attribute name="accessor" value="static"/>
+		</plx:branch>
+		<plx:alternateBranch>
 			<plx:condition>
 				<plx:nameRef name="staticCall"/>
 			</plx:condition>
@@ -5951,7 +5964,7 @@
 					<plx:nameRef name="staticTypeReference"/>
 				</plx:passParam>
 			</plx:callThis>
-		</plx:branch>
+		</plx:alternateBranch>
 		<plx:alternateBranch>
 			<plx:condition>
 				<plx:nameRef name="baseCall"/>

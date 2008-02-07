@@ -138,7 +138,10 @@
 		</xs:complexContent>
 	</xs:complexType>
 	<xs:complexType name="commonConstructDefinitionType">
-		<xs:group ref="codeBlockContents" maxOccurs="unbounded"/>
+		<xs:choice>
+			<xs:group ref="codeBlockContents" maxOccurs="unbounded"/>
+			<xs:element ref="plx:expressionElement"/>
+		</xs:choice>
 		<xs:attribute name="name" type="xs:string" use="required">
 			<xs:annotation>
 				<xs:documentation>The identifying name for the commonConstruct. Must be unique in the root scope.</xs:documentation>

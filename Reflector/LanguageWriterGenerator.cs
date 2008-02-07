@@ -2645,21 +2645,26 @@ namespace Reflector
 				IEventReference member = value.Event;
 				IExpression target = value.Target;
 				ITypeReferenceExpression staticTypeReference = target as ITypeReferenceExpression;
-				bool staticCall = staticTypeReference != null;
+				bool staticThisCall = this.ShouldRenderStaticThisCall(staticTypeReference);
+				bool staticCall = !staticThisCall && staticTypeReference != null;
 				bool thisCall = !staticCall && target is IThisReferenceExpression;
 				bool baseCall = !thisCall && target is IBaseReferenceExpression;
 				if (staticCall)
 				{
 					elementName = "callStatic";
 				}
-				else if (thisCall || baseCall)
+				else if (thisCall || staticThisCall || baseCall)
 				{
 					elementName = "callThis";
 				}
 				this.WriteElement(elementName);
 				this.WriteAttribute("name", member.Name, member.ToString(), member);
 				this.WriteAttribute("type", "event");
-				if (staticCall)
+				if (staticThisCall)
+				{
+					this.WriteAttribute("accessor", "static");
+				}
+				else if (staticCall)
 				{
 					this.RenderTypeReferenceExpression(staticTypeReference);
 				}
@@ -2693,21 +2698,26 @@ namespace Reflector
 				IFieldReference member = value.Field;
 				IExpression target = value.Target;
 				ITypeReferenceExpression staticTypeReference = target as ITypeReferenceExpression;
-				bool staticCall = staticTypeReference != null;
+				bool staticThisCall = this.ShouldRenderStaticThisCall(staticTypeReference);
+				bool staticCall = !staticThisCall && staticTypeReference != null;
 				bool thisCall = !staticCall && target is IThisReferenceExpression;
 				bool baseCall = !thisCall && target is IBaseReferenceExpression;
 				if (staticCall)
 				{
 					elementName = "callStatic";
 				}
-				else if (thisCall || baseCall)
+				else if (thisCall || staticThisCall || baseCall)
 				{
 					elementName = "callThis";
 				}
 				this.WriteElement(elementName);
 				this.WriteAttribute("name", member.Name, member.ToString(), member);
 				this.WriteAttribute("type", "field");
-				if (staticCall)
+				if (staticThisCall)
+				{
+					this.WriteAttribute("accessor", "static");
+				}
+				else if (staticCall)
 				{
 					this.RenderTypeReferenceExpression(staticTypeReference);
 				}
@@ -2977,21 +2987,26 @@ namespace Reflector
 				IMethodReference member = value.Method;
 				IExpression target = value.Target;
 				ITypeReferenceExpression staticTypeReference = target as ITypeReferenceExpression;
-				bool staticCall = staticTypeReference != null;
+				bool staticThisCall = this.ShouldRenderStaticThisCall(staticTypeReference);
+				bool staticCall = !staticThisCall && staticTypeReference != null;
 				bool thisCall = !staticCall && target is IThisReferenceExpression;
 				bool baseCall = !thisCall && target is IBaseReferenceExpression;
 				if (staticCall)
 				{
 					elementName = "callStatic";
 				}
-				else if (thisCall || baseCall)
+				else if (thisCall || staticThisCall || baseCall)
 				{
 					elementName = "callThis";
 				}
 				this.WriteElement(elementName);
 				this.WriteAttribute("name", member.Name);
 				this.WriteAttribute("type", "methodReference");
-				if (staticCall)
+				if (staticThisCall)
+				{
+					this.WriteAttribute("accessor", "static");
+				}
+				else if (staticCall)
 				{
 					this.RenderTypeReferenceExpression(staticTypeReference);
 				}
@@ -3048,14 +3063,15 @@ namespace Reflector
 				bool isDelegateInvoke = IsDelegateInvokeMethodReference(member);
 				IExpression target = value.Target;
 				ITypeReferenceExpression staticTypeReference = target as ITypeReferenceExpression;
-				bool staticCall = staticTypeReference != null;
+				bool staticThisCall = this.ShouldRenderStaticThisCall(staticTypeReference);
+				bool staticCall = !staticThisCall && staticTypeReference != null;
 				bool thisCall = !staticCall && target is IThisReferenceExpression;
 				bool baseCall = !thisCall && target is IBaseReferenceExpression;
 				if (staticCall)
 				{
 					elementName = "callStatic";
 				}
-				else if (thisCall || baseCall)
+				else if (thisCall || staticThisCall || baseCall)
 				{
 					elementName = "callThis";
 				}
@@ -3078,7 +3094,11 @@ namespace Reflector
 				{
 					this.WriteAttribute("type", "delegateCall");
 				}
-				if (staticCall)
+				if (staticThisCall)
+				{
+					this.WriteAttribute("accessor", "static");
+				}
+				else if (staticCall)
 				{
 					this.RenderTypeReferenceExpression(staticTypeReference);
 				}
@@ -3326,14 +3346,15 @@ namespace Reflector
 				IPropertyReference member = value.Property;
 				IExpression target = value.Target;
 				ITypeReferenceExpression staticTypeReference = target as ITypeReferenceExpression;
-				bool staticCall = staticTypeReference != null;
+				bool staticThisCall = this.ShouldRenderStaticThisCall(staticTypeReference);
+				bool staticCall = !staticThisCall && staticTypeReference != null;
 				bool thisCall = !staticCall && target is IThisReferenceExpression;
 				bool baseCall = !thisCall && target is IBaseReferenceExpression;
 				if (staticCall)
 				{
 					elementName = "callStatic";
 				}
-				else if (thisCall || baseCall)
+				else if (thisCall || staticThisCall || baseCall)
 				{
 					elementName = "callThis";
 				}
@@ -3348,7 +3369,11 @@ namespace Reflector
 					this.WriteAttribute("name", member.Name, member.ToString(), member);
 					this.WriteAttribute("type", "property");
 				}
-				if (staticCall)
+				if (staticThisCall)
+				{
+					this.WriteAttribute("accessor", "static");
+				}
+				else if (staticCall)
 				{
 					this.RenderTypeReferenceExpression(staticTypeReference);
 				}

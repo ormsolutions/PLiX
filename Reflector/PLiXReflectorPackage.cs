@@ -20,6 +20,26 @@ using Reflector.CodeModel;
 namespace Reflector
 {
 	/// <summary>
+	/// Options for rendering static calls to the current type
+	/// as &lt;plx:callThis accessor="static"/&gt; instead of
+	/// &lt;plx:callStatic/&gt;.
+	/// </summary>
+	public enum StaticCallRenderingOption
+	{
+		/// <summary>
+		/// All static calls should be explicitly renders with callStatic
+		/// </summary>
+		Explicit,
+		/// <summary>
+		/// All static calls to the current type should be rendered with callThis
+		/// </summary>
+		ImplicitCurrentType,
+		/// <summary>
+		/// All static calls to the current type and any of its base types should be rendered with callThis
+		/// </summary>
+		ImplicitBaseTypes,
+	}
+	/// <summary>
 	/// Interface for providing PLiX configuration options
 	/// </summary>
 	public interface IPLiXConfiguration
@@ -40,6 +60,11 @@ namespace Reflector
 		/// Return true to write the dataTypeQualifier attribute even if it matches the current active item
 		/// </summary>
 		bool DisplayContextDataTypeQualifier { get;}
+		/// <summary>
+		/// Return the current rendering option for static calls to
+		/// the current type.
+		/// </summary>
+		StaticCallRenderingOption StaticCallRenderingOption { get;}
 	}
 	/// <summary>
 	/// Starting point for a Reflector class
@@ -58,6 +83,7 @@ namespace Reflector
 			private bool myFullyExpandCurrentTypeDeclaration;
 			private bool myFullyExpandCurrentNamespaceDeclaration;
 			private bool myDisplayContextDataTypeQualifier;
+			private StaticCallRenderingOption myStaticCallOption;
 			private PLiXLanguagePackage myPackage;
 			#endregion // Member Variables
 			#region Constants
@@ -65,6 +91,7 @@ namespace Reflector
 			private const string ExampleLanguageValueName = "ExampleLanguage";
 			private const string FullyExpandTypeDeclarationsValueName = "FullyExpandTypeDeclarations";
 			private const string DisplayContextDataTypeQualifierValueName = "DisplayContextDataTypeQualifier";
+			private const string StaticCallRendingOptionValueName = "StaticCallRenderingOption";
 			#endregion // Constants
 			#region Constructors
 			/// <summary>
@@ -80,6 +107,16 @@ namespace Reflector
 				myExampleLanguageName = myConfiguration.GetProperty(ExampleLanguageValueName, "C#");
 				myFullyExpandTypeDeclarations = 0 == string.Compare(myConfiguration.GetProperty(FullyExpandTypeDeclarationsValueName, "false"), "true", StringComparison.CurrentCultureIgnoreCase);
 				myDisplayContextDataTypeQualifier = 0 == string.Compare(myConfiguration.GetProperty(DisplayContextDataTypeQualifierValueName, "false"), "true", StringComparison.CurrentCultureIgnoreCase);
+				myStaticCallOption = StaticCallRenderingOption.Explicit;
+				string callStaticOptionValue = myConfiguration.GetProperty(StaticCallRendingOptionValueName, "Explicit");
+				if (0 == string.Compare(callStaticOptionValue, "ImplicitCurrentType", StringComparison.CurrentCultureIgnoreCase))
+				{
+					myStaticCallOption = StaticCallRenderingOption.ImplicitCurrentType;
+				}
+				else if (0 == string.Compare(callStaticOptionValue, "ImplicitBaseTypes", StringComparison.CurrentCultureIgnoreCase))
+				{
+					myStaticCallOption = StaticCallRenderingOption.ImplicitBaseTypes;
+				}
 			}
 			#endregion // Constructors
 			#region IPLiXConfiguration Implementation
@@ -237,6 +274,22 @@ namespace Reflector
 					}
 				}
 			}
+			public StaticCallRenderingOption StaticCallRenderingOption
+			{
+				get
+				{
+					return myStaticCallOption;
+				}
+				set
+				{
+					if (value != myStaticCallOption)
+					{
+						myStaticCallOption = value;
+						myConfiguration.SetProperty(StaticCallRendingOptionValueName, value.ToString());
+						RefreshCurrentSelection();
+					}
+				}
+			}
 			/// <summary>
 			/// Force the disassembler page to refresh
 			/// </summary>
@@ -259,6 +312,9 @@ namespace Reflector
 		private ICommandBarItem myExpandCurrentNamespaceDeclarationButton;
 		private ICommandBarCheckBox myFullyExpandTypeDeclarationsCheckBox;
 		private ICommandBarCheckBox myDisplayContextDataTypeQualifierCheckBox;
+		private ICommandBarCheckBox myExplicitStaticCallCheckBox;
+		private ICommandBarCheckBox myImplicitCurrentTypeStaticCallCheckBox;
+		private ICommandBarCheckBox myImplicitBaseTypesStaticCallCheckBox;
 		private IPLiXConfiguration myConfiguration;
 		private object myLastActiveItem;
 		#endregion // Member Variables
@@ -295,6 +351,11 @@ namespace Reflector
 			(myFullyExpandTypeDeclarationsCheckBox = menuItems.AddCheckBox("Ex&pand All Type Declarations")).Click += new EventHandler(OnFullyExpandTypeDeclarationsChanged);
 			menuItems.AddSeparator();
 			(myDisplayContextDataTypeQualifierCheckBox = menuItems.AddCheckBox("Display Context Type &Qualifier")).Click += new EventHandler(OnDisplayContextDataTypeQualifierChanged);
+			ICommandBarMenu callStaticOptionsMenu = menuItems.AddMenu("PLiXStaticCallOptions", "&Static Call Options");
+			menuItems = callStaticOptionsMenu.Items;
+			(myExplicitStaticCallCheckBox = menuItems.AddCheckBox("&Explicit")).Click += new EventHandler(OnExplicitStaticCallCheckBoxChanged);
+			(myImplicitCurrentTypeStaticCallCheckBox = menuItems.AddCheckBox("Implicit (&Current Type)")).Click += new EventHandler(OnImplicitCurrentTypeStaticCallCheckBoxChanged);
+			(myImplicitBaseTypesStaticCallCheckBox = menuItems.AddCheckBox("Implicit (&Base Types)")).Click += new EventHandler(OnImplicitBaseTypesStaticCallCheckBoxChanged);
 			myTopMenu = topMenu;
 
 			ICommandBarControl appRefresh1 = GetCommandbarControl(commandBarManager, "ToolBar", "Application.Refresh");
@@ -439,6 +500,10 @@ namespace Reflector
 			}
 			myFullyExpandTypeDeclarationsCheckBox.Checked = alwaysExpandTypes;
 			myDisplayContextDataTypeQualifierCheckBox.Checked = plixConfig.DisplayContextDataTypeQualifier;
+			StaticCallRenderingOption staticRender = plixConfig.StaticCallRenderingOption;
+			myExplicitStaticCallCheckBox.Checked = staticRender == StaticCallRenderingOption.Explicit;
+			myImplicitCurrentTypeStaticCallCheckBox.Checked = staticRender == StaticCallRenderingOption.ImplicitCurrentType;
+			myImplicitBaseTypesStaticCallCheckBox.Checked = staticRender == StaticCallRenderingOption.ImplicitBaseTypes;
 			int itemsCount = exampleItems.Count;
 			ICommandBarCheckBox currentItem;
 			if (itemsCount == 0)
@@ -566,6 +631,30 @@ namespace Reflector
 		{
 			PLiXConfiguration config = (PLiXConfiguration)myConfiguration;
 			config.DisplayContextDataTypeQualifier = !config.DisplayContextDataTypeQualifier;
+		}
+		/// <summary>
+		/// Event handler for turning on explicit call static calls
+		/// </summary>
+		private void OnExplicitStaticCallCheckBoxChanged(object sender, EventArgs e)
+		{
+			PLiXConfiguration config = (PLiXConfiguration)myConfiguration;
+			config.StaticCallRenderingOption = StaticCallRenderingOption.Explicit;
+		}
+		/// <summary>
+		/// Event handler for turning on implicit static calls for the context type
+		/// </summary>
+		private void OnImplicitCurrentTypeStaticCallCheckBoxChanged(object sender, EventArgs e)
+		{
+			PLiXConfiguration config = (PLiXConfiguration)myConfiguration;
+			config.StaticCallRenderingOption = StaticCallRenderingOption.ImplicitCurrentType;
+		}
+		/// <summary>
+		/// Event handler for turning on implicit static calls for the context type and all base types
+		/// </summary>
+		private void OnImplicitBaseTypesStaticCallCheckBoxChanged(object sender, EventArgs e)
+		{
+			PLiXConfiguration config = (PLiXConfiguration)myConfiguration;
+			config.StaticCallRenderingOption = StaticCallRenderingOption.ImplicitBaseTypes;
 		}
 		/// <summary>
 		/// Event handler for toggling the full type expansion option
