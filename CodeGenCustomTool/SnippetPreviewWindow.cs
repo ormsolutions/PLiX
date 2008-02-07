@@ -124,7 +124,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 		}
 		#endregion // SnippetPreviewWindowSettings class
 		[Guid(GuidList.SnippetPreviewWindowGuidString)]
-		private sealed class SnippetPreviewWindow : IVsSelectionEvents
+		private sealed class SnippetPreviewWindow : IVsSelectionEvents, IVsTextLinesEvents, IVsFinalTextChangeCommitEvents
 		{
 			#region Constants
 			private static readonly Guid CSharpLanguageServiceGuid = new Guid("694DD9B6-B865-4C5B-AD85-86356E9C88DC");
@@ -149,12 +149,12 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			// Xml document tracking fields
 			private IVsWindowFrame myXmlDocumentFrame;
 			private IVsTextLines myXmlTextLines;
-			private LanguageService myXmlLanguageService;
 			private IVsTextView myXmlTextView;
-			private Source myXmlSource;
-			private int myXmlSourceChangeCount;
 			private int myXmlCaretLine;
 			private int myXmlCaretColumn;
+			private ConnectionPointCookie<IVsTextLinesEvents> myLineEventsCookie;
+			private ConnectionPointCookie<IVsFinalTextChangeCommitEvents> myTextChangeCommitEventsCookie;
+			private bool myTextLinesDirty;
 
 			// Document cache information
 			private string myXmlText;
@@ -195,7 +195,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 						using (RegistryKey servicesKey = applicationRegistryRoot.OpenSubKey("Services", RegistryKeyPermissionCheck.ReadSubTree))
 						{
 							newFormatters = new FormatterInfo[]{
-								// Assume sequential matching the Formatters order, softly enforced by
+								// Assume sequential matching in the Formatters order, softly enforced by
 								// notes in CommandIds.h and PkgCmdID.cs
 								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixCSharpFormatter), "cs", CSharpLanguageServiceGuid, servicesKey),
 								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixVBFormatter), "vb", VBLanguageServiceGuid, servicesKey),
@@ -266,6 +266,69 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				FormatterInfo.SwitchToFormatter(this, (MenuCommand)sender);
 			}
 			#endregion // FormatterInfo structure
+			#region ConnectionPointCookie struct
+			/// <summary>
+			/// Helper structure to manage connection point (event callback) wiring
+			/// </summary>
+			/// <typeparam name="T">The supported interface</typeparam>
+			private struct ConnectionPointCookie<T> where T : class
+			{
+				private IConnectionPoint myConnectionPoint;
+				private uint myCookie;
+				private IConnectionPointContainer myContainer;
+				private T mySink;
+				/// <summary>
+				/// Attach a listener to a connection point. Returns <see langword="true"/>
+				/// if the connection is successful
+				/// </summary>
+				public bool Connect(object source, T sink)
+				{
+					if (source != myContainer || sink != mySink)
+					{
+						Unadvise();
+						if (source != null)
+						{
+							IConnectionPointContainer container;
+							if (null != (container = source as IConnectionPointContainer))
+							{
+								IConnectionPoint point = null;
+								Guid iid = typeof(T).GUID;
+								container.FindConnectionPoint(ref iid, out point);
+								if (point != null)
+								{
+									uint cookie = 0;
+									point.Advise(sink, out cookie);
+									if (cookie != 0)
+									{
+										myCookie = cookie;
+										myConnectionPoint = point;
+										mySink = sink;
+										myContainer = container;
+										mySink = sink;
+										return true;
+									}
+								}
+							}
+							return false;
+						}
+					}
+					return true;
+				}
+				private void Unadvise()
+				{
+					IConnectionPoint point = myConnectionPoint;
+					uint cookie = myCookie;
+					myContainer = null;
+					mySink = null;
+					myConnectionPoint = null;
+					myCookie = 0;
+					if (point != null && cookie != 0)
+					{
+						point.Unadvise(cookie);
+					}
+				}
+			}
+			#endregion // ConnectionPointCookie struct
 			#region Constructors
 			public SnippetPreviewWindow(PlixPackage package)
 			{
@@ -434,7 +497,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			{
 				if (periodic)
 				{
-					if (myXmlSource != null && myXmlDocumentFrame != null)
+					if (myXmlTextLines != null && myXmlDocumentFrame != null)
 					{
 						SetDocumentFrame(myXmlDocumentFrame);
 					}
@@ -561,7 +624,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				{
 					SetDocumentFrame(documentFrame);
 				}
-				if (documentFrame == null || (myXmlSource != null && myLastElementIndex == -1))
+				if (documentFrame == null || (myXmlTextLines != null && myLastElementIndex == -1))
 				{
 					Reformat();
 				}
@@ -570,6 +633,20 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				monitor.AdviseSelectionEvents(this, out monitorCookie);
 			}
 			#endregion SnippetPreviewWindow Creation
+			#region Text change callback interfaces
+			void IVsFinalTextChangeCommitEvents.OnChangesCommitted(uint dwGestureFlags, TextSpan[] ptsChanged)
+			{
+				myTextLinesDirty = true;
+			}
+			void IVsTextLinesEvents.OnChangeLineAttributes(int iFirstLine, int iLastLine)
+			{
+				// Nothing to do
+			}
+			void IVsTextLinesEvents.OnChangeLineText(TextLineChange[] pTextLineChange, int fLast)
+			{
+				myTextLinesDirty = true;
+			}
+			#endregion // Text change callback interfaces
 			#region Window update
 			private void SetDocumentFrame(IVsWindowFrame frame)
 			{
@@ -584,118 +661,84 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					IVsTextLines textLines;
 					IVsTextBufferProvider bufferProvider;
 					Guid currentLanguageServiceGuid;
+					object docView;
+					IVsCodeWindow codeWindow;
+					IVsTextView currentView = null;
 					if (ErrorHandler.Succeeded(frame.GetProperty((int)__VSFPROPID.VSFPROPID_DocData, out docDataObject)) &&
 						(null != (textLines = docDataObject as IVsTextLines) ||
 						(null != (bufferProvider = docDataObject as IVsTextBufferProvider) &&
 						ErrorHandler.Succeeded(bufferProvider.GetTextBuffer(out textLines)))) &&
 						ErrorHandler.Succeeded(textLines.GetLanguageServiceID(out currentLanguageServiceGuid)) &&
-						currentLanguageServiceGuid == XmlLanguageServiceGuid)
+						currentLanguageServiceGuid == XmlLanguageServiceGuid &&
+						ErrorHandler.Succeeded(frame.GetProperty((int)__VSFPROPID.VSFPROPID_DocView, out docView)) &&
+						null != (codeWindow = docView as IVsCodeWindow) &&
+						(ErrorHandler.Succeeded(codeWindow.GetLastActiveView(out currentView)) ||
+						ErrorHandler.Succeeded(codeWindow.GetPrimaryView(out currentView))) &&
+						currentView != null)
 					{
 						bool caretChanged = false;
 						bool sourceChanged = false;
-						LanguageService languageService = myXmlLanguageService;
-						#region Retrieve and cache xml language service
-						if (languageService == null)
-						{
-							IntPtr languageInfoPtr;
-							IVsLanguageInfo languageInfo;
-							IOleServiceProvider docViewServiceProvider;
-							object SPFrameObject;
-							Guid languageInfoIID = typeof(IVsLanguageInfo).GUID;
-							if (ErrorHandler.Succeeded(frame.GetProperty((int)__VSFPROPID.VSFPROPID_SPFrame, out SPFrameObject)) &&
-								null != (docViewServiceProvider = SPFrameObject as IOleServiceProvider) &&
-								ErrorHandler.Succeeded(docViewServiceProvider.QueryService(ref currentLanguageServiceGuid, ref languageInfoIID, out languageInfoPtr)) &&
-								languageInfoPtr != IntPtr.Zero)
-							{
-								try
-								{
-									if (null != (languageInfo = (IVsLanguageInfo)Marshal.GetObjectForIUnknown(languageInfoPtr)))
-									{
-										myXmlLanguageService = languageService = languageInfo as LanguageService;
-									}
-								}
-								finally
-								{
-									Marshal.Release(languageInfoPtr);
-								}
-							}
-						}
-						#endregion // Retrieve and cache xml language service
-						if (languageService == null)
-						{
-							return;
-						}
 						IVsTextLines oldTextLines = myXmlTextLines;
-						Source source = languageService.GetSource(textLines);
 						if (textLines != oldTextLines)
 						{
-							source = languageService.GetSource(textLines);
-							if (source != null)
+							if (textLines != null)
 							{
-								myXmlSource = source;
-								myXmlSourceChangeCount = source.ChangeCount;
+								myTextLinesDirty = false;
+								myLineEventsCookie.Connect(textLines, this);
+								myTextChangeCommitEventsCookie.Connect(textLines, this);
 								myXmlTextLines = textLines;
 								sourceChanged = true;
 							}
 							else
 							{
-								myXmlSource = null;
+								myLineEventsCookie.Connect(null, this);
+								myTextChangeCommitEventsCookie.Connect(null, this);
 								myXmlTextLines = textLines;
 							}
 						}
 						else if (oldTextLines != null &&
-							source != null &&
-							myXmlSourceChangeCount != source.ChangeCount)
+							myTextLinesDirty)
 						{
 							sourceChanged = true;
-							myXmlSource = source;
-							myXmlSourceChangeCount = source.ChangeCount;
+							myTextLinesDirty = false;
 						}
 						if (sourceChanged)
 						{
 							caretChanged = true;
-							IVsTextView currentView;
-							if (ErrorHandler.Succeeded(languageService.GetCodeWindowManagerForSource(source).CodeWindow.GetLastActiveView(out currentView)) && currentView != null)
-							{
-								currentView.GetCaretPos(out myXmlCaretLine, out myXmlCaretColumn);
-							}
+							currentView.GetCaretPos(out myXmlCaretLine, out myXmlCaretColumn);
 							myXmlTextView = currentView;
 						}
-						else if (source != null)
+						else if (textLines != null)
 						{
-							IVsTextView currentView;
-							if (ErrorHandler.Succeeded(languageService.GetCodeWindowManagerForSource(source).CodeWindow.GetLastActiveView(out currentView)) && currentView != null)
+							IVsTextView oldView = myXmlTextView;
+							if (currentView != oldView)
 							{
-								IVsTextView oldView = myXmlTextView;
-								if (currentView != oldView)
-								{
-									caretChanged = true;
-									if (oldView == null)
-									{
-										sourceChanged = true;
-									}
-									myXmlTextView = currentView;
-									currentView.GetCaretPos(out myXmlCaretLine, out myXmlCaretColumn);
-								}
-								else if (currentView != null)
-								{
-									int caretLine;
-									int caretColumn;
-									myXmlTextView.GetCaretPos(out caretLine, out caretColumn);
-									if (caretLine != myXmlCaretLine ||
-										caretColumn != myXmlCaretColumn)
-									{
-										myXmlCaretLine = caretLine;
-										myXmlCaretColumn = caretColumn;
-										caretChanged = true;
-									}
-								}
-							}
-							else if (myXmlTextView != null)
-							{
-								myXmlTextView = null;
 								caretChanged = true;
+								if (oldView == null)
+								{
+									sourceChanged = true;
+								}
+								myXmlTextView = currentView;
+								currentView.GetCaretPos(out myXmlCaretLine, out myXmlCaretColumn);
 							}
+							else if (currentView != null)
+							{
+								int caretLine;
+								int caretColumn;
+								myXmlTextView.GetCaretPos(out caretLine, out caretColumn);
+								if (caretLine != myXmlCaretLine ||
+									caretColumn != myXmlCaretColumn)
+								{
+									myXmlCaretLine = caretLine;
+									myXmlCaretColumn = caretColumn;
+									caretChanged = true;
+								}
+							}
+						}
+						else if (myXmlTextView != null)
+						{
+							myXmlTextView = null;
+							caretChanged = true;
 						}
 						UpdateWindow(sourceChanged, caretChanged);
 					}
@@ -713,7 +756,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			{
 				if (sourceChanged || caretChanged)
 				{
-					if (myXmlSource != null && myXmlTextView != null)
+					if (myXmlTextLines != null && myXmlTextView != null)
 					{
 						bool forceUIUpdate = false;
 						if (sourceChanged)
@@ -726,7 +769,8 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 						if (null != (elements = myRecognizedElements) &&
 							0 != (elementCount = elements.Count))
 						{
-							int position = myXmlSource.GetPositionOfLineIndex(myXmlCaretLine, myXmlCaretColumn);
+							int position = 0;
+							myXmlTextLines.GetPositionOfLineIndex(myXmlCaretLine, myXmlCaretColumn, out position);
 							for (int i = 0; i < elementCount; ++i)
 							{
 								RecognizedElementInfo element = elements[i];
@@ -741,7 +785,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 								}
 							}
 						}
-						if (bestMatchIndex != myLastElementIndex)
+						if (sourceChanged || bestMatchIndex != myLastElementIndex)
 						{
 							if (bestMatchIndex != -1)
 							{
@@ -806,8 +850,12 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			}
 			private void CurrentDocumentNotXml()
 			{
-				myXmlSource = null;
-				myXmlTextLines = null;
+				if (myXmlTextLines != null)
+				{
+					myLineEventsCookie.Connect(null, this);
+					myTextChangeCommitEventsCookie.Connect(null, this);
+					myXmlTextLines = null;
+				}
 				UpdateDocumentCache(); // Clears other document-related elements
 				myXmlTextView = null;
 				myXmlDocumentFrame = null;
@@ -835,9 +883,8 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			}
 			private void UpdateDocumentCache()
 			{
-				Source source = myXmlSource;
 				IVsTextLines textLines = myXmlTextLines;
-				if (source == null || textLines == null)
+				if (textLines == null)
 				{
 					myXmlText = null;
 					myRecognizedElements = null;
@@ -847,7 +894,11 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					myParentChoiceOffset = 0;
 					return;
 				}
-				string xmlText = source.GetText();
+				string xmlText;
+				int endLine;
+				int endIndex;
+				ErrorHandler.ThrowOnFailure(textLines.GetLastLineIndex(out endLine, out endIndex));
+				ErrorHandler.ThrowOnFailure(textLines.GetLineText(0, 0, endLine, endIndex, out xmlText));
 				NameTable nameTable = new NameTable();
 				// UNDONE: We'll need additional namespaces when extensions come into play
 				string plixNamespace = nameTable.Add("http://schemas.neumont.edu/CodeGeneration/PLiX");

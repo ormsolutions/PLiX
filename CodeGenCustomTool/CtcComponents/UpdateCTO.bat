@@ -8,7 +8,7 @@ SET TargetVisualStudioNumericVersion=8.0
 SET VSRegistryRootBase=SOFTWARE\Microsoft\VisualStudio
 SET VSRegistryRootVersion=%TargetVisualStudioNumericVersion%
 FOR /F "usebackq skip=2 tokens=2*" %%A IN (`REG QUERY "HKLM\%VSRegistryRootBase%\VSIP\%VSRegistryRootVersion%" /v "InstallDir"`) DO SET VSIPDir=%%~fB
-IF "%TargetVisualStudioNumericVersion%"=="9.0" (SET vsipbin=%VSIPDir%VisualStudioIntegration\Tools\Bin\VS2005\) ELSE (SET vsipbin=%VSIPDir%VisualStudioIntegration\Tools\Bin\)
+SET vsipbin=%VSIPDir%VisualStudioIntegration\Tools\Bin\
 
 REM Only update if the newest file is not the .cto
 for /F "usebackq tokens=2 delims=." %%A in (`dir /b /od "%~dp0PLiXPackage.ctc" "%~dp0PLiXPackage.cto"`) do set NewestExtension=%%A
