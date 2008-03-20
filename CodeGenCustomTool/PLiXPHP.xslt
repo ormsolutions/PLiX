@@ -201,7 +201,7 @@ schemas:
 		<xsl:param name="LocalItemKey"/>
 		<xsl:variable name="localNameFragment">
 			<xsl:choose>
-				<xsl:when test="@localName='implied'">
+				<xsl:when test="@localName='.implied'">
 					<xsl:value-of select="concat($GeneratedVariablePrefix,$LocalItemKey,'ad')"/>
 				</xsl:when>
 				<xsl:otherwise>
