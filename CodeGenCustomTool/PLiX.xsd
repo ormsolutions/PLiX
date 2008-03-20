@@ -2618,10 +2618,26 @@
 					<xs:element ref="initialize"/>
 					<xs:group ref="blockContents" minOccurs="0" maxOccurs="unbounded"/>
 				</xs:sequence>
-				<xs:attribute name="localName" type="simpleNameType" use="required"/>
+				<xs:attribute name="localName" type="autoDisposeLocalNameType" use="required"/>
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
+	<xs:simpleType name="autoDisposeLocalNameType">
+		<xs:annotation>
+			<xs:documentation>The local name for an autoDispose declaration. Can be the special .implied value to indicate an implicit local variable.</xs:documentation>
+		</xs:annotation>
+		<xs:union memberTypes="simpleNameType">
+			<xs:simpleType>
+				<xs:restriction base="xs:token">
+					<xs:enumeration value=".implied">
+						<xs:annotation>
+							<xs:documentation>A local variable is implicitly present, but no name is specified.</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:union>
+	</xs:simpleType>
 	<xs:element name="case" type="caseType"/>
 	<xs:complexType name="caseType">
 		<xs:annotation>

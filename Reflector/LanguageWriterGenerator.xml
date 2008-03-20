@@ -2716,7 +2716,38 @@
 		<child childProperty="Finally" childDataType="IBlockStatement" renderChild="RenderBlockStatement" elementName="finally" allowEmptyElement="false"/>
 	</handler>
 	<handler name="RenderUsingStatement" valueDataType="IUsingStatement" elementName="autoDispose">
-		<local name="variableDeclaration" type="IVariableDeclarationExpression" property="Variable" testCast="true"/>
+		<local name="expression" type="IExpression" property="Expression"/>
+		<local name="assignExpression" type="IAssignExpression" propertyOf="expression" testCast="true"/>
+		<plx:local name="variableDeclaration" dataTypeName="IVariableDeclarationExpression">
+			<plx:initialize>
+				<plx:inlineStatement dataTypeName="IVariableDeclarationExpression">
+					<plx:conditionalOperator>
+						<plx:condition>
+							<plx:binaryOperator type="identityInequality">
+								<plx:left>
+									<plx:nameRef name="assignExpression"/>
+								</plx:left>
+								<plx:right>
+									<plx:nullKeyword/>
+								</plx:right>
+							</plx:binaryOperator>
+						</plx:condition>
+						<plx:left>
+							<plx:cast dataTypeName="IVariableDeclarationExpression"  type="testCast">
+								<plx:callInstance name="Target" type="property">
+									<plx:callObject>
+										<plx:nameRef name="assignExpression"/>
+									</plx:callObject>
+								</plx:callInstance>
+							</plx:cast>
+						</plx:left>
+						<plx:right>
+							<plx:nullKeyword/>
+						</plx:right>
+					</plx:conditionalOperator>
+				</plx:inlineStatement>
+			</plx:initialize>
+		</plx:local>
 		<plx:branch>
 			<plx:condition>
 				<plx:binaryOperator type="identityInequality">
@@ -2743,8 +2774,13 @@
 					</plx:callObject>
 				</plx:callInstance>
 			</typeReference>
+			<child childProperty="Expression" propertyOf="assignExpression" childDataType="IExpression" renderChild="RenderExpression" elementName="initialize"/>
 		</plx:branch>
-		<child childProperty="Expression" childDataType="IExpression" renderChild="RenderExpression" elementName="initialize"/>
+		<plx:fallbackBranch>
+			<attribute name="localName" value=".implied"/>
+			<deferExpressionType localNames="expression"/>
+			<defer elementName="initialize" deferRender="RenderExpression" localName="expression" testNull="false"/>
+		</plx:fallbackBranch>
 		<child childProperty="Body" childDataType="IBlockStatement" renderChild="RenderBlockStatement"/>
 	</handler>
 	<handler name="RenderWhileStatement" valueDataType="IWhileStatement" elementName="loop">

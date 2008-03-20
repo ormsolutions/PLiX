@@ -197,23 +197,19 @@ schemas:
 		</xsl:apply-templates>
 		<xsl:text>)</xsl:text>
 	</xsl:template>
-	<xsl:template match="plx:autoDispose">
-		<xsl:param name="Indent"/>
-		<xsl:text>using more stuff (</xsl:text>
-		<xsl:call-template name="RenderType"/>
-		<xsl:text> </xsl:text>
-		<xsl:value-of select="@localName"/>
-		<xsl:text> = </xsl:text>
-		<xsl:for-each select="plx:initialize">
-			<xsl:apply-templates select="child::*">
-				<xsl:with-param name="Indent" select="$Indent"/>
-			</xsl:apply-templates>
-		</xsl:for-each>
-		<xsl:text>)</xsl:text>
-	</xsl:template>
 	<xsl:template match="plx:autoDispose" mode="CollectInline">
 		<xsl:param name="LocalItemKey"/>
-		<xsl:variable name="localName" select="@localName"/>
+		<xsl:variable name="localNameFragment">
+			<xsl:choose>
+				<xsl:when test="@localName='implied'">
+					<xsl:value-of select="concat($GeneratedVariablePrefix,$LocalItemKey,'ad')"/>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:value-of select="@localName"/>
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:variable>
+		<xsl:variable name="localName" select="string($localNameFragment)"/>
 		<xsl:variable name="rawTrySurrogateFragment">
 			<plx:try>
 				<xsl:copy-of select="child::*[not(self::plx:passTypeParam|self::plx:parametrizedDataTypeQualifier|self::plx:initialize)]"/>

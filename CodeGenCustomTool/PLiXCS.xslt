@@ -224,10 +224,12 @@
 	<xsl:template match="plx:autoDispose">
 		<xsl:param name="Indent"/>
 		<xsl:text>using (</xsl:text>
-		<xsl:call-template name="RenderType"/>
-		<xsl:text> </xsl:text>
-		<xsl:value-of select="@localName"/>
-		<xsl:text> = </xsl:text>
+		<xsl:if test="not(@localName)='.implied'">
+			<xsl:call-template name="RenderType"/>
+			<xsl:text> </xsl:text>
+			<xsl:value-of select="@localName"/>
+			<xsl:text> = </xsl:text>
+		</xsl:if>
 		<xsl:for-each select="plx:initialize">
 			<xsl:apply-templates select="child::*">
 				<xsl:with-param name="Indent" select="$Indent"/>

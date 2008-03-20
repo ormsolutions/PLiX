@@ -1651,7 +1651,9 @@ namespace Reflector
 			{
 				string elementName = "autoDispose";
 				this.WriteElement(elementName);
-				IVariableDeclarationExpression variableDeclaration = value.Variable as IVariableDeclarationExpression;
+				IExpression expression = value.Expression;
+				IAssignExpression assignExpression = expression as IAssignExpression;
+				IVariableDeclarationExpression variableDeclaration = assignExpression != null ? assignExpression.Target as IVariableDeclarationExpression : null;
 				if (variableDeclaration != null)
 				{
 					IVariableDeclaration variable = variableDeclaration.Variable;
@@ -1660,12 +1662,20 @@ namespace Reflector
 					{
 						this.RenderType(variable.VariableType);
 					}
+					IExpression ExpressionChild = assignExpression.Expression;
+					if (ExpressionChild != null)
+					{
+						this.WriteElement("initialize");
+						this.RenderExpression(ExpressionChild);
+						this.WriteEndElement();
+					}
 				}
-				IExpression ExpressionChild = value.Expression;
-				if (ExpressionChild != null)
+				else
 				{
+					this.WriteAttribute("localName", ".implied");
+					this.RenderExpressionType(TestNullifyExpression(expression));
 					this.WriteElement("initialize");
-					this.RenderExpression(ExpressionChild);
+					this.RenderExpression(expression);
 					this.WriteEndElement();
 				}
 				IBlockStatement BodyChild = value.Body;
