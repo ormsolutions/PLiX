@@ -27,6 +27,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			public const uint cmdidPlixVBFormatter = 0x1012;
 			public const uint cmdidPlixPHPFormatter = 0x1013;
 			public const uint cmdidPlixJSharpFormatter = 0x1014;
+			public const uint cmdidPlixPYFormatter = 0x1015;
 			// Additional commands for formatter ids must be sequential and match the order in PlixPackage.SnippetPreviewWindow.FormatterInfo.InitializeCommands
 
 			public const uint cmdidPlixSnippetPreviewParentChoice = 0x1100;

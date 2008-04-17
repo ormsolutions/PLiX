@@ -83,6 +83,7 @@ xcopy /Y /D /Q "%rootPath%%outDir%PlixCS.xslt" "%plixXML%Formatters"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixVB.xslt" "%plixXML%Formatters"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixPHP.xslt" "%plixXML%Formatters"
 xcopy /Y /D /Q "%rootPath%%outDir%PlixJSL.xslt" "%plixXML%Formatters"
+xcopy /Y /D /Q "%rootPath%%outDir%PlixPY.xslt" "%plixXML%Formatters"
 ECHO F | xcopy /Y /D /Q "%rootPath%..\Setup\PLiXSchemaCatalog.xml" "%envPath%Xml\Schemas"
 
 "%vsipbin%regpkg.exe" /root:"%VSRegistryRootBase%\%VSRegistryRootVersion%" /codebase "%plixBinaries%%plixTool%.dll"

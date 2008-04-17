@@ -134,6 +134,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			// no language service works fine, but once you've set one on the IVsTextLines turing it off
 			// does not work well.
 			private static readonly Guid PHPLanguageServiceGuid = new Guid("DF38847E-CC19-11D2-8ADA-00C04F79E479");
+			private static readonly Guid PYLanguageServiceGuid = new Guid("DF38847E-CC19-11D2-8ADA-00C04F79E479");
 			private static readonly Guid XmlLanguageServiceGuid = new Guid("f6819a78-a205-47b5-be1c-675b3c7f0b8e");
 			private static readonly Guid JSharpLanguageServiceGuid = new Guid("E6FDF88A-F3D1-11D4-8576-0002A516ECE8");
 			#endregion // Constants
@@ -201,6 +202,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixVBFormatter), "vb", VBLanguageServiceGuid, servicesKey),
 								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixPHPFormatter), "php", PHPLanguageServiceGuid, servicesKey),
 								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixJSharpFormatter), "jsl", JSharpLanguageServiceGuid, servicesKey),
+								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixPYFormatter), "py", PYLanguageServiceGuid, servicesKey),
 							};
 						}
 					}
