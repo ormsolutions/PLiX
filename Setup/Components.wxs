@@ -179,7 +179,7 @@
 							</Component>
 							<Component Id="CSCustomToolComponent2008" Guid="EFA04C67-1780-42A8-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 								<Condition>VCSHARPPACKAGEGUID2008 OR Installed</Condition>
-								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot2005)\Generators\[VCSHARPPACKAGEGUID2008]\NUPlixLoader">
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot2008)\Generators\[VCSHARPPACKAGEGUID2008]\NUPlixLoader">
 									<Registry Type="string" Value="$(loc.ORMCSCustomToolDescription)"/>
 									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
 								</Registry>

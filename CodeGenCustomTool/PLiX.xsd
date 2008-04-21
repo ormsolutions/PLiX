@@ -1368,7 +1368,7 @@
 	<xs:element name="interfaceMember" type="interfaceMemberType"/>
 	<xs:complexType name="interfaceMemberType">
 		<xs:annotation>
-			<xs:documentation>This procedures implements the specified member of the interface. The interface should correspond to an implementsInterface element on the containing type. Note that the PLiX formatters will automatically take care of the cases where the names are different, or the other member settings are no compatible with direct interface implementation (static, private, etc). This is a required element for all interface members, even if they have public visibility and the same name.</xs:documentation>
+			<xs:documentation>This procedure implements the specified member of the interface. The interface should correspond to an implementsInterface element on the containing type. Note that the PLiX formatters will automatically take care of the cases where the names are different, or the other member settings are not compatible with direct interface implementation (static, private, etc). This is a required element for all interface members, even if they have public visibility and the same name.</xs:documentation>
 		</xs:annotation>
 		<xs:complexContent>
 			<xs:extension base="parametrizedTypeRefType">

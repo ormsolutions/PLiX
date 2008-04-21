@@ -118,7 +118,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="SnippetPreviewWindowDefaultWindowPLiX" xml:space="preserve">
-    <value>&lt;plx:comment xmlns:plx='http://schemas.neumont.edu/CodeGeneration/PLiX'&gt;Click in any Xml element that contains PLiX elements only to view formatted code.&lt;/plx:comment&gt;</value>
+    <value>&lt;plx:comment xmlns:plx='http://schemas.neumont.edu/CodeGeneration/PLiX'&gt;Click in any PLiX Xml element that contains only PLiX elements to view formatted code.&lt;/plx:comment&gt;</value>
     <comment>The plix that is formatted with the current formatter to get the default instruction text in the snippet preview window</comment>
   </data>
   <data name="SnippetPreviewWindowWindowTitle" xml:space="preserve">
