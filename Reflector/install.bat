@@ -1,5 +1,12 @@
 @echo off
 setlocal
+
+IF "%ProgramFiles(X86)%"=="" (
+	SET ResolvedProgramFiles=%ProgramFiles%
+) ELSE (
+	CALL:SET6432
+)
+
 if '%1'=='' (
 set rootPath=%~dp0
 ) else (
@@ -10,8 +17,8 @@ set outDir=bin\Debug\
 ) else (
 set outDir=%~2
 )
-set plixBinaries=%ProgramFiles%\Neumont\PLiX for Visual Studio\bin\
-set plixHelp=%ProgramFiles%\Neumont\PLiX for Visual Studio\Help\
+set plixBinaries=%ResolvedProgramFiles%\Neumont\PLiX for Visual Studio\bin\
+set plixHelp=%ResolvedProgramFiles%\Neumont\PLiX for Visual Studio\Help\
 set plixReflectorTool=Reflector.PLiXLanguage
 
 :: Create new directories
@@ -28,3 +35,10 @@ del "%plixBinaries%%plixReflectorTool%.pdb"
 )
 
 xcopy /Y /D /Q "%rootPath%ReflectorIntegration.html" "%plixHelp%"
+
+GOTO:EOF
+
+:SET6432
+::Do this somewhere the resolved parens will not cause problems.
+SET ResolvedProgramFiles=%ProgramFiles(x86)%
+GOTO:EOF

@@ -66,6 +66,19 @@
 									</Registry>
 								</Registry>
 							</Component>
+							<Component Id="CustomToolComponent2010" Guid="82F08289-10C1-4AFA-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>VSPRODUCTDIR2010 OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot2010)\CLSID\{$(var.PLIXCustomToolGuid)}">
+									<Registry Type="string" Value="Neumont.Tools.CodeGeneration.Plix.PlixLoaderCustomTool"/>
+									<Registry Action="createKey" Key="InprocServer32">
+										<Registry Type="string" Value="[$(var.SystemFolder)]mscoree.dll"/>
+										<Registry Type="string" Name="ThreadingModel" Value="Both"/>
+										<Registry Type="string" Name="Class" Value="Neumont.Tools.CodeGeneration.Plix.PlixLoaderCustomTool"/>
+										<Registry Type="string" Name="Assembly" Value="$(var.PLIXCustomToolAssemblyName)"/>
+										<Registry Type="string" Name="CodeBase" Value="[#Neumont.Tools.CodeGeneration.PLiX.dll]"/>
+									</Registry>
+								</Registry>
+							</Component>
 							<Component Id="CustomToolComponentExp2005" Guid="ED2AEF85-0EF9-4F88-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 								<Condition>(VSEXPINSTALL2005 AND VSPRODUCTDIR2005) OR Installed</Condition>
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegExpRoot2005)\CLSID\{$(var.PLIXCustomToolGuid)}">
@@ -105,6 +118,32 @@
 									</Registry>
 								</Registry>
 							</Component>
+							<Component Id="CustomToolComponentExp2010LM" Guid="84E6193B-3177-44C0-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>(VSEXPINSTALL2010LM AND VSPRODUCTDIR2010) OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegExpRoot2010LM)\CLSID\{$(var.PLIXCustomToolGuid)}">
+									<Registry Type="string" Value="Neumont.Tools.CodeGeneration.Plix.PlixLoaderCustomTool"/>
+									<Registry Action="createKey" Key="InprocServer32">
+										<Registry Type="string" Value="[$(var.SystemFolder)]mscoree.dll"/>
+										<Registry Type="string" Name="ThreadingModel" Value="Both"/>
+										<Registry Type="string" Name="Class" Value="Neumont.Tools.CodeGeneration.Plix.PlixLoaderCustomTool"/>
+										<Registry Type="string" Name="Assembly" Value="$(var.PLIXCustomToolAssemblyName)"/>
+										<Registry Type="string" Name="CodeBase" Value="[#Neumont.Tools.CodeGeneration.PLiX.dll]"/>
+									</Registry>
+								</Registry>
+							</Component>
+							<Component Id="CustomToolComponentExp2010CU" Guid="67504F02-8F62-4ABE-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>(VSEXPINSTALL2010CU AND VSPRODUCTDIR2010) OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKCU" Key="$(var.VSRegExpRoot2010CU)\CLSID\{$(var.PLIXCustomToolGuid)}">
+									<Registry Type="string" Value="Neumont.Tools.CodeGeneration.Plix.PlixLoaderCustomTool"/>
+									<Registry Action="createKey" Key="InprocServer32">
+										<Registry Type="string" Value="[$(var.SystemFolder)]mscoree.dll"/>
+										<Registry Type="string" Name="ThreadingModel" Value="Both"/>
+										<Registry Type="string" Name="Class" Value="Neumont.Tools.CodeGeneration.Plix.PlixLoaderCustomTool"/>
+										<Registry Type="string" Name="Assembly" Value="$(var.PLIXCustomToolAssemblyName)"/>
+										<Registry Type="string" Name="CodeBase" Value="[#Neumont.Tools.CodeGeneration.PLiX.dll]"/>
+									</Registry>
+								</Registry>
+							</Component>
 							<Component Id="PackageComponent2005" Guid="88C0811C-C410-4009-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 								<Condition>VSPRODUCTDIR2005 OR Installed</Condition>
 								<Registry Root="HKLM" Key="$(var.VSRegRoot2005)">
@@ -114,6 +153,12 @@
 							<Component Id="PackageComponent2008" Guid="7B37CD40-3E35-4662-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 								<Condition>VSPRODUCTDIR2008 OR Installed</Condition>
 								<Registry Root="HKLM" Key="$(var.VSRegRoot2008)">
+									<?include PLiXPackageRegistry.wxi?>
+								</Registry>
+							</Component>
+							<Component Id="PackageComponent2010" Guid="76F3A86A-AD80-469E-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>VSPRODUCTDIR2010 OR Installed</Condition>
+								<Registry Root="HKLM" Key="$(var.VSRegRoot2010)">
 									<?include PLiXPackageRegistry.wxi?>
 								</Registry>
 							</Component>
@@ -135,6 +180,18 @@
 									<?include PLiXPackageRegistry.wxi?>
 								</Registry>
 							</Component>
+							<Component Id="PackageComponentExp2010LM" Guid="ACC61DAB-9E26-466A-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>(VSEXPINSTALL2010LM AND VSPRODUCTDIR2010) OR Installed</Condition>
+								<Registry Root="HKLM" Key="$(var.VSRegExpRoot2010LM)">
+									<?include PLiXPackageRegistry.wxi?>
+								</Registry>
+							</Component>
+							<Component Id="PackageComponentExp2010CU" Guid="229D2133-1479-4DDB-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>(VSEXPINSTALL2010CU AND VSPRODUCTDIR2010) OR Installed</Condition>
+								<Registry Root="HKCU" Key="$(var.VSRegExpRoot2010CU)">
+									<?include PLiXPackageRegistry.wxi?>
+								</Registry>
+							</Component>
 							<Component Id="VBCustomToolComponent2005" Guid="6A5DB292-7051-447A-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 								<Condition>VBASICPACKAGEGUID2005 OR Installed</Condition>
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot2005)\Generators\[VBASICPACKAGEGUID2005]\NUPlixLoader">
@@ -145,6 +202,13 @@
 							<Component Id="VBCustomToolComponent2008" Guid="86A817FF-D729-45F2-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 								<Condition>VBASICPACKAGEGUID2008 OR Installed</Condition>
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot2008)\Generators\[VBASICPACKAGEGUID2008]\NUPlixLoader">
+									<Registry Type="string" Value="$(loc.ORMVBCustomToolDescription)"/>
+									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
+								</Registry>
+							</Component>
+							<Component Id="VBCustomToolComponent2010" Guid="DE6B3CF9-B01F-454C-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>VBASICPACKAGEGUID2010 OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot2010)\Generators\[VBASICPACKAGEGUID2010]\NUPlixLoader">
 									<Registry Type="string" Value="$(loc.ORMVBCustomToolDescription)"/>
 									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
 								</Registry>
@@ -170,6 +234,20 @@
 									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
 								</Registry>
 							</Component>
+							<Component Id="VBCustomToolComponentExp2010LM" Guid="DCE6E46E-33EC-408D-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>(VBASICPACKAGEGUID2010 AND VSEXPINSTALL2010LM) OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegExpRoot2010LM)\Generators\[VBASICPACKAGEGUID2010]\NUPlixLoader">
+									<Registry Type="string" Value="$(loc.ORMVBCustomToolDescription)"/>
+									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
+								</Registry>
+							</Component>
+							<Component Id="VBCustomToolComponentExp2010CU" Guid="7D269EE9-0F41-485F-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>(VBASICPACKAGEGUID2010 AND VSEXPINSTALL2010CU) OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKCU" Key="$(var.VSRegExpRoot2010CU)\Generators\[VBASICPACKAGEGUID2010]\NUPlixLoader">
+									<Registry Type="string" Value="$(loc.ORMVBCustomToolDescription)"/>
+									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
+								</Registry>
+							</Component>
 							<Component Id="CSCustomToolComponent2005" Guid="E88D1AAB-BB19-4E1E-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 								<Condition>VCSHARPPACKAGEGUID2005 OR Installed</Condition>
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot2005)\Generators\[VCSHARPPACKAGEGUID2005]\NUPlixLoader">
@@ -180,6 +258,13 @@
 							<Component Id="CSCustomToolComponent2008" Guid="EFA04C67-1780-42A8-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 								<Condition>VCSHARPPACKAGEGUID2008 OR Installed</Condition>
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot2008)\Generators\[VCSHARPPACKAGEGUID2008]\NUPlixLoader">
+									<Registry Type="string" Value="$(loc.ORMCSCustomToolDescription)"/>
+									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
+								</Registry>
+							</Component>
+							<Component Id="CSCustomToolComponent2010" Guid="2CDDCD44-1293-4A9E-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>VCSHARPPACKAGEGUID2010 OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegRoot2010)\Generators\[VCSHARPPACKAGEGUID2010]\NUPlixLoader">
 									<Registry Type="string" Value="$(loc.ORMCSCustomToolDescription)"/>
 									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
 								</Registry>
@@ -201,6 +286,20 @@
 							<Component Id="CSCustomToolComponentExp2008CU" Guid="EF9FB5DF-5CB7-4C9A-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 								<Condition>(VCSHARPPACKAGEGUID2008 AND VSEXPINSTALL2008LM) OR Installed</Condition>
 								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKCU" Key="$(var.VSRegExpRoot2008CU)\Generators\[VCSHARPPACKAGEGUID2008]\NUPlixLoader">
+									<Registry Type="string" Value="$(loc.ORMCSCustomToolDescription)"/>
+									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
+								</Registry>
+							</Component>
+							<Component Id="CSCustomToolComponentExp2010LM" Guid="56B2962B-1E30-4638-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>(VCSHARPPACKAGEGUID2010 AND VSEXPINSTALL2010LM) OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKLM" Key="$(var.VSRegExpRoot2010LM)\Generators\[VCSHARPPACKAGEGUID2010]\NUPlixLoader">
+									<Registry Type="string" Value="$(loc.ORMCSCustomToolDescription)"/>
+									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
+								</Registry>
+							</Component>
+							<Component Id="CSCustomToolComponentExp2010CU" Guid="70E29948-E386-4BB3-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+								<Condition>(VCSHARPPACKAGEGUID2010 AND VSEXPINSTALL2010LM) OR Installed</Condition>
+								<Registry Action="createKeyAndRemoveKeyOnUninstall" Root="HKCU" Key="$(var.VSRegExpRoot2010CU)\Generators\[VCSHARPPACKAGEGUID2010]\NUPlixLoader">
 									<Registry Type="string" Value="$(loc.ORMCSCustomToolDescription)"/>
 									<Registry Type="string" Name="CLSID" Value="{$(var.PLIXCustomToolGuid)}"/>
 								</Registry>
@@ -287,6 +386,19 @@
 						<Component Id="PLIXSchemasVSCatalogComponent2008" Guid="106FC405-A9F7-41B6-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
 							<Condition>VSPRODUCTDIR2008 OR Installed</Condition>
 							<File Id="PLIXSchemaCatalog2008.xml" Name="PLIXCat.xml" LongName="PLiXSchemaCatalog.xml" src="PLiXSchemaCatalog.xml"
+								DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
+						</Component>
+					</Directory>
+				</Directory>
+			</Directory>
+
+			<Directory Id="VSPRODUCTDIR2010">
+				<Directory Id="VSXMLDIR2010" Name="Xml">
+					<Directory Id="VSXMLSCHEMASDIR2010" Name="Schemas">
+						<!-- Point Visual Studio to additional XML Schema Catalog directories. -->
+						<Component Id="PLIXSchemasVSCatalogComponent2010" Guid="C9F00291-9A12-4263-$(var.VersionGuidSuffix)" DiskId="1" Win64="$(var.Win64)">
+							<Condition>VSPRODUCTDIR2010 OR Installed</Condition>
+							<File Id="PLIXSchemaCatalog2010.xml" Name="PLIXCat.xml" LongName="PLiXSchemaCatalog.xml" src="PLiXSchemaCatalog.xml"
 								DefaultLanguage="0" CompanionFile="PLIXSettings.xml"/>
 						</Component>
 					</Directory>

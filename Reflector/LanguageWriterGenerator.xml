@@ -4317,7 +4317,27 @@
 		</typeReference>
 	</handler>
 	<handler name="RenderGenericMemberArguments" valueDataType="IGenericArgumentProvider">
-		<collection collectionProperty="GenericArguments" itemDataType="IType" renderItem="RenderGenericArgument" elementName="passMemberTypeParam"/>
+		<!-- Workaround for bug found in reflector 6.0.1.11-->
+		<local name="genericArguments" property="GenericArguments" type="ITypeCollection"/>
+		<plx:branch>
+			<plx:condition>
+				<plx:binaryOperator type="equality">
+					<plx:left>
+						<plx:callInstance name="Count" type="property">
+							<plx:callObject>
+								<plx:nameRef name="genericArguments"/>
+							</plx:callObject>
+						</plx:callInstance>
+					</plx:left>
+					<plx:right>
+						<plx:value data="0" type="i4"/>
+					</plx:right>
+				</plx:binaryOperator>
+			</plx:condition>
+			<plx:return/>
+		</plx:branch>
+		<collection localName="genericArguments" itemDataType="IType" renderItem="RenderGenericArgument" elementName="passMemberTypeParam"/>
+		<!--<collection collectionProperty="GenericArguments" itemDataType="IType" renderItem="RenderGenericArgument" elementName="passMemberTypeParam"/>-->
 	</handler>
 	<handler name="RenderMethodInvokeExpression" valueDataType="IMethodInvokeExpression">
 		<child childProperty="Method" childDataType="IExpression" renderChild="RenderExpression" delayEndElement="true"/>

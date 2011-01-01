@@ -76,7 +76,7 @@
 									<xs:sequence></xs:sequence>
 									<xs:attribute name="name" type="xs:string" use="required">
 										<xs:annotation>
-											<xs:documentation>The name parameter pass into the transform file. Matches the name attribute of an xsl:param element in the transform.</xs:documentation>
+											<xs:documentation>The name of a parameter to pass into the transform file. Matches the name attribute of an xsl:param element in the transform.</xs:documentation>
 										</xs:annotation>
 									</xs:attribute>
 									<xs:attribute name="value" type="xs:string" use="required">

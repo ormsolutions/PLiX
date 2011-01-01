@@ -24,6 +24,7 @@
 			<ComponentRef Id="PLIXSchemasLocalCatalogComponent"/>
 			<ComponentRef Id="PLIXSchemasVSCatalogComponent2005"/>
 			<ComponentRef Id="PLIXSchemasVSCatalogComponent2008"/>
+			<ComponentRef Id="PLIXSchemasVSCatalogComponent2010"/>
 			<ComponentRef Id="PLIXSchemasComponent"/>
 			<ComponentRef Id="PLIXFormattersComponent"/>
 		</ComponentGroup>
@@ -32,26 +33,38 @@
 			<ComponentRef Id="CustomToolComponent"/>
 			<ComponentRef Id="CustomToolComponent2005"/>
 			<ComponentRef Id="CustomToolComponent2008"/>
+			<ComponentRef Id="CustomToolComponent2010"/>
 			<ComponentRef Id="VBCustomToolComponent2005"/>
 			<ComponentRef Id="VBCustomToolComponent2008"/>
+			<ComponentRef Id="VBCustomToolComponent2010"/>
 			<ComponentRef Id="CSCustomToolComponent2005"/>
 			<ComponentRef Id="CSCustomToolComponent2008"/>
+			<ComponentRef Id="CSCustomToolComponent2010"/>
 			<ComponentRef Id="CustomToolComponentExp2005"/>
 			<ComponentRef Id="CustomToolComponentExp2008LM"/>
 			<ComponentRef Id="CustomToolComponentExp2008CU"/>
+			<ComponentRef Id="CustomToolComponentExp2010LM"/>
+			<ComponentRef Id="CustomToolComponentExp2010CU"/>
 			<ComponentRef Id="VBCustomToolComponentExp2005"/>
 			<ComponentRef Id="VBCustomToolComponentExp2008LM"/>
 			<ComponentRef Id="VBCustomToolComponentExp2008CU"/>
+			<ComponentRef Id="VBCustomToolComponentExp2010LM"/>
+			<ComponentRef Id="VBCustomToolComponentExp2010CU"/>
 			<ComponentRef Id="CSCustomToolComponentExp2005"/>
 			<ComponentRef Id="CSCustomToolComponentExp2008LM"/>
 			<ComponentRef Id="CSCustomToolComponentExp2008CU"/>
+			<ComponentRef Id="CSCustomToolComponentExp2010LM"/>
+			<ComponentRef Id="CSCustomToolComponentExp2010CU"/>
 		</ComponentGroup>
 		<ComponentGroup Id="PackageComponents">
 			<ComponentRef Id="PackageComponent2005"/>
 			<ComponentRef Id="PackageComponent2008"/>
+			<ComponentRef Id="PackageComponent2010"/>
 			<ComponentRef Id="PackageComponentExp2005"/>
 			<ComponentRef Id="PackageComponentExp2008LM"/>
 			<ComponentRef Id="PackageComponentExp2008CU"/>
+			<ComponentRef Id="PackageComponentExp2010LM"/>
+			<ComponentRef Id="PackageComponentExp2010CU"/>
 		</ComponentGroup>
 		<ComponentGroup Id="ReflectorComponents">
 			<ComponentRef Id="ReflectorAddinComponent"/>

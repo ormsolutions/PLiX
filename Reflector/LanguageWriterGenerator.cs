@@ -3182,10 +3182,15 @@ namespace Reflector
 			}
 			private void RenderGenericMemberArguments(IGenericArgumentProvider value)
 			{
-				foreach (IType GenericArgumentsItem in value.GenericArguments)
+				ITypeCollection genericArguments = value.GenericArguments;
+				if (genericArguments.Count == 0)
+				{
+					return;
+				}
+				foreach (IType genericArgumentsItem in genericArguments)
 				{
 					this.WriteElement("passMemberTypeParam");
-					this.RenderGenericArgument(GenericArgumentsItem);
+					this.RenderGenericArgument(genericArgumentsItem);
 					this.WriteEndElement();
 				}
 			}

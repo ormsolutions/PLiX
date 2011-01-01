@@ -279,13 +279,15 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				private uint myCookie;
 				private IConnectionPointContainer myContainer;
 				private T mySink;
+				private bool myNotSupported;
 				/// <summary>
 				/// Attach a listener to a connection point. Returns <see langword="true"/>
 				/// if the connection is successful
 				/// </summary>
 				public bool Connect(object source, T sink)
 				{
-					if (source != myContainer || sink != mySink)
+					if ((source != myContainer || sink != mySink) &&
+						!myNotSupported)
 					{
 						Unadvise();
 						if (source != null)
@@ -295,7 +297,15 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 							{
 								IConnectionPoint point = null;
 								Guid iid = typeof(T).GUID;
-								container.FindConnectionPoint(ref iid, out point);
+								try
+								{
+									container.FindConnectionPoint(ref iid, out point);
+								}
+								catch (ArgumentException)
+								{
+									// Swallow, but don't try again in this session
+									myNotSupported = true;
+								}
 								if (point != null)
 								{
 									uint cookie = 0;

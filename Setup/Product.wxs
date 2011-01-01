@@ -61,9 +61,21 @@
 		<Property Id="VSEXPINSTALL2008CU">
 			<RegistrySearch Id="VSExperimentalRegistrySearch2008CU" Root="HKCU" Key="$(var.VSRegExpRoot2008CU)" Name="ApplicationID" Type="raw" Win64="$(var.Win64)" />
 		</Property>
-		<!-- Make sure Visual Studio 2005 or 2008 is installed. Since VS requires .NET, we don't need to check for it separately. -->
+		<Property Id="VSPRODUCTDIR2010">
+			<RegistrySearch Id="VSProductDirRegistrySearch2010" Root="HKLM" Key="$(var.VSRegRoot2010)\Setup\VS" Name="ProductDir" Type="directory" Win64="$(var.Win64)" />
+		</Property>
+		<Property Id="VSENVIRONMENTPATH2010">
+			<RegistrySearch Id="VSEnvironmentPathRegistrySearch2010" Root="HKLM" Key="$(var.VSRegRoot2010)\Setup\VS" Name="EnvironmentPath" Type="raw" Win64="$(var.Win64)" />
+		</Property>
+		<Property Id="VSEXPINSTALL2010LM">
+			<RegistrySearch Id="VSExperimentalRegistrySearch2010LM" Root="HKLM" Key="$(var.VSRegExpRoot2010LM)" Name="ApplicationID" Type="raw" Win64="$(var.Win64)" />
+		</Property>
+		<Property Id="VSEXPINSTALL2010CU">
+			<RegistrySearch Id="VSExperimentalRegistrySearch2010CU" Root="HKCU" Key="$(var.VSRegExpRoot2010CU)" Name="ApplicationID" Type="raw" Win64="$(var.Win64)" />
+		</Property>
+		<!-- Make sure Visual Studio 2005, 2008, or 2010 is installed. Since VS requires .NET, we don't need to check for it separately. -->
 		<!-- Technically, since DSL Tools requires VS, we don't even need to do this check, but since we have to get the properties anyway, we might as well. It gives the user a more appropriate error message, anyway. -->
-		<Condition Message="$(loc.VisualStudioRequired)">(VSPRODUCTDIR2005 AND VSENVIRONMENTPATH2005) OR (VSPRODUCTDIR2008 AND VSENVIRONMENTPATH2008) OR Installed</Condition>
+		<Condition Message="$(loc.VisualStudioRequired)">(VSPRODUCTDIR2005 AND VSENVIRONMENTPATH2005) OR (VSPRODUCTDIR2008 AND VSENVIRONMENTPATH2008) OR (VSPRODUCTDIR2010 AND VSENVIRONMENTPATH2010) OR Installed</Condition>
 
 		<!-- Get the package GUIDs for the various VS packages. -->
 		<Property Id="VCSHARPPACKAGEGUID2005">
@@ -72,11 +84,17 @@
 		<Property Id="VCSHARPPACKAGEGUID2008">
 			<RegistrySearch Id="VCSharpPackageGUIDRegistrySearch2008" Root="HKLM" Key="$(var.VSRegRoot2008)\InstalledProducts\Microsoft Visual C#" Name="Package" Type="raw" Win64="$(var.Win64)" />
 		</Property>
+		<Property Id="VCSHARPPACKAGEGUID2010">
+			<RegistrySearch Id="VCSharpPackageGUIDRegistrySearch2010" Root="HKLM" Key="$(var.VSRegRoot2010)\InstalledProducts\Microsoft Visual C#" Name="Package" Type="raw" Win64="$(var.Win64)" />
+		</Property>
 		<Property Id="VBASICPACKAGEGUID2005">
 			<RegistrySearch Id="VBasicPackageGUIDRegistrySearch2005" Root="HKLM" Key="$(var.VSRegRoot2005)\InstalledProducts\Microsoft Visual Basic" Name="Package" Type="raw" Win64="$(var.Win64)" />
 		</Property>
 		<Property Id="VBASICPACKAGEGUID2008">
 			<RegistrySearch Id="VBasicPackageGUIDRegistrySearch2008" Root="HKLM" Key="$(var.VSRegRoot2008)\InstalledProducts\Microsoft Visual Basic" Name="Package" Type="raw" Win64="$(var.Win64)" />
+		</Property>
+		<Property Id="VBASICPACKAGEGUID2010">
+			<RegistrySearch Id="VBasicPackageGUIDRegistrySearch2010" Root="HKLM" Key="$(var.VSRegRoot2010)\InstalledProducts\Microsoft Visual Basic" Name="Package" Type="raw" Win64="$(var.Win64)" />
 		</Property>
 
 		<!-- Only support per-machine installation. -->
