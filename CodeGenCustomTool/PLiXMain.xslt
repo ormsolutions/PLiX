@@ -127,6 +127,11 @@
 						<xs:documentation>The default block close for the language. Used as the default setting for the indentInfo closeWith attribute.</xs:documentation>
 					</xs:annotation>
 				</xs:attribute>
+				<xs:attribute name="beforeSecondaryBlockOpen" type="xs:string">
+					<xs:annotation>
+						<xs:documentation>Provide a string to place before a secondary block. This is used after closing a block before rendering the secondary element. Indentation will not be applied if this is set.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
 				<xs:attribute name="blockOpen" type="xs:string">
 					<xs:annotation>
 						<xs:documentation>The block open for the language. Use newLineBeforeBlockOpen for new line control, do not include it here.</xs:documentation>
@@ -336,6 +341,7 @@
 	</xsl:variable>
 	<xsl:variable name="LanguageInfo" select="exsl:node-set($LanguageInfoFragment)/child::*"/>
 	<xsl:variable name="DefaultBlockClose" select="$LanguageInfo/@defaultBlockClose"/>
+	<xsl:variable name="BeforeSecondaryBlockOpen" select="$LanguageInfo/@beforeSecondaryBlockOpen"/>
 	<xsl:variable name="DefaultStatementClose" select="$LanguageInfo/@defaultStatementClose"/>
 	<xsl:variable name="Comment" select="$LanguageInfo/@comment"/>
 	<xsl:variable name="DocComment" select="$LanguageInfo/@docComment"/>
@@ -505,7 +511,7 @@
 			<!-- UNDONE: Not everything that passes here is necessarily a statement.
 			For example, <plx:falseKeyword/> will render as 'false;' in C#. Add an
 			'AutoStatement' mode where the statement/simple expression choice is made
-			automatically. In the mean time, this mostly used for code samples, so
+			automatically. In the mean time, this is mostly used for code samples, so
 			we'll default to include the statement -->
 			<xsl:with-param name="Statement" select="true()"/>
 		</xsl:call-template>
@@ -1076,9 +1082,18 @@
 						 but there may be problems with other languages -->
 					<xsl:value-of select="$previousIndent"/>
 					<xsl:value-of select="$DefaultBlockClose"/>
-					<xsl:value-of select="$NewLine"/>
+					<xsl:if test="not($BeforeSecondaryBlockOpen)">
+						<xsl:value-of select="$NewLine"/>
+					</xsl:if>
 				</xsl:if>
-				<xsl:value-of select="$previousIndent"/>
+				<xsl:choose>
+					<xsl:when test="$BeforeSecondaryBlockOpen">
+						<xsl:value-of select="$BeforeSecondaryBlockOpen"/>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:value-of select="$previousIndent"/>
+					</xsl:otherwise>
+				</xsl:choose>
 				<xsl:choose>
 					<xsl:when test="$ModifiedElement">
 						<xsl:apply-templates select="$ModifiedElement">

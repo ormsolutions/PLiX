@@ -2019,7 +2019,8 @@ namespace Reflector
 								for (int i = 0; i < overrideCount; ++i)
 								{
 									IMethodDeclaration resolvedInterfaceMethod = overrides[i].Resolve();
-									if (interfaceDeclToMemberDeclMap.ContainsKey(resolvedInterfaceMethod))
+									if (resolvedInterfaceMethod != null && // Resolve returns null in Reflector 6.8.2.5 for event methods
+										interfaceDeclToMemberDeclMap.ContainsKey(resolvedInterfaceMethod))
 									{
 										interfaceDeclToMemberDeclMap[resolvedInterfaceMethod] = methodDecl;
 										IMethodDeclaration translatedMethodDecl;

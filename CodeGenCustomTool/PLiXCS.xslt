@@ -44,6 +44,9 @@
 					<xsl:attribute name="blockOpen">
 						<xsl:text> {</xsl:text>
 					</xsl:attribute>
+					<xsl:attribute name="beforeSecondaryBlockOpen">
+						<xsl:text> </xsl:text>
+					</xsl:attribute>
 				</xsl:when>
 				<xsl:when test="$BraceStyle='Indent'">
 					<xsl:attribute name="blockOpen">

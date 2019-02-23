@@ -5,6 +5,9 @@ setlocal
 ::   8.0 = Visual Studio 2005 (Code Name "Whidbey")
 ::   9.0 = Visual Studio 2008 (Code Name "Orcas")
 ::  10.0 = Visual Studio 2010 (Code Name "Rosario")
+::  11.0 = Visual Studio 2012
+::  12.0 = Visual Studio 2013
+::  14.0 = Visual Studio 2015
 IF NOT DEFINED TargetVisualStudioNumericVersion (
 	SET TargetVisualStudioNumericVersion=8.0
 )
@@ -28,15 +31,15 @@ set outDir=bin\Debug\
 set outDir=%~2
 )
 if '%3'=='' (
-set envPath=%ResolvedProgramFiles%\Microsoft Visual Studio 8\
+	CALL:SETVAR "envPath" "%ResolvedProgramFiles%\Microsoft Visual Studio 8\"
 ) else (
-set envPath=%~3
+	CALL:SETVAR "envPath" "%~3"
 )
 
 SET VSRegistryRootBase=SOFTWARE%WOWRegistryAdjust%\Microsoft\VisualStudio
 SET VSRegistryRootVersion=%TargetVisualStudioNumericVersion%
 FOR /F "usebackq skip=2 tokens=2*" %%A IN (`REG QUERY "HKLM\%VSRegistryRootBase%\VSIP\%VSRegistryRootVersion%" /v "InstallDir"`) DO SET VSIPDir=%%~fB
-IF "%TargetVisualStudioNumericVersion%"=="9.0" (SET vsipbin=%VSIPDir%VisualStudioIntegration\Tools\Bin\VS2005\) ELSE (SET vsipbin=%VSIPDir%VisualStudioIntegration\Tools\Bin\)
+IF "%TargetVisualStudioNumericVersion%"=="9.0" (CALL:SETVAR "vsipbin" "%VSIPDir%VisualStudioIntegration\Tools\Bin\VS2005\") ELSE (CALL:SETVAR "vsipbin" "%VSIPDir%VisualStudioIntegration\Tools\Bin\")
 
 set plixBinaries=%ResolvedProgramFiles%\Neumont\PLiX for Visual Studio\bin\
 set plixHelp=%ResolvedProgramFiles%\Neumont\PLiX for Visual Studio\Help\
@@ -129,5 +132,14 @@ GOTO:EOF
 ::Do this somewhere the resolved parens will not cause problems.
 SET ResolvedProgramFiles=%ProgramFiles(x86)%
 SET ResolvedCommonProgramFiles=%CommonProgramFiles(x86)%
-SET WOWRegistryAdjust=\Wow6432Node
+IF DEFINED PROCESSOR_ARCHITEW6432 (
+	:: Called from a 32-bit process, registry keys in the HKLM\SOFTWARE hive will self-adjust
+	SET WOWRegistryAdjust=
+) ELSE (
+	SET WOWRegistryAdjust=\Wow6432Node
+)
+GOTO:EOF
+
+:SETVAR
+SET %~1=%~2
 GOTO:EOF

@@ -181,7 +181,21 @@
 				<xs:element ref="pragma"/>
 			</xs:choice>
 		</xs:sequence>
-		<xs:attribute name="name" type="qualifierNameType" use="required"/>
+		<xs:attribute name="name" use="required">
+			<xs:simpleType>
+				<xs:union memberTypes="qualifierNameType">
+					<xs:simpleType>
+						<xs:restriction base="xs:token">
+							<xs:enumeration value=".global">
+								<xs:annotation>
+									<xs:documentation>A special namespace for globally-scoped code. Used for languages that allow a global scope.</xs:documentation>
+								</xs:annotation>
+							</xs:enumeration>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:union>
+			</xs:simpleType>
+		</xs:attribute>
 	</xs:complexType>
 
 	<!-- Type definitions -->
@@ -880,17 +894,17 @@
 			</xs:enumeration>
 			<xs:enumeration value="implicitField">
 				<xs:annotation>
-					<xs:documentation>Associate the attribute the field implicitly defined by a simple event declaration.</xs:documentation>
+					<xs:documentation>Associate the attribute with the field implicitly defined by a simple event declaration.</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="implicitAccessorFunction">
 				<xs:annotation>
-					<xs:documentation>Associate the attribute the onAdd and onRemove accessor functions implicitly defined by a simple event declaration.</xs:documentation>
+					<xs:documentation>Associate the attribute with the onAdd and onRemove accessor functions implicitly defined by a simple event declaration.</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="implicitValueParameter">
 				<xs:annotation>
-					<xs:documentation>Associate the attribute the implicit value parameter associated with a set, onAdd, or onRemove accessor function.</xs:documentation>
+					<xs:documentation>Associate the attribute with the implicit value parameter associated with a set, onAdd, or onRemove accessor function.</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 		</xs:restriction>
