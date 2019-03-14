@@ -446,7 +446,15 @@ schemas:
 	</xsl:template>
 	<xsl:template match="plx:callInstance[@type='delegateCall']">
 		<xsl:param name="Indent"/>
-		<xsl:text>call_user_func</xsl:text>
+		<xsl:variable name="delegateReferenceSupport" select="boolean(@plxPHP:delegateReferenceSupport[.='true' or .='1'])"/>
+		<xsl:choose>
+			<xsl:when test="$delegateReferenceSupport">
+				<xsl:text>call_user_func_array</xsl:text>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:text>call_user_func</xsl:text>
+			</xsl:otherwise>
+		</xsl:choose>
 		<xsl:call-template name="RenderPassParams">
 			<xsl:with-param name="Indent" select="$Indent"/>
 			<xsl:with-param name="PassParams" select="plx:callObject"/>
@@ -456,6 +464,7 @@ schemas:
 		<xsl:call-template name="RenderCallBody">
 			<xsl:with-param name="Indent" select="$Indent"/>
 			<xsl:with-param name="PartialHasPreceding" select="true()"/>
+			<xsl:with-param name="DelegateReferenceSupport" select="$delegateReferenceSupport"/>
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:callNew">
@@ -621,6 +630,7 @@ schemas:
 					<xsl:with-param name="Indent" select="$Indent"/>
 					<xsl:with-param name="Unqualified" select="true()"/>
 					<xsl:with-param name="StaticPrefix" select="'self::'"/>
+					<xsl:with-param name="DelegateReferenceSupport" select="boolean(@plxPHP:delegateReferenceSupport[.='true' or .='1'])"/>
 				</xsl:call-template>
 			</xsl:when>
 			<xsl:otherwise>
@@ -2722,6 +2732,8 @@ schemas:
 		<xsl:param name="StaticPrefix" select="''"/>
 		<!-- Forwarded to RenderPassParams -->
 		<xsl:param name="PartialHasPreceding" select="false()"/>
+		<!-- Use call_user_func_array instead of call_user_func, parameters pass in array -->
+		<xsl:param name="DelegateReferenceSupport" select="false()"/>
 		<!-- Render the name -->
 		<xsl:variable name="callType" select="string(@type)"/>
 		<xsl:variable name="isIndexer" select="$callType='arrayIndexer'"/>
@@ -2737,9 +2749,18 @@ schemas:
 		</xsl:variable>
 		<xsl:variable name="memberExpression" select="string($memberExpressionFragment)"/>
 		<xsl:variable name="compoundMemberExpression" select="$StaticPrefix and $memberExpression and (not($memberNameExpression[self::plx:nameRef] or $callType='property' or $callType='event'))"/>
+		<xsl:variable name="passParams" select="plx:passParam|plx:passParamArray"/>
+		<xsl:variable name="hasParams" select="boolean($passParams) or $PartialHasPreceding or ($leftOfAssign and ($callType='property' or $callType='indexerCall'))"/>
 		<xsl:choose>
 			<xsl:when test="$compoundMemberExpression">
-				<xsl:text>call_user_func('</xsl:text>
+				<xsl:choose>
+					<xsl:when test="$DelegateReferenceSupport and $hasParams">
+						<xsl:text>call_user_func_array('</xsl:text>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:text>call_user_func('</xsl:text>
+					</xsl:otherwise>
+				</xsl:choose>
 				<xsl:value-of select="$StaticPrefix"/>
 				<xsl:text>' . </xsl:text>
 			</xsl:when>
@@ -2888,12 +2909,17 @@ schemas:
 		<xsl:call-template name="RenderPassTypeParams">
 			<xsl:with-param name="PassTypeParams" select="plx:passMemberTypeParam"/>
 		</xsl:call-template>
-		<xsl:variable name="passParams" select="plx:passParam|plx:passParamArray"/>
-		<xsl:variable name="hasParams" select="boolean($passParams) or $PartialHasPreceding or ($leftOfAssign and ($callType='property' or $callType='indexerCall'))"/>
 		<xsl:variable name="bracketPairFragment">
 			<xsl:choose>
 				<xsl:when test="$callType='indexerCall' or $callType='property' or $callType='methodCall' or $callType='delegateCall' or string-length($callType)=0">
-					<xsl:text>()</xsl:text>
+					<xsl:choose>
+						<xsl:when test="$DelegateReferenceSupport and $hasParams">
+							<xsl:text>[]</xsl:text>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:text>()</xsl:text>
+						</xsl:otherwise>
+					</xsl:choose>
 				</xsl:when>
 				<xsl:when test="$isIndexer">
 					<xsl:text>[]</xsl:text>
@@ -2918,12 +2944,18 @@ schemas:
 								</xsl:call-template>
 							</xsl:when>
 							<xsl:otherwise>
+								<xsl:if test="$DelegateReferenceSupport and ($PartialHasPreceding or $compoundMemberExpression)">
+									<xsl:text>, </xsl:text>
+								</xsl:if>
 								<xsl:call-template name="RenderPassParams">
 									<xsl:with-param name="Indent" select="$Indent"/>
 									<xsl:with-param name="PassParams" select="$passParams"/>
 									<xsl:with-param name="BracketPair" select="$bracketPair"/>
-									<xsl:with-param name="PartialHasPreceding" select="$PartialHasPreceding or $compoundMemberExpression"/>
+									<xsl:with-param name="PartialHasPreceding" select="($PartialHasPreceding or $compoundMemberExpression) and not($DelegateReferenceSupport)"/>
 								</xsl:call-template>
+								<xsl:if test="$DelegateReferenceSupport">
+									<xsl:text>)</xsl:text>
+								</xsl:if>
 							</xsl:otherwise>
 						</xsl:choose>
 					</xsl:when>
@@ -3134,6 +3166,9 @@ schemas:
 									<xsl:value-of select="$ListSeparator"/>
 								</xsl:otherwise>
 							</xsl:choose>
+							<xsl:if test="@plxPHP:reference[.='true' or .=1]">
+								<xsl:text>&amp;</xsl:text>
+							</xsl:if>
 							<xsl:apply-templates select="child::*">
 								<xsl:with-param name="Indent" select="$Indent"/>
 							</xsl:apply-templates>
