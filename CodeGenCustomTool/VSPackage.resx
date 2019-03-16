@@ -137,7 +137,7 @@
     <value>HIC0KCMAE1Z1ETZ3QZQZPMQPJRP8P3QZEPZHDMD1PZQTE9DMRTKJJ1P1R9RKI3PTCRI8KMHICMA2QIIDDMPTK2EAP2M2QJJTIQZZPQAID2KCEEKMEZJTMJHDZQEQD2IJ</value>
     <comment>PackageResources.Id.PackageLoadKey</comment>
   </data>
-  <data name="1000" type="System.Resources.ResXFileRef, System.Windows.Forms">
+	<!--  <data name="1000" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>CtcComponents\PLiXPackage.cto;System.Byte[], mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
+  </data>-->
 </root>

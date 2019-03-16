@@ -46,9 +46,11 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 	// attribute specifies the registry root to use if no one is provided to regpkg.exe with
 	// the /root switch.
 	[DefaultRegistryRoot("Software\\Microsoft\\VisualStudio\\8.0Exp")]
+#if !VISUALSTUDIO_10_0
 	// This attribute is used to register the informations needed to show the this package
 	// in the Help/About dialog of Visual Studio.
 	[InstalledProductRegistration(true, null, null, null, LanguageIndependentName = "Neumont PLiX Code Generator")]
+#endif
 	// In order be loaded inside Visual Studio in a machine that has not the VS SDK installed, 
 	// package needs to have a valid load key (it can be requested at 
 	// http://msdn.microsoft.com/vstudio/extend/). This attributes tells the shell that this 

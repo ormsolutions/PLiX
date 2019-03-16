@@ -3,6 +3,8 @@ setlocal
 :: TargetVisualStudioNumericVersion settings:
 ::   8.0 = Visual Studio 2005 (Code Name "Whidbey")
 ::   9.0 = Visual Studio 2008 (Code Name "Orcas")
+IF %TargetVisualStudioNumericVersion% GEQ 15.0 GOTO:EOF
+
 SET TargetVisualStudioNumericVersion=8.0
 
 SET VSRegistryRootBase=SOFTWARE\Microsoft\VisualStudio

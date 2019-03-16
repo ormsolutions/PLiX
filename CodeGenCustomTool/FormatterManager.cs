@@ -17,6 +17,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Xml;
 using System.Xml.Xsl;
+#if VISUALSTUDIO_15_0
+using Microsoft.Win32;
+#endif
 
 namespace Neumont.Tools.CodeGeneration.Plix
 {
@@ -26,13 +29,16 @@ namespace Neumont.Tools.CodeGeneration.Plix
 	public static class FormatterManager
 	{
 		#region Constant locations
+#if VISUALSTUDIO_15_0
+		private const string PlixFormattersKey = @"Neumont\PLiX\Formatters";
+#else
 		private const string PlixInstallDirectory = @"\Neumont\PLiX\";
 		private const string FormattersDirectory = @"Formatters\";
 		private const string PlixGlobalSettingsFile = "PLiXSettings.xml";
+#endif
 		#endregion // Constant locations
 		#region Static variables
 		private static Dictionary<string, Formatter> myFormattersDictionary;
-		private static string myPlixDirectory;
 		private static object myLockObject;
 		private static object LockObject
 		{
@@ -46,8 +52,11 @@ namespace Neumont.Tools.CodeGeneration.Plix
 				return myLockObject;
 			}
 		}
-		#endregion // Static variables
-		#region PlixDirectory property
+#endregion // Static variables
+#if VISUALSTUDIO_15_0
+#else // !VISUALSTUDIO_15_0
+#region PlixDirectory property
+		private static string myPlixDirectory;
 		private static string PlixDirectory
 		{
 			get
@@ -68,18 +77,18 @@ namespace Neumont.Tools.CodeGeneration.Plix
 				return retVal;
 			}
 		}
-		#endregion // PlixDirectory property
-		#region PlixSettingsSchema class
+#endregion // PlixDirectory property
+#region PlixSettingsSchema class
 		private static class PlixSettingsSchema
 		{
-			#region String Constants
+#region String Constants
 			public const string SchemaNamespace = "http://schemas.neumont.edu/CodeGeneration/PLiXSettings";
 			public const string FormatterElement = "formatter";
 			public const string FormattersElement = "formatters";
 			public const string FileExtensionAttribute = "fileExtension";
 			public const string TransformAttribute = "transform";
-			#endregion // String Constants
-			#region Static properties
+#endregion // String Constants
+#region Static properties
 			private static PlixSettingsNameTable myNames;
 			public static PlixSettingsNameTable Names
 			{
@@ -123,10 +132,10 @@ namespace Neumont.Tools.CodeGeneration.Plix
 					return retVal;
 				}
 			}
-			#endregion // Static properties
+#endregion // Static properties
 		}
-		#endregion // PlixSettingsSchema class
-		#region PlixSettingsNameTable class
+#endregion // PlixSettingsSchema class
+#region PlixSettingsNameTable class
 		private class PlixSettingsNameTable : NameTable
 		{
 			public readonly string SchemaNamespace;
@@ -144,8 +153,9 @@ namespace Neumont.Tools.CodeGeneration.Plix
 				FileExtensionAttribute = Add(PlixSettingsSchema.FileExtensionAttribute);
 			}
 		}
-		#endregion // PlixSettingsNameTable class
-		#region Global Settings Loader
+#endregion // PlixSettingsNameTable class
+#endif // !VISUALSTUDIO_15_0
+#region Global Settings Loader
 		private struct Formatter
 		{
 			private string myTransformFile;
@@ -204,8 +214,17 @@ namespace Neumont.Tools.CodeGeneration.Plix
 		/// Return a formatter for the registered file extension
 		/// </summary>
 		/// <param name="fileExtension">The file extension for the type of code file. For example, 'cs' or 'vb'.</param>
+#if VISUALSTUDIO_15_0
+		/// <param name="getRegistryRoot">A callback function to get the registry root. The caller is responsible for
+		/// closing this key if the function is accessed during the call.</param>
+#endif
 		/// <returns>An <see cref="XslCompiledTransform"/> for the requested extension.</returns>
-		public static XslCompiledTransform GetFormatterTransform(string fileExtension)
+		public static XslCompiledTransform GetFormatterTransform(
+			string fileExtension
+#if VISUALSTUDIO_15_0
+			, Func<RegistryKey> getRegistryRoot
+#endif
+			)
 		{
 			XslCompiledTransform retVal = null;
 			Dictionary<string, Formatter> dictionary = myFormattersDictionary;
@@ -216,7 +235,12 @@ namespace Neumont.Tools.CodeGeneration.Plix
 					if (null == (dictionary = myFormattersDictionary))
 					{
 						dictionary = new Dictionary<string, Formatter>();
-						LoadGlobalSettings(dictionary);
+						LoadGlobalSettings(
+							dictionary
+#if VISUALSTUDIO_15_0
+							, getRegistryRoot
+#endif
+							);
 						myFormattersDictionary = dictionary;
 					}
 				}
@@ -240,8 +264,17 @@ namespace Neumont.Tools.CodeGeneration.Plix
 		/// Determine if the file extension has a registered formatter without attempting to load the transform
 		/// </summary>
 		/// <param name="fileExtension">The file extension for the type of code file. For example, 'cs' or 'vb'.</param>
+#if VISUALSTUDIO_15_0
+		/// <param name="getRegistryRoot">A callback function to get the registry root. The caller is responsible for
+		/// closing this key if the function is accessed during the call.</param>
+#endif
 		/// <returns><see langword="true"/> if registered</returns>
-		public static bool IsFormatterRegistered(string fileExtension)
+		public static bool IsFormatterRegistered(
+			string fileExtension
+#if VISUALSTUDIO_15_0
+			, Func<RegistryKey> getRegistryRoot
+#endif
+			)
 		{
 			Dictionary<string, Formatter> dictionary = myFormattersDictionary;
 			if (dictionary == null)
@@ -251,13 +284,38 @@ namespace Neumont.Tools.CodeGeneration.Plix
 					if (null == (dictionary = myFormattersDictionary))
 					{
 						dictionary = new Dictionary<string, Formatter>();
-						LoadGlobalSettings(dictionary);
+						LoadGlobalSettings(
+							dictionary
+#if VISUALSTUDIO_15_0
+							, getRegistryRoot
+#endif
+							);
 						myFormattersDictionary = dictionary;
 					}
 				}
 			}
 			return dictionary.ContainsKey(fileExtension.ToLowerInvariant());
 		}
+#if VISUALSTUDIO_15_0
+		private static void LoadGlobalSettings(Dictionary<string, Formatter> languageTransforms, Func<RegistryKey> getRegistryRoot)
+		{
+			RegistryKey rootKey = getRegistryRoot(); // The caller is responsible for closing this key
+			if (rootKey != null)
+			{
+				using (RegistryKey formattersKey = rootKey.OpenSubKey(PlixFormattersKey, RegistryKeyPermissionCheck.ReadSubTree))
+				{
+					foreach (string extension in formattersKey.GetValueNames())
+					{
+						if (!string.IsNullOrEmpty(extension))
+						{
+							// Note that the directory path is part of the value
+							languageTransforms[extension] = new Formatter(formattersKey.GetValue(extension).ToString());
+						}
+					}
+				}
+			}
+		}
+#else //!VISUALSTUDIO_15_0
 		private static void LoadGlobalSettings(Dictionary<string, Formatter> languageTransforms)
 		{
 			string settingsFile = PlixDirectory + PlixGlobalSettingsFile;
@@ -309,6 +367,7 @@ namespace Neumont.Tools.CodeGeneration.Plix
 				}
 			}
 		}
-		#endregion // Global Settings Loader
+#endif // !VISUALSTUDIO_15_0
+#endregion // Global Settings Loader
 	}
 }

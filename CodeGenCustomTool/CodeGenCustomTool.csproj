@@ -1,4 +1,21 @@
-﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="15.0">
+  <Import Condition="$(VisualStudioVersion) &gt;= 15.0 AND Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)'==''">$(TargetVisualStudioNumericVersion)</VisualStudioVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <VSToolsPath Condition="$(VisualStudioVersion) &gt;= 15.0 AND '$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+    <VSIXSuffix Condition="$(VisualStudioVersion) &gt;= 15.0">.VSIX</VSIXSuffix>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DefineConstants Condition="$(VisualStudioVersion) &gt;= 8.0">$(DefineConstants);VISUALSTUDIO_8_0</DefineConstants>
+    <DefineConstants Condition="$(VisualStudioVersion) &gt;= 9.0">$(DefineConstants);VISUALSTUDIO_9_0</DefineConstants>
+    <DefineConstants Condition="$(VisualStudioVersion) &gt;= 10.0">$(DefineConstants);VISUALSTUDIO_10_0</DefineConstants>
+    <DefineConstants Condition="$(VisualStudioVersion) &gt;= 11.0">$(DefineConstants);VISUALSTUDIO_11_0</DefineConstants>
+    <DefineConstants Condition="$(VisualStudioVersion) &gt;= 12.0">$(DefineConstants);VISUALSTUDIO_12_0</DefineConstants>
+    <DefineConstants Condition="$(VisualStudioVersion) &gt;= 14.0">$(DefineConstants);VISUALSTUDIO_14_0</DefineConstants>
+    <DefineConstants Condition="$(VisualStudioVersion) &gt;= 15.0">$(DefineConstants);VISUALSTUDIO_15_0</DefineConstants>
+  </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -7,21 +24,29 @@
     <ProjectGuid>{2EC917E4-CC2E-4617-BA73-3E4DEFED1F76}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>Neumont.Tools.CodeGeneration.Plix</RootNamespace>
-    <AssemblyName>Neumont.Tools.CodeGeneration.PLiX</AssemblyName>
+    <AssemblyName>Neumont.Tools.CodeGeneration.PLiX$(VSIXSuffix)</AssemblyName>
     <WarningLevel>4</WarningLevel>
     <AssemblyOriginatorKeyFile>..\CodeGen.snk</AssemblyOriginatorKeyFile>
     <AssemblyOriginatorKeyMode>File</AssemblyOriginatorKeyMode>
     <SignAssembly>true</SignAssembly>
     <ApplicationIcon>AboutBox.ico</ApplicationIcon>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <OldToolsVersion>2.0</OldToolsVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>.\bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>$(DefineConstants);DEBUG;TRACE</DefineConstants>
     <UseVSHostingProcess>false</UseVSHostingProcess>
     <NoWarn>1607</NoWarn>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugSymbols>false</DebugSymbols>
@@ -29,6 +54,7 @@
     <OutputPath>.\bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <NoWarn>1607</NoWarn>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="EnvDTE, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
@@ -37,10 +63,24 @@
       <SpecificVersion>False</SpecificVersion>
     </Reference>
     <Reference Include="Microsoft.VisualStudio.OLE.Interop, Version=7.1.40304.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
-    <Reference Include="Microsoft.VisualStudio.Shell, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
+    <Reference Condition="$(VisualStudioVersion) &lt; 15.0" Include="Microsoft.VisualStudio.Shell, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
+    <Reference Condition="$(VisualStudioVersion) &gt;= 15.0" Include="Microsoft.VisualStudio.Shell.$(VisualStudioVersion)" />
+    <Reference Condition=" '$(VisualStudioVersion)' &gt;= 15.0 " Include="Microsoft.VisualStudio.Shell.Framework">
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
     <Reference Include="Microsoft.VisualStudio.Shell.Interop, Version=7.1.40304.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="Microsoft.VisualStudio.Shell.Interop.8.0" />
-    <Reference Include="Microsoft.VisualStudio.Package.LanguageService, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
+    <Reference Condition="$(VisualStudioVersion) &gt;= 9.0" Include="Microsoft.VisualStudio.Shell.Interop.9.0, Version=9.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Condition="$(VisualStudioVersion) &gt;= 10.0" Include="Microsoft.VisualStudio.Shell.Interop.10.0, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Condition="$(VisualStudioVersion) &gt;= 15.0" Include="Microsoft.VisualStudio.Shell.Interop.15.3.DesignTime.dll, Version=15.3.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Condition="$(VisualStudioVersion) &lt; 15.0" Include="Microsoft.VisualStudio.Package.LanguageService, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
+    <Reference Condition="$(VisualStudioVersion) &gt;= 15.0" Include="Microsoft.VisualStudio.Package.LanguageService.$(VisualStudioVersion)" />
     <Reference Include="Microsoft.VisualStudio.TextManager.Interop" />
     <Reference Include="System" />
     <Reference Include="System.Data" />
@@ -58,7 +98,7 @@
     <None Include="..\CodeGen.snk">
       <Link>CodeGen.snk</Link>
     </None>
-    <EmbeddedResource Include="PlixSettings.xsd">
+    <EmbeddedResource Condition="$(VisualStudioVersion) &lt; 15.0" Include="PlixSettings.xsd">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <SubType>Designer</SubType>
     </EmbeddedResource>
@@ -73,8 +113,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <None Include="PlixSettings.xml">
+    <None Condition="$(VisualStudioVersion) &lt; 15.0" Include="PlixSettings.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </None>
     <EmbeddedResource Include="PlixLoader.xsd">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -118,6 +159,34 @@
     <Compile Include="PLiXPackage.cs" />
     <Compile Include="PLiXCommandIds.cs" />
   </ItemGroup>
+  <!-- Properties for VSSDK/DSL Targets: Must be defined before importing the targets -->
+  <PropertyGroup Condition="$(VisualStudioVersion) &gt;= 15.0">
+    <GenerateVSIX>false</GenerateVSIX>
+    <CreateVsixContainer>$(GenerateVSIX)</CreateVsixContainer>
+    <CopyVsixManifestToOutput>$(GenerateVSIX)</CopyVsixManifestToOutput>
+    <IncludePkgdefInVSIXContainer>false</IncludePkgdefInVSIXContainer>
+    <GeneratePkgDefFile>false</GeneratePkgDefFile>
+    <RegisterOutputPackage>false</RegisterOutputPackage>
+    <RegisterWithCodebase>false</RegisterWithCodebase>
+    <GacTargetOutput>false</GacTargetOutput>
+    <TransformOnBuild>True</TransformOnBuild>
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSHARP.Targets" />
+  <Import Condition="$(VisualStudioVersion) &gt;= 15.0 AND '$(VSToolsPath)'!=''" Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" />
+  <ItemGroup>
+    <!-- <CompileVsct Condition="$(VisualStudioVersion)&gt;=15.0" Include="CtcComponents\PLiXPackage.vsct">
+      <ResourceName>1000</ResourceName>
+      <MergeTarget>VSPackage.resx</MergeTarget>
+      <SubType>Designer</SubType>
+    </CompileVsct> -->
+    <VSCTCompile Include="CtcComponents\PLiXPackage.vsct">
+      <ResourceName>1000</ResourceName>
+    </VSCTCompile>
+    <None Condition="$(VisualStudioVersion)&lt;15.0" Include="CtcComponents\PLiXPackage.ctc" />
+    <None Include="CtcComponents\Guids.h" />
+    <None Include="CtcComponents\CommandIds.h" />
+    <None Include="CtcComponents\Resource.h" />
+  </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
@@ -125,17 +194,12 @@
       <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="VSPackage.resx">
+      <MergeWithCTO>true</MergeWithCTO>
       <SubType>Designer</SubType>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <None Include="CtcComponents\PLiXPackage.ctc" />
-    <None Include="CtcComponents\Guids.h" />
-    <None Include="CtcComponents\CommandIds.h" />
-    <None Include="CtcComponents\Resource.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="CtcComponents\PLiXPackage.cto" />
+    <None Condition="$(VisualStudioVersion)&lt;15.0" Include="CtcComponents\PLiXPackage.cto" />
     <None Include="Resources\Images.bmp" />
     <None Include="PLiXJSL.xslt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -145,10 +209,14 @@
     </None>
     <Content Include="Resources\Package.ico" />
   </ItemGroup>
-  <Import Project="$(MSBuildBinPath)\Microsoft.CSHARP.Targets" />
+  <PropertyGroup>
+    <StartProgram>$(DevEnvDir)\devenv.exe</StartProgram>
+    <StartAction>Program</StartAction>
+    <StartArguments>/rootsuffix Exp</StartArguments>
+  </PropertyGroup>
   <PropertyGroup Condition="">
     <PostBuildEvent>"$(ProjectDir)install.bat" "$(ProjectDir)" "$(OutDir)" "$(DevEnvDir)..\..\"</PostBuildEvent>
     <PreBuildEvent>"$(SolutionDir)VersionGenerator.exe"
-"$(ProjectDir)CtcComponents\UpdateCTO.bat"</PreBuildEvent>
+"$(ProjectDir)CtcComponents\UpdateCTO.bat" "$(MSBuildProjectDirectory)\$(IntermediateOutputPath)"</PreBuildEvent>
   </PropertyGroup>
 </Project>

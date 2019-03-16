@@ -18,6 +18,7 @@ using MsOle = Microsoft.VisualStudio.OLE.Interop;
 using System.Runtime.InteropServices;
 using System.IO;
 using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Designer.Interfaces;
 using System.Text;
 using System.Diagnostics;
@@ -28,13 +29,18 @@ using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Xsl;
 using VSLangProj;
+using IServiceProvider = System.IServiceProvider;
+
+#if VISUALSTUDIO_15_0
+using Microsoft.Win32;
+#endif
 
 namespace Neumont.Tools.CodeGeneration.Plix
 {
 	/// <summary>
 	/// A custom tool to generate code using the Plix code generation framework
 	/// </summary>
-	public sealed class PlixLoaderCustomTool : IVsSingleFileGenerator, MsOle.IObjectWithSite
+	public sealed class PlixLoaderCustomTool : IVsSingleFileGenerator, MsOle.IObjectWithSite, MsOle.IServiceProvider, IServiceProvider // Need additional service provider capabilities for VS2015
 	{
 		#region Schema definition classes
 		#region PlixLoaderSchema class
@@ -166,7 +172,19 @@ namespace Neumont.Tools.CodeGeneration.Plix
 		#endregion // PLiX ReaderSettings
 		#endregion // Schema definition classes
 		#region Member Variables
-		private MsOle.IServiceProvider myServiceProvider;
+		/// <summary>
+		/// A wrapper object to provide unified managed and unmanaged IServiceProvider implementations
+		/// </summary>
+		private readonly ServiceProvider myServiceProvider;
+		/// <summary>
+		/// The service provider handed us by the shell during IObjectWithSite.SetSite. This
+		/// service provider lets us retrieve the EnvDTE.ProjectItem and CodeDomProvider objects and very little else.
+		/// </summary>
+		private MsOle.IServiceProvider myCustomToolServiceProvider;
+		/// <summary>
+		/// The full VS DTE service provider. We retrieve this on demand only
+		/// </summary>
+		private MsOle.IServiceProvider myDteServiceProvider;
 		private CodeDomProvider myCodeDomProvider;
 		private EnvDTE.ProjectItem myProjectItem;
 		private const string PlixProjectSettingsFile = "Plix.xml";
@@ -196,8 +214,68 @@ namespace Neumont.Tools.CodeGeneration.Plix
 		/// </summary>
 		public PlixLoaderCustomTool()
 		{
+			// NOTE: Attempting to use any of the ServiceProviders will cause us to go into an infinite loop
+			// unless SetSite has been called on us.
+			myServiceProvider = new ServiceProvider(this, true);
 		}
 		#endregion // Constructor
+
+		#region ServiceProvider Interface Implementations
+		/// <summary>
+		/// Returns a service instance of type <typeparamref name="T"/>, or <see langword="null"/> if no service instance of
+		/// type <typeparamref name="T"/> is available.
+		/// </summary>
+		/// <typeparam name="T">The type of the service instance being requested.</typeparam>
+		private T GetService<T>() where T : class
+		{
+			return myServiceProvider.GetService(typeof(T)) as T;
+		}
+		#region MsOle.IServiceProvider Members
+		int MsOle.IServiceProvider.QueryService(ref Guid guidService, ref Guid riid, out IntPtr ppvObject)
+		{
+			MsOle.IServiceProvider customToolServiceProvider = myCustomToolServiceProvider;
+
+			if (customToolServiceProvider == null)
+			{
+				ppvObject = IntPtr.Zero;
+				return VSConstants.E_NOINTERFACE;
+			}
+
+			// First try to service the request via the IOleServiceProvider we were given. If unsuccessful, try via DTE's
+			// MsOle.IServiceProvider implementation (if we have it).
+			int errorCode = myCustomToolServiceProvider.QueryService(ref guidService, ref riid, out ppvObject);
+
+			if (ErrorHandler.Failed(errorCode) || ppvObject == IntPtr.Zero)
+			{
+				// Fallback on the full environment service provider if necessary
+				MsOle.IServiceProvider dteServiceProvider = myDteServiceProvider;
+				if (dteServiceProvider == null)
+				{
+					myDteServiceProvider = customToolServiceProvider;
+					EnvDTE.ProjectItem projectItem = GetService<EnvDTE.ProjectItem>();
+					if (null != (projectItem = GetService<EnvDTE.ProjectItem>()) &&
+						null != (dteServiceProvider = projectItem.DTE as MsOle.IServiceProvider))
+					{
+						myDteServiceProvider = dteServiceProvider;
+					}
+				}
+				if (dteServiceProvider != null &&
+					!object.ReferenceEquals(dteServiceProvider, customToolServiceProvider)) // Signal used to indicate failure to retrieve dte provider
+				{
+					errorCode = dteServiceProvider.QueryService(ref guidService, ref riid, out ppvObject);
+				}
+			}
+			return errorCode;
+		}
+		#endregion // MsOle.IServiceProvider Members
+		#region IServiceProvider Members
+		object IServiceProvider.GetService(Type serviceType)
+		{
+			// Pass this on to our ServiceProvider which will pass it back to us via our implementation of MsOle.IServiceProvider
+			return myServiceProvider.GetService(serviceType);
+		}
+		#endregion // IServiceProvider Members
+		#endregion // ServiceProvider Interface Implementations
 		#region IVsSingleFileGenerator Implementation
 		int IVsSingleFileGenerator.DefaultExtension(out string pbstrDefaultExtension)
 		{
@@ -226,13 +304,14 @@ namespace Neumont.Tools.CodeGeneration.Plix
 		#region IObjectWithSite implementation
 		void MsOle.IObjectWithSite.SetSite(object punkSite)
 		{
-			myServiceProvider = punkSite as MsOle.IServiceProvider;
-			myCodeDomProvider = null;
+			myCustomToolServiceProvider = punkSite as MsOle.IServiceProvider;
+			// Don't call SetSite on _serviceProvider, we want the site to call back to use to us
+			myDteServiceProvider = null;
 			myProjectItem = null;
 		}
 		void MsOle.IObjectWithSite.GetSite(ref Guid riid, out IntPtr ppvSite)
 		{
-			ppvSite = IntPtr.Zero;
+			(myServiceProvider as MsOle.IObjectWithSite).GetSite(ref riid, out ppvSite);
 		}
 		#endregion // IObjectWithSite implementation
 		#region Service Properties
@@ -240,59 +319,24 @@ namespace Neumont.Tools.CodeGeneration.Plix
 		{
 			get
 			{
-				if (myCodeDomProvider == null)
+				CodeDomProvider retVal = myCodeDomProvider;
+				if (retVal == null)
 				{
-					if (myServiceProvider != null)
-					{
-						Guid providerGuid = typeof(IVSMDCodeDomProvider).GUID;
-						IntPtr pvObject = IntPtr.Zero;
-						ErrorHandler.ThrowOnFailure(myServiceProvider.QueryService(ref providerGuid, ref providerGuid, out pvObject));
-						if (pvObject != IntPtr.Zero)
-						{
-							try
-							{
-								IVSMDCodeDomProvider codeDomProvider = Marshal.GetObjectForIUnknown(pvObject) as IVSMDCodeDomProvider;
-								if (codeDomProvider != null)
-								{
-									myCodeDomProvider = codeDomProvider.CodeDomProvider as CodeDomProvider;
-								}
-							}
-							finally
-							{
-								Marshal.Release(pvObject);
-							}
-						}
-					}
+					myCodeDomProvider = retVal = GetService<IVSMDCodeDomProvider>().CodeDomProvider as CodeDomProvider;
 				}
-				return myCodeDomProvider;
+				return retVal;
 			}
 		}
 		private EnvDTE.ProjectItem CurrentProjectItem
 		{
 			get
 			{
-				if (myProjectItem == null)
+				EnvDTE.ProjectItem retVal = myProjectItem;
+				if (retVal == null)
 				{
-					if (myServiceProvider != null)
-					{
-						Guid providerGuid = typeof(EnvDTE.ProjectItem).GUID;
-						IntPtr pvObject = IntPtr.Zero;
-
-						ErrorHandler.ThrowOnFailure(myServiceProvider.QueryService(ref providerGuid, ref providerGuid, out pvObject));
-						if (pvObject != IntPtr.Zero)
-						{
-							try
-							{
-								myProjectItem = Marshal.GetObjectForIUnknown(pvObject) as EnvDTE.ProjectItem;
-							}
-							finally
-							{
-								Marshal.Release(pvObject);
-							}
-						}
-					}
+					myProjectItem = retVal = GetService<EnvDTE.ProjectItem>();
 				}
-				return myProjectItem;
+				return retVal;
 			}
 		}
 		#endregion // Service Properties
@@ -352,7 +396,36 @@ There is no way to both successfully trigger regeneration and avoid writing this
 			{
 				fileExtension = fileExtension.Substring(1);
 			}
+#if VISUALSTUDIO_15_0
+			XslCompiledTransform formatter = null;
+			RegistryKey registryRoot = null;
+			try
+			{
+				formatter = FormatterManager.GetFormatterTransform(fileExtension, () =>
+				{
+					if (registryRoot == null)
+					{
+						IVsShell shell = GetService<IVsShell>();
+						if (shell != null)
+						{
+							object registryRootObj;
+							shell.GetProperty((int)__VSSPROPID.VSSPROPID_VirtualRegistryRoot, out registryRootObj);
+							registryRoot = Registry.CurrentUser.OpenSubKey(registryRootObj.ToString() + "_Config", RegistryKeyPermissionCheck.ReadSubTree);
+						}
+					}
+					return registryRoot;
+				});
+			}
+			finally
+			{
+				if (registryRoot != null)
+				{
+					registryRoot.Dispose();
+				}
+			}
+#else
 			XslCompiledTransform formatter = FormatterManager.GetFormatterTransform(fileExtension);
+#endif
 			if (formatter == null)
 			{
 				StringWriter writer = new StringWriter();

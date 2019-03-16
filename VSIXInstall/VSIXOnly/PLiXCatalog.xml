@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<SchemaCatalog xmlns="http://schemas.microsoft.com/xsd/catalog">
+	<Schema targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiX" href="%InstallRoot%/xml/schemas/ORM Solutions/PLiX/PLiX.xsd"/>
+	<Schema targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiXLoader" href="%InstallRoot%/xml/schemas/ORM Solutions/PLiX/PLiXLoader.xsd"/>
+	<Schema targetNamespace="http://schemas.neumont.edu/CodeGeneration/PLiXRedirect" href="%InstallRoot%/xml/schemas/ORM Solutions/PLiX/PLiXRedirect.xsd"/>
+</SchemaCatalog>

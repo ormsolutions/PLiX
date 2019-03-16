@@ -175,9 +175,19 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				private string myExtension;
 				private Guid myLanguageService;
 				private MenuCommand myMenuCommand;
-				private FormatterInfo(MenuCommand menuCommand, string extension, Guid languageService, RegistryKey servicesKey)
+				private FormatterInfo(MenuCommand menuCommand, string extension, Guid languageService, RegistryKey servicesKey
+#if VISUALSTUDIO_15_0
+					, Func<RegistryKey> getRegistryRoot
+#endif
+					)
 				{
-					if (!FormatterManager.IsFormatterRegistered(extension) || !IsRegisteredService(servicesKey, languageService))
+					if (!FormatterManager.IsFormatterRegistered(
+							extension
+#if VISUALSTUDIO_15_0
+							, getRegistryRoot
+#endif
+							) ||
+						!IsRegisteredService(servicesKey, languageService))
 					{
 						menuCommand.Visible = false;
 						menuCommand.Enabled = false;
@@ -195,14 +205,37 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					{
 						using (RegistryKey servicesKey = applicationRegistryRoot.OpenSubKey("Services", RegistryKeyPermissionCheck.ReadSubTree))
 						{
+#if VISUALSTUDIO_15_0
+							Func<RegistryKey> getRegistryRoot = () => applicationRegistryRoot;
+#endif
 							newFormatters = new FormatterInfo[]{
 								// Assume sequential matching in the Formatters order, softly enforced by
 								// notes in CommandIds.h and PkgCmdID.cs
-								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixCSharpFormatter), "cs", CSharpLanguageServiceGuid, servicesKey),
-								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixVBFormatter), "vb", VBLanguageServiceGuid, servicesKey),
-								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixPHPFormatter), "php", PHPLanguageServiceGuid, servicesKey),
-								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixJSharpFormatter), "jsl", JSharpLanguageServiceGuid, servicesKey),
-								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixPYFormatter), "py", PYLanguageServiceGuid, servicesKey),
+								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixCSharpFormatter), "cs", CSharpLanguageServiceGuid, servicesKey
+#if VISUALSTUDIO_15_0
+									, getRegistryRoot
+#endif
+									),
+								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixVBFormatter), "vb", VBLanguageServiceGuid, servicesKey
+#if VISUALSTUDIO_15_0
+									, getRegistryRoot
+#endif
+									),
+								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixPHPFormatter), "php", PHPLanguageServiceGuid, servicesKey
+#if VISUALSTUDIO_15_0
+									, getRegistryRoot
+#endif
+									),
+								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixJSharpFormatter), "jsl", JSharpLanguageServiceGuid, servicesKey
+#if VISUALSTUDIO_15_0
+									, getRegistryRoot
+#endif
+									),
+								new FormatterInfo(CreateMenuCommand(window, (int)PkgCmdIDList.cmdidPlixPYFormatter), "py", PYLanguageServiceGuid, servicesKey
+#if VISUALSTUDIO_15_0
+									, getRegistryRoot
+#endif
+									),
 							};
 						}
 					}
@@ -267,8 +300,8 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			{
 				FormatterInfo.SwitchToFormatter(this, (MenuCommand)sender);
 			}
-			#endregion // FormatterInfo structure
-			#region ConnectionPointCookie struct
+#endregion // FormatterInfo structure
+#region ConnectionPointCookie struct
 			/// <summary>
 			/// Helper structure to manage connection point (event callback) wiring
 			/// </summary>
@@ -340,8 +373,8 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					}
 				}
 			}
-			#endregion // ConnectionPointCookie struct
-			#region Constructors
+#endregion // ConnectionPointCookie struct
+#region Constructors
 			public SnippetPreviewWindow(PlixPackage package)
 			{
 				myPackage = package;
@@ -364,9 +397,9 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					FormatterInfo.InitializeCommands(this, commandService);
 				}
 			}
-			#endregion // Constructors
-			#region Command handlers
-			#region Dynamic parent choice menu handling
+#endregion // Constructors
+#region Command handlers
+#region Dynamic parent choice menu handling
 			/// <summary>
 			/// Standard pattern for handling dynamic start menus
 			/// </summary>
@@ -477,7 +510,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					Reformat();
 				}
 			}
-			#endregion // Dynamic parent choice menu handling
+#endregion // Dynamic parent choice menu handling
 			/// <summary>
 			/// Show the snippet preview window
 			/// </summary>
@@ -485,8 +518,8 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			{
 				EnsureWindowFrame().Show();
 			}
-			#endregion // Command handlers
-			#region Public methods and accessors
+#endregion // Command handlers
+#region Public methods and accessors
 			/// <summary>
 			/// Make sure the window frame exists
 			/// </summary>
@@ -515,8 +548,8 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					}
 				}
 			}
-			#endregion // Public methods and accessors
-			#region SnippetPreviewWindow Creation
+#endregion // Public methods and accessors
+#region SnippetPreviewWindow Creation
 			private void CreateSnippetPreviewWindow()
 			{
 				IServiceProvider serviceProvider = myPackage;
@@ -644,8 +677,8 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				uint monitorCookie;
 				monitor.AdviseSelectionEvents(this, out monitorCookie);
 			}
-			#endregion SnippetPreviewWindow Creation
-			#region Text change callback interfaces
+#endregion SnippetPreviewWindow Creation
+#region Text change callback interfaces
 			void IVsFinalTextChangeCommitEvents.OnChangesCommitted(uint dwGestureFlags, TextSpan[] ptsChanged)
 			{
 				myTextLinesDirty = true;
@@ -658,8 +691,8 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			{
 				myTextLinesDirty = true;
 			}
-			#endregion // Text change callback interfaces
-			#region Window update
+#endregion // Text change callback interfaces
+#region Window update
 			private void SetDocumentFrame(IVsWindowFrame frame)
 			{
 				IVsWindowFrame oldFrame = myXmlDocumentFrame;
@@ -846,7 +879,23 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				{
 					targetPlix = Resources.SnippetPreviewWindowDefaultWindowPLiX;
 				}
+#if VISUALSTUDIO_15_0
+				RegistryKey registryRoot = null;
+				XslCompiledTransform formatter = null;
+				try
+				{
+					formatter = FormatterManager.GetFormatterTransform(SnippetPreviewWindowSettings.CurrentFormatterExtension, () => registryRoot ?? (registryRoot = this.myPackage.ApplicationRegistryRoot));
+				}
+				finally
+				{
+					if (registryRoot != null)
+					{
+						registryRoot.Dispose();
+					}
+				}
+#else
 				XslCompiledTransform formatter = FormatterManager.GetFormatterTransform(SnippetPreviewWindowSettings.CurrentFormatterExtension);
+#endif
 				// From the plix stream, generate the code
 				using (StringWriter writer = new StringWriter(CultureInfo.InvariantCulture))
 				{
@@ -917,7 +966,11 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				string docComment = nameTable.Add("docComment");
 				XmlReaderSettings readerSettings = new XmlReaderSettings();
 				readerSettings.NameTable = nameTable;
+#if VISUALSTUDIO_15_0
+				readerSettings.DtdProcessing = DtdProcessing.Prohibit;
+#else
 				readerSettings.ProhibitDtd = false;
+#endif
 				readerSettings.IgnoreWhitespace = false;
 				readerSettings.CheckCharacters = false;
 				readerSettings.ValidationType = ValidationType.None;
@@ -1046,8 +1099,8 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					buffer.SetStateFlags(bufferFlags);
 				}
 			}
-			#endregion // Window update
-			#region IVsSelectionEvents Implementation
+#endregion // Window update
+#region IVsSelectionEvents Implementation
 			int IVsSelectionEvents.OnCmdUIContextChanged(uint dwCmdUICookie, int fActive)
 			{
 				return 0;
@@ -1064,8 +1117,8 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			{
 				return 0;
 			}
-			#endregion // IVsSelectionEvents Implementation
-			#region XmlNamespaceTracker struct
+#endregion // IVsSelectionEvents Implementation
+#region XmlNamespaceTracker struct
 			private struct XmlNamespaceTracker
 			{
 				private struct NamePair
@@ -1082,12 +1135,12 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				{
 					private sealed class ElementIndexComparer : IComparer<NamespaceEntry>
 					{
-						#region IComparer<NamespaceEntry> Implementation
+#region IComparer<NamespaceEntry> Implementation
 						int IComparer<NamespaceEntry>.Compare(NamespaceEntry x, NamespaceEntry y)
 						{
 							return x.ElementIndex.CompareTo(y.ElementIndex);
 						}
-						#endregion // IComparer<NamespaceEntry> Implementation
+#endregion // IComparer<NamespaceEntry> Implementation
 					}
 					public static readonly IComparer<NamespaceEntry> IndexComparer = new ElementIndexComparer();
 					public int ElementIndex;
@@ -1262,8 +1315,8 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					}
 				}
 			}
-			#endregion // XmlNamespaceTracker struct
-			#region RecognizedElementInfo
+#endregion // XmlNamespaceTracker struct
+#region RecognizedElementInfo
 			/// <summary>
 			/// A structure representing the location of a known element type in a stream
 			/// </summary>
@@ -1365,7 +1418,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					}
 					return retVal;
 				}
-				#region Accessor Properties
+#region Accessor Properties
 				/// <summary>
 				/// Return the parent index for a pure element. Otherwise, returns
 				/// <see cref="NullParentIndex"/>
@@ -1447,9 +1500,9 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 						return myElementNamespace;
 					}
 				}
-				#endregion // Accessor Properties
+#endregion // Accessor Properties
 			}
-			#endregion // RecognizedElementInfo
+#endregion // RecognizedElementInfo
 		}
 	}
 }
