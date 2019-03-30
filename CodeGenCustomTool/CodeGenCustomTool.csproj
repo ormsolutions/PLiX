@@ -30,13 +30,7 @@
     <AssemblyOriginatorKeyMode>File</AssemblyOriginatorKeyMode>
     <SignAssembly>true</SignAssembly>
     <ApplicationIcon>AboutBox.ico</ApplicationIcon>
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
-    <FileUpgradeFlags>
-    </FileUpgradeFlags>
-    <UpgradeBackupLocation>
-    </UpgradeBackupLocation>
-    <OldToolsVersion>2.0</OldToolsVersion>
-    <TargetFrameworkProfile />
+    <TargetFrameworkVersion Condition="$(VisualStudioVersion) &gt;= 15.0">v4.6.2</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -46,7 +40,6 @@
     <DefineConstants>$(DefineConstants);DEBUG;TRACE</DefineConstants>
     <UseVSHostingProcess>false</UseVSHostingProcess>
     <NoWarn>1607</NoWarn>
-    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugSymbols>false</DebugSymbols>
@@ -54,7 +47,6 @@
     <OutputPath>.\bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <NoWarn>1607</NoWarn>
-    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="EnvDTE, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
@@ -174,12 +166,7 @@
   <Import Project="$(MSBuildBinPath)\Microsoft.CSHARP.Targets" />
   <Import Condition="$(VisualStudioVersion) &gt;= 15.0 AND '$(VSToolsPath)'!=''" Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" />
   <ItemGroup>
-    <!-- <CompileVsct Condition="$(VisualStudioVersion)&gt;=15.0" Include="CtcComponents\PLiXPackage.vsct">
-      <ResourceName>1000</ResourceName>
-      <MergeTarget>VSPackage.resx</MergeTarget>
-      <SubType>Designer</SubType>
-    </CompileVsct> -->
-    <VSCTCompile Include="CtcComponents\PLiXPackage.vsct">
+    <VSCTCompile Condition="$(VisualStudioVersion) &gt;= 15.0" Include="CtcComponents\PLiXPackage.vsct">
       <ResourceName>1000</ResourceName>
     </VSCTCompile>
     <None Condition="$(VisualStudioVersion)&lt;15.0" Include="CtcComponents\PLiXPackage.ctc" />
@@ -193,8 +180,12 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <EmbeddedResource Include="VSPackage.resx">
+    <EmbeddedResource Condition="$(VisualStudioVersion)&gt;=15.0" Include="VSPackage.resx">
       <MergeWithCTO>true</MergeWithCTO>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Condition="$(VisualStudioVersion)&lt;15.0" Include="VSPackage.WithCTO.resx">
+      <LogicalName>Neumont.Tools.CodeGeneration.Plix.VSPackage.resources</LogicalName>
       <SubType>Designer</SubType>
     </EmbeddedResource>
   </ItemGroup>
