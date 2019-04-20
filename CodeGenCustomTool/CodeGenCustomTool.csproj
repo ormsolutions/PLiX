@@ -1,8 +1,8 @@
 ﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="15.0">
-  <Import Condition="$(VisualStudioVersion) &gt;= 15.0 AND Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" />
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)'==''">$(TargetVisualStudioNumericVersion)</VisualStudioVersion>
   </PropertyGroup>
+  <Import Condition="$(VisualStudioVersion) &gt;= 15.0 AND Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" />
   <PropertyGroup>
     <VSToolsPath Condition="$(VisualStudioVersion) &gt;= 15.0 AND '$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
     <VSIXSuffix Condition="$(VisualStudioVersion) &gt;= 15.0">.VSIX</VSIXSuffix>
@@ -15,6 +15,7 @@
     <DefineConstants Condition="$(VisualStudioVersion) &gt;= 12.0">$(DefineConstants);VISUALSTUDIO_12_0</DefineConstants>
     <DefineConstants Condition="$(VisualStudioVersion) &gt;= 14.0">$(DefineConstants);VISUALSTUDIO_14_0</DefineConstants>
     <DefineConstants Condition="$(VisualStudioVersion) &gt;= 15.0">$(DefineConstants);VISUALSTUDIO_15_0</DefineConstants>
+    <DefineConstants Condition="$(VisualStudioVersion) &gt;= 16.0">$(DefineConstants);VISUALSTUDIO_16_0</DefineConstants>
   </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -208,6 +209,6 @@
   <PropertyGroup Condition="">
     <PostBuildEvent>"$(ProjectDir)install.bat" "$(ProjectDir)" "$(OutDir)" "$(DevEnvDir)..\..\"</PostBuildEvent>
     <PreBuildEvent>"$(SolutionDir)VersionGenerator.exe"
-"$(ProjectDir)CtcComponents\UpdateCTO.bat" "$(MSBuildProjectDirectory)\$(IntermediateOutputPath)"</PreBuildEvent>
+"$(ProjectDir)CtcComponents\UpdateCTO.bat"</PreBuildEvent>
   </PropertyGroup>
 </Project>

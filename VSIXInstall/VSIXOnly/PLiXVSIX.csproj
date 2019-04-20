@@ -4,6 +4,7 @@
     <MinimumVisualStudioVersion>15.0</MinimumVisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
     <TargetVisualStudioShortProductName Condition="$(VisualStudioVersion)==15.0">VS2017</TargetVisualStudioShortProductName>
+    <TargetVisualStudioShortProductName Condition="$(VisualStudioVersion)==16.0">VS2019</TargetVisualStudioShortProductName>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>

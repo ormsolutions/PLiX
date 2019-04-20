@@ -1,10 +1,13 @@
 @echo off
-setlocal
+setlocal enableextensions
+:: Not needed with VS2017 or later (actually much earlier, but assuming running
+:: in an early VS version that supports .ctc)
+SET PadVer=00%TargetVisualStudioNumericVersion%
+IF "%PadVer:~-4%" GEQ "15.0" GOTO:EOF
+
 :: TargetVisualStudioNumericVersion settings:
 ::   8.0 = Visual Studio 2005 (Code Name "Whidbey")
 ::   9.0 = Visual Studio 2008 (Code Name "Orcas")
-IF %TargetVisualStudioNumericVersion% GEQ 15.0 GOTO:EOF
-
 SET TargetVisualStudioNumericVersion=8.0
 
 SET VSRegistryRootBase=SOFTWARE\Microsoft\VisualStudio
