@@ -3,8 +3,10 @@
 	<Metadata>
 		<Identity Id="dd5a2b87-2935-45d7-a01d-9f7c9f4d78a6" Version="1.0.0.0" Language="en-US" Publisher="ORM Solutions" />
 		<DisplayName>PLiX Code Generator</DisplayName>
-		<Description>Neumont PLiX (Programming Language in XML), XML-based code generation tools</Description>
+		<Description xml:space="preserve">Neumont PLiX (Programming Language in XML), XML-based code generation tools</Description>
+		<MoreInfo>https://github.com/ormsolutions/PLiX</MoreInfo>
 		<Icon>Resources\PLiXIcon.png</Icon>
+		<Tags>PLiX;code generation;NORMA;ORM Solutions;Neumont University</Tags>
 	</Metadata>
 	<Installation InstalledByMsi="false" AllUsers="true">
 		<InstallationTarget Version="[15.0,17.0)" Id="Microsoft.VisualStudio.Community" />

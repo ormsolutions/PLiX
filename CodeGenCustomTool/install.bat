@@ -9,7 +9,9 @@ setlocal
 ::  12.0 = Visual Studio 2013
 ::  14.0 = Visual Studio 2015
 ::  15.0 = Visual Studio 2017
+::  16.0 = Visual Studio 2019
 IF '%TargetVisualStudioNumericVersion%' == '15.0' GOTO:EOF
+IF '%TargetVisualStudioNumericVersion%' == '16.0' GOTO:EOF
 IF NOT DEFINED TargetVisualStudioNumericVersion (
 	SET TargetVisualStudioNumericVersion=8.0
 )
