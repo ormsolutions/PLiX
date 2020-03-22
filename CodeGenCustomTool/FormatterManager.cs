@@ -31,6 +31,7 @@ namespace Neumont.Tools.CodeGeneration.Plix
 		#region Constant locations
 #if VISUALSTUDIO_15_0
 		private const string PlixFormattersKey = @"Neumont\PLiX\Formatters";
+		private const string PlixFormatterOptionsKey = @"Neumont\PLiX\FormatterOptions";
 #else
 		private const string PlixInstallDirectory = @"\Neumont\PLiX\";
 		private const string FormattersDirectory = @"Formatters\";
@@ -87,6 +88,7 @@ namespace Neumont.Tools.CodeGeneration.Plix
 			public const string FormattersElement = "formatters";
 			public const string FileExtensionAttribute = "fileExtension";
 			public const string TransformAttribute = "transform";
+			public const string NoByteOrderMarkAttribute = "noByteOrderMark";
 #endregion // String Constants
 #region Static properties
 			private static PlixSettingsNameTable myNames;
@@ -143,6 +145,7 @@ namespace Neumont.Tools.CodeGeneration.Plix
 			public readonly string FormattersElement;
 			public readonly string FileExtensionAttribute;
 			public readonly string TransformAttribute;
+			public readonly string NoByteOrderMarkAttribute;
 			public PlixSettingsNameTable()
 				: base()
 			{
@@ -151,6 +154,7 @@ namespace Neumont.Tools.CodeGeneration.Plix
 				FormattersElement = Add(PlixSettingsSchema.FormattersElement);
 				TransformAttribute = Add(PlixSettingsSchema.TransformAttribute);
 				FileExtensionAttribute = Add(PlixSettingsSchema.FileExtensionAttribute);
+				NoByteOrderMarkAttribute = Add(PlixSettingsSchema.NoByteOrderMarkAttribute);
 			}
 		}
 #endregion // PlixSettingsNameTable class
@@ -160,14 +164,16 @@ namespace Neumont.Tools.CodeGeneration.Plix
 		{
 			private string myTransformFile;
 			private XslCompiledTransform myTransform;
+			private bool myNoBOM;
 			/// <summary>
 			/// Create a formatter structure for the given transform file
 			/// </summary>
 			/// <param name="transformFile">The full path to a transform file</param>
-			public Formatter(string transformFile)
+			public Formatter(string transformFile, bool noByteOrderMark)
 			{
 				myTransformFile = transformFile;
 				myTransform = null;
+				myNoBOM = noByteOrderMark;
 			}
 			/// <summary>
 			/// Has the transform been successfully loaded?
@@ -209,6 +215,16 @@ namespace Neumont.Tools.CodeGeneration.Plix
 					return retVal;
 				}
 			}
+			/// <summary>
+			/// True to block generation of a byte order mark in the output xml writer
+			/// </summary>
+			public bool NoByteOrderMark
+			{
+				get
+				{
+					return myNoBOM;
+				}
+			}
 		}
 		/// <summary>
 		/// Return a formatter for the registered file extension
@@ -224,9 +240,10 @@ namespace Neumont.Tools.CodeGeneration.Plix
 #if VISUALSTUDIO_15_0
 			, Func<RegistryKey> getRegistryRoot
 #endif
-			)
+			, out bool noByteOrderMark)
 		{
 			XslCompiledTransform retVal = null;
+			noByteOrderMark = false;
 			Dictionary<string, Formatter> dictionary = myFormattersDictionary;
 			if (dictionary == null)
 			{
@@ -250,6 +267,7 @@ namespace Neumont.Tools.CodeGeneration.Plix
 			{
 				bool resetDictionary = !langFormatter.HasTransform;
 				retVal = langFormatter.Transform;
+				noByteOrderMark = langFormatter.NoByteOrderMark;
 				if (retVal != null && resetDictionary)
 				{
 					lock (LockObject)
@@ -302,14 +320,28 @@ namespace Neumont.Tools.CodeGeneration.Plix
 			RegistryKey rootKey = getRegistryRoot(); // The caller is responsible for closing this key
 			if (rootKey != null)
 			{
-				using (RegistryKey formattersKey = rootKey.OpenSubKey(PlixFormattersKey, RegistryKeyPermissionCheck.ReadSubTree))
+				using (RegistryKey formattersKey = rootKey.OpenSubKey(PlixFormattersKey, RegistryKeyPermissionCheck.ReadSubTree),
+					formatterOptionsKey = rootKey.OpenSubKey(PlixFormatterOptionsKey, RegistryKeyPermissionCheck.ReadSubTree))
 				{
 					foreach (string extension in formattersKey.GetValueNames())
 					{
 						if (!string.IsNullOrEmpty(extension))
 						{
+							// The extension may have a corresponding key in the FormatterOptions key.
+							bool noByteOrderMark = false;
+							if (formatterOptionsKey != null)
+							{
+								using (RegistryKey optionsKey = formatterOptionsKey.OpenSubKey(extension, RegistryKeyPermissionCheck.ReadSubTree))
+								{
+									if (null != optionsKey)
+									{
+										noByteOrderMark = Convert.ToBoolean((int)optionsKey.GetValue("NoByteOrderMark", 0));
+									}
+								}
+							}
+
 							// Note that the directory path is part of the value
-							languageTransforms[extension] = new Formatter(formattersKey.GetValue(extension).ToString());
+							languageTransforms[extension] = new Formatter(formattersKey.GetValue(extension).ToString(), noByteOrderMark);
 						}
 					}
 				}
@@ -347,7 +379,7 @@ namespace Neumont.Tools.CodeGeneration.Plix
 											if (nodeType2 == XmlNodeType.Element)
 											{
 												Debug.Assert(XmlUtility.TestElementName(reader.LocalName, names.FormatterElement)); // Only value allowed by the validating reader
-												languageTransforms[reader.GetAttribute(PlixSettingsSchema.FileExtensionAttribute)] = new Formatter(formattersDir + reader.GetAttribute(PlixSettingsSchema.TransformAttribute));
+												languageTransforms[reader.GetAttribute(PlixSettingsSchema.FileExtensionAttribute)] = new Formatter(formattersDir + reader.GetAttribute(PlixSettingsSchema.TransformAttribute), XmlConvert.ToBoolean(reader.GetAttribute(PlixSettingsSchema.NoByteOrderMarkAttribute)));
 												XmlUtility.PassEndElement(reader);
 											}
 											else if (nodeType2 == XmlNodeType.EndElement)

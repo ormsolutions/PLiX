@@ -879,12 +879,13 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				{
 					targetPlix = Resources.SnippetPreviewWindowDefaultWindowPLiX;
 				}
+				bool noByteOrderMark = false;
 #if VISUALSTUDIO_15_0
 				RegistryKey registryRoot = null;
 				XslCompiledTransform formatter = null;
 				try
 				{
-					formatter = FormatterManager.GetFormatterTransform(SnippetPreviewWindowSettings.CurrentFormatterExtension, () => registryRoot ?? (registryRoot = this.myPackage.ApplicationRegistryRoot));
+					formatter = FormatterManager.GetFormatterTransform(SnippetPreviewWindowSettings.CurrentFormatterExtension, () => registryRoot ?? (registryRoot = this.myPackage.ApplicationRegistryRoot), out noByteOrderMark);
 				}
 				finally
 				{
@@ -894,7 +895,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					}
 				}
 #else
-				XslCompiledTransform formatter = FormatterManager.GetFormatterTransform(SnippetPreviewWindowSettings.CurrentFormatterExtension);
+				XslCompiledTransform formatter = FormatterManager.GetFormatterTransform(SnippetPreviewWindowSettings.CurrentFormatterExtension, out noByteOrderMark);
 #endif
 				// From the plix stream, generate the code
 				using (StringWriter writer = new StringWriter(CultureInfo.InvariantCulture))

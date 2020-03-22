@@ -396,6 +396,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 			{
 				fileExtension = fileExtension.Substring(1);
 			}
+			bool noByteOrderMark = false;
 #if VISUALSTUDIO_15_0
 			XslCompiledTransform formatter = null;
 			RegistryKey registryRoot = null;
@@ -414,7 +415,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 						}
 					}
 					return registryRoot;
-				});
+				}, out noByteOrderMark);
 			}
 			finally
 			{
@@ -424,7 +425,7 @@ There is no way to both successfully trigger regeneration and avoid writing this
 				}
 			}
 #else
-			XslCompiledTransform formatter = FormatterManager.GetFormatterTransform(fileExtension);
+			XslCompiledTransform formatter = FormatterManager.GetFormatterTransform(fileExtension, out noByteOrderMark);
 #endif
 			if (formatter == null)
 			{
@@ -583,7 +584,13 @@ There is no way to both successfully trigger regeneration and avoid writing this
 					}
 				}
 				MemoryStream plixStream = (transform != null) ? new MemoryStream() : null;
-				using (XmlWriter xmlTextWriter = (transform != null) ? XmlWriter.Create(plixStream, transform.OutputSettings) : null)
+				XmlWriterSettings outputSettings = transform.OutputSettings;
+				if (noByteOrderMark)
+				{
+					outputSettings = outputSettings.Clone();
+					outputSettings.Encoding = new UTF8Encoding(false);
+				}
+				using (XmlWriter xmlTextWriter = (transform != null) ? XmlWriter.Create(plixStream, outputSettings) : null)
 				{
 					// Variables that need to be disposed
 					TextReader reader = null;

@@ -30,6 +30,9 @@
 "vb"="$PackageFolder$\Formatters\PLiXVB.xslt"
 "php"="$PackageFolder$\Formatters\PLiXPHP.xslt"
 
+[$RootKey$\Neumont\PLiX\FormatterOptions\php]
+"NoByteOrderMark"=dword:00000001
+
 ;Custom Tool Registration
 [$RootKey$\CLSID\{12F1FC1E-20A6-4286-9C43-25209BBA5997}]
 @="Neumont.Tools.CodeGeneration.Plix.PlixLoaderCustomTool"

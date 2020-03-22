@@ -60,5 +60,10 @@
 				<xs:documentation>The transform file to run to generate this language. Transform files can be found in the Formatters directory.</xs:documentation>
 			</xs:annotation>
 		</xs:attribute>
+		<xs:attribute name="noByteOrderMark" type="xs:boolean" default="false">
+			<xs:annotation>
+				<xs:documentation>Files output in this language should not include a byte order mark.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
 	</xs:complexType>
 </xs:schema>
