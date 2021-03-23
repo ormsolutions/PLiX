@@ -12,6 +12,33 @@
         <Namespace Prefix="vsx" Uri="http://schemas.microsoft.com/developer/vsx-schema/2011" />
     </VSIXNamespace>
   </PropertyGroup>
+  <UsingTask TaskName="ReplaceFileText" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <InputFilename ParameterType="System.String" Required="true" />
+      <OutputFilename ParameterType="System.String" Required="true" />
+      <MatchExpression ParameterType="System.String" Required="true" />
+      <ReplacementText ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Reference Include="System.Core" />
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[
+              File.WriteAllText(
+                  OutputFilename,
+                  Regex.Replace(File.ReadAllText(InputFilename), MatchExpression, ReplacementText)
+                  );
+            ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+  <PropertyGroup Condition="'$(VSIXPerUser)'=='1'">
+    <PLiXCatalogFileSuffix>Local</PLiXCatalogFileSuffix>
+    <PLiXSchemaSubpath>$Schemas\</PLiXSchemaSubpath>
+    <PerUserFileSuffix>.PerUser</PerUserFileSuffix>
+  </PropertyGroup>
   <Target Name="PLiXGitVerTarget">
     <Exec Command="$(ProjectDir)..\..\PLiXGitVer.bat" ConsoleToMSBuild="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="PLiXGitVer" />
@@ -24,8 +51,25 @@
       Query="/vsx:PackageManifest/vsx:Metadata/vsx:Identity/@Version"
       Namespaces="$(VSIXNamespace)"/>
   </Target>
+  <Target Name="PerUserPoke" Condition="'$(VSIXPerUser)'=='1'">
+    <XmlPoke
+      XmlInputPath="source.extension.vsixmanifest"
+      Value="false"
+      Query="/vsx:PackageManifest/vsx:Installation/@AllUsers"
+      Namespaces="$(VSIXNamespace)"/>
+  </Target>
+  <Target Name="LocalSchemaTargets" Condition="'$(VSIXPerUser)'=='1'">
+    <ReplaceFileText 
+      InputFilename="$(ProjectDir)PliXCatalog.xml"
+      OutputFilename="$(ProjectDir)PliXCatalog$(PLiXCatalogFileSuffix).xml"
+      MatchExpression="%InstallRoot%/xml/schemas/"
+      ReplacementText="./" />
+  </Target>
   <PropertyGroup>
     <CreateVsixContainerDependsOn>$(CreateVsixContainerDependsOn);ManifestVersionPoke</CreateVsixContainerDependsOn>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(VSIXPerUser)'=='1'">
+    <CreateVsixContainerDependsOn>$(CreateVsixContainerDependsOn);PerUserPoke;LocalSchemaTargets</CreateVsixContainerDependsOn>
   </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -36,7 +80,7 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>PLiXVSIX</RootNamespace>
-    <AssemblyName>PLiXVSIX</AssemblyName>
+    <AssemblyName>PLiXVSIX$(PerUserFileSuffix)</AssemblyName>
     <GeneratePkgDefFile>false</GeneratePkgDefFile>
     <IncludeAssemblyInVSIXContainer>false</IncludeAssemblyInVSIXContainer>
     <IncludeDebugSymbolsInVSIXContainer>false</IncludeDebugSymbolsInVSIXContainer>
@@ -125,34 +169,37 @@
       <Link>Plix.xsd</Link>
       <IncludeInVSIX>true</IncludeInVSIX>
       <TargetPath>PLiX.xsd</TargetPath>
-      <InstallRoot>Schemas</InstallRoot>
-      <VSIXSubPath>ORM Solutions\PLiX</VSIXSubPath>
+      <InstallRoot Condition="'$(VSIXPerUser)'!='1'">Schemas</InstallRoot>
+      <VSIXSubPath>$(PLiXSchemaSubpath)ORM Solutions\PLiX</VSIXSubPath>
     </Content>
     <Content Include="..\..\CodeGenCustomTool\PlixRedirect.xsd">
       <Link>PlixRedirect.xsd</Link>
       <IncludeInVSIX>true</IncludeInVSIX>
       <TargetPath>PLiXRedirect.xsd</TargetPath>
-      <InstallRoot>Schemas</InstallRoot>
-      <VSIXSubPath>ORM Solutions\PLiX</VSIXSubPath>
+      <InstallRoot Condition="'$(VSIXPerUser)'!='1'">Schemas</InstallRoot>
+      <VSIXSubPath>$(PLiXSchemaSubpath)ORM Solutions\PLiX</VSIXSubPath>
     </Content>
     <Content Include="..\..\CodeGenCustomTool\PlixLoader.xsd">
       <Link>PlixLoader.xsd</Link>
       <IncludeInVSIX>true</IncludeInVSIX>
       <TargetPath>PLiXLoader.xsd</TargetPath>
-      <InstallRoot>Schemas</InstallRoot>
-      <VSIXSubPath>ORM Solutions\PLiX</VSIXSubPath>
+      <InstallRoot Condition="'$(VSIXPerUser)'!='1'">Schemas</InstallRoot>
+      <VSIXSubPath>$(PLiXSchemaSubpath)ORM Solutions\PLiX</VSIXSubPath>
     </Content>
-    <Content Include="PLiXCatalog.xml">
+    <Content Include="PLiXCatalog$(PLiXCatalogFileSuffix).xml">
       <IncludeInVSIX>true</IncludeInVSIX>
       <TargetPath>PLiXCatalog.xml</TargetPath>
-      <InstallRoot>Schemas</InstallRoot>
+      <InstallRoot Condition="'$(VSIXPerUser)'!='1'">Schemas</InstallRoot>
+      <VSIXSubPath>$(PLiXSchemaSubpath)</VSIXSubPath>
     </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" Condition="'$(VSToolsPath)' != ''" />
   <PropertyGroup>
-    <PreBuildEvent>copy /y "$(ProjectDir)..\$(TargetVisualStudioShortProductName)\source.extension.vsixmanifest" "$(ProjectDir)\source.extension.vsixmanifest"</PreBuildEvent>
-    <PostBuildEvent>del "$(ProjectDir)\source.extension.vsixmanifest"</PostBuildEvent>
+    <PreBuildEvent>CALL copy /y "$(ProjectDir)..\$(TargetVisualStudioShortProductName)\source.extension.vsixmanifest" "$(ProjectDir)\source.extension.vsixmanifest"
+CALL copy /y "$(ProjectDir)PLiXCatalog.xml" "$(ProjectDir)PLiXCatalogLocal.xml"</PreBuildEvent>
+    <PostBuildEvent>CALL del "$(ProjectDir)\source.extension.vsixmanifest"
+CALL del "$(ProjectDir)PLiXCatalogLocal.xml"</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
