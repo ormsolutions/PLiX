@@ -2748,8 +2748,8 @@ schemas:
 			</xsl:if>
 		</xsl:variable>
 		<xsl:variable name="memberExpression" select="string($memberExpressionFragment)"/>
-		<xsl:variable name="compoundMemberExpression" select="$StaticPrefix and $memberExpression and (not($memberNameExpression[self::plx:nameRef] or $callType='property' or $callType='event'))"/>
 		<xsl:variable name="passParams" select="plx:passParam|plx:passParamArray"/>
+		<xsl:variable name="compoundMemberExpression" select="$StaticPrefix and $memberExpression and (not(($memberNameExpression[self::plx:nameRef] and not($passParams[@plxPHP:reference[.='true' or .=1]])) or $callType='property' or $callType='event'))"/>
 		<xsl:variable name="hasParams" select="boolean($passParams) or $PartialHasPreceding or ($leftOfAssign and ($callType='property' or $callType='indexerCall'))"/>
 		<xsl:choose>
 			<xsl:when test="$compoundMemberExpression">
@@ -2913,7 +2913,7 @@ schemas:
 			<xsl:choose>
 				<xsl:when test="$callType='indexerCall' or $callType='property' or $callType='methodCall' or $callType='delegateCall' or string-length($callType)=0">
 					<xsl:choose>
-						<xsl:when test="$DelegateReferenceSupport and $hasParams">
+						<xsl:when test="$DelegateReferenceSupport and $hasParams and $compoundMemberExpression">
 							<xsl:text>[]</xsl:text>
 						</xsl:when>
 						<xsl:otherwise>
@@ -2953,7 +2953,7 @@ schemas:
 									<xsl:with-param name="BracketPair" select="$bracketPair"/>
 									<xsl:with-param name="PartialHasPreceding" select="($PartialHasPreceding or $compoundMemberExpression) and not($DelegateReferenceSupport)"/>
 								</xsl:call-template>
-								<xsl:if test="$DelegateReferenceSupport">
+								<xsl:if test="$DelegateReferenceSupport and $compoundMemberExpression">
 									<xsl:text>)</xsl:text>
 								</xsl:if>
 							</xsl:otherwise>
