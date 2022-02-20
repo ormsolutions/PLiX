@@ -1253,6 +1253,7 @@ schemas:
 		</xsl:call-template>
 		<xsl:choose>
 			<xsl:when test="@const">
+				<xsl:call-template name="RenderVisibility"/>
 				<xsl:call-template name="RenderConst"/>
 			</xsl:when>
 			<xsl:otherwise>
@@ -2825,7 +2826,7 @@ schemas:
 					</xsl:choose>
 				</xsl:when>
 				<xsl:when test="$callType='field' and (self::plx:callStatic or self::plx:callThis[@accessor='static'])">
-					<xsl:if test="not(@dataTypeName='.global')">
+					<xsl:if test="not(@dataTypeName='.global') and not(@plxPHP:const[.='true' or .='1'])">
 						<xsl:text>$</xsl:text>
 					</xsl:if>
 					<xsl:choose>
