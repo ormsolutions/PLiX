@@ -24,7 +24,6 @@ using Microsoft.VisualStudio.TextManager.Interop;
 using Microsoft.VisualStudio;
 using IServiceProvider = System.IServiceProvider;
 using IOleServiceProvider = Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
-using Microsoft.VisualStudio.Package;
 using System.Collections.Generic;
 using System.Xml;
 using System.Xml.Xsl;
