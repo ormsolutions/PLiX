@@ -293,10 +293,22 @@ namespace Neumont.Tools.CodeGeneration.Plix
 			byte[] preamble = Encoding.UTF8.GetPreamble();
 			int bufferLength = bytes.Length + preamble.Length;
 			IntPtr pBuffer = Marshal.AllocCoTaskMem(bufferLength);
-			Marshal.Copy(preamble, 0, pBuffer, preamble.Length);
-			Marshal.Copy(bytes, 0, (IntPtr)((uint)pBuffer + preamble.Length), bytes.Length);
 			rgbOutputFileContents[0] = pBuffer;
 			pcbOutput = (uint)bufferLength;
+			Marshal.Copy(preamble, 0, pBuffer, preamble.Length);
+			if (IntPtr.Size == 8)
+			{
+				pBuffer = (IntPtr)(long)((ulong)pBuffer + (ulong)preamble.Length);
+			}
+			else
+			{
+				// This overflows without the (int) case if the uint is in the range that has the
+				// sign bit set. The same change was applied to 64 bit case above as well. Note that
+				// the IntPtr in question was returned directly from a system API and is definitely in
+				// the range of valid system pointers.
+				pBuffer = (IntPtr)(int)((uint)pBuffer + preamble.Length);
+			}
+			Marshal.Copy(bytes, 0, pBuffer, bytes.Length);
 			myProjectItem = null; // No longer needed
 			return VSConstants.S_OK;
 		}
