@@ -40,6 +40,9 @@
     <PLiXSchemaSubpath>$Schemas\</PLiXSchemaSubpath>
     <PerUserFileSuffix>.PerUser</PerUserFileSuffix>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(VSIXBuildOnly)'=='1'">
+    <DeployExtension>false</DeployExtension>
+  </PropertyGroup>
   <Target Name="PLiXGitVerTarget">
     <Exec Command="$(ProjectDir)..\..\PLiXGitVer.bat" ConsoleToMSBuild="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="PLiXGitVer" />
