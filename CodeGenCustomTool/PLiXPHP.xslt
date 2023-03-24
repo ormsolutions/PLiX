@@ -2756,14 +2756,23 @@ schemas:
 			<xsl:when test="$compoundMemberExpression">
 				<xsl:choose>
 					<xsl:when test="$DelegateReferenceSupport and $hasParams">
-						<xsl:text>call_user_func_array('</xsl:text>
+						<xsl:text>call_user_func_array(</xsl:text>
 					</xsl:when>
 					<xsl:otherwise>
-						<xsl:text>call_user_func('</xsl:text>
+						<xsl:text>call_user_func(</xsl:text>
 					</xsl:otherwise>
 				</xsl:choose>
-				<xsl:value-of select="$StaticPrefix"/>
-				<xsl:text>' . </xsl:text>
+				<xsl:choose>
+					<xsl:when test="$StaticPrefix='self::'">
+						<xsl:text>self::class . '::'</xsl:text>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:text>'</xsl:text>
+						<xsl:value-of select="$StaticPrefix"/>
+						<xsl:text>'</xsl:text>
+					</xsl:otherwise>
+				</xsl:choose>
+				<xsl:text> . </xsl:text>
 			</xsl:when>
 			<xsl:when test="$StaticPrefix">
 				<xsl:value-of select="$StaticPrefix"/>
