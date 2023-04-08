@@ -61,6 +61,42 @@ schemas:
 	</xsl:variable>
 	<xsl:variable name="arrayClose" select="string($arrayCloseFragment)"/>
 
+	<xsl:variable name="namespaceStyleFragment">
+		<!-- Determine up front how we want to render namespaces. If there is a
+		single namespace then we use the declarative style (no block).-->
+		<xsl:variable name="stylesFragment">
+			<xsl:apply-templates select="/plx:root/plx:namespace" mode="NamespaceCount"/>
+		</xsl:variable>
+		<xsl:variable name="styles" select="string($stylesFragment)"/>
+		<xsl:choose>
+			<xsl:when test="$styles='0'">
+				<xsl:text>none</xsl:text>
+			</xsl:when>
+			<xsl:when test="$styles='1'">
+				<xsl:text>one</xsl:text>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:text>block</xsl:text>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:variable>
+	<xsl:template match="plx:namespace" mode="NamespaceCount">
+		<xsl:choose>
+			<xsl:when test="@name='.global'">
+				<xsl:text>0</xsl:text>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:text>1</xsl:text>
+			</xsl:otherwise>
+		</xsl:choose>
+		<xsl:apply-templates select="child::plx:namespace" mode="NamespaceCount"/>
+	</xsl:template>
+	<xsl:variable name="namespaceStyle" select="string($namespaceStyleFragment)"/>
+
+	<!-- A data type qualifier will resolve to a global namespace unless it references an alias.
+	Track registered aliases so we can distinguish. -->
+	<xsl:key name="ImportsByAlias" match="plx:root/plx:namespaceImport" use="@alias"/>
+
 	<xsl:template match="*" mode="LanguageInfo">
 		<plxGen:languageInfo
 			defaultBlockClose="}}"
@@ -329,7 +365,7 @@ schemas:
 				<xsl:text> + </xsl:text>
 			</xsl:when>
 			<xsl:when test="$type='assignNamed'">
-				<xsl:text>=</xsl:text>
+				<xsl:text>: </xsl:text>
 			</xsl:when>
 			<xsl:when test="$type='bitwiseAnd'">
 				<xsl:text> &amp; </xsl:text>
@@ -477,43 +513,23 @@ schemas:
 				</xsl:call-template>
 				<xsl:text>*/</xsl:text>-->
 				<xsl:variable name="initializer" select="plx:arrayInitializer"/>
-				<xsl:choose>
-					<xsl:when test="ancestor::plx:attribute">
-						<xsl:text>{</xsl:text>
-						<xsl:for-each select="$initializer">
-							<xsl:call-template name="RenderArrayInitializer">
-								<xsl:with-param name="Indent" select="$Indent"/>
-								<xsl:with-param name="SingleLine" select="true()"/>
-							</xsl:call-template>
-						</xsl:for-each>
-						<xsl:text>}</xsl:text>
-					</xsl:when>
-					<xsl:otherwise>
-						<xsl:value-of select="$arrayOpen"/>
-						<xsl:for-each select="$initializer">
-							<xsl:call-template name="RenderArrayInitializer">
-								<xsl:with-param name="Indent" select="$Indent"/>
-							</xsl:call-template>
-						</xsl:for-each>
-						<xsl:value-of select="$arrayClose"/>
-					</xsl:otherwise>
-				</xsl:choose>
+				<xsl:variable name="singleLine" select="boolean(ancestor::plx:attribute)"/>
+				<xsl:value-of select="$arrayOpen"/>
+				<xsl:for-each select="$initializer">
+					<xsl:call-template name="RenderArrayInitializer">
+						<xsl:with-param name="Indent" select="$Indent"/>
+						<xsl:with-param name="SingleLine" select="$singleLine"/>
+					</xsl:call-template>
+				</xsl:for-each>
+				<xsl:value-of select="$arrayClose"/>
 			</xsl:when>
 			<xsl:otherwise>
-				<xsl:variable name="inlineAttributeConstructor" select="not(plx:arrayInitializer) and not(substring(@dataTypeName,1,1)='.') and ancestor::plx:attribute"/>
 				<xsl:choose>
 					<xsl:when test="plx:arrayInitializer">
 						<xsl:text>array</xsl:text>
 					</xsl:when>
 					<xsl:otherwise>
-						<xsl:choose>
-							<xsl:when test="$inlineAttributeConstructor">
-								<xsl:text>@</xsl:text>
-							</xsl:when>
-							<xsl:otherwise>
-								<xsl:text>new </xsl:text>
-							</xsl:otherwise>
-						</xsl:choose>
+						<xsl:text>new </xsl:text>
 						<xsl:choose>
 							<xsl:when test="@plxPHP:typeVariable">
 								<xsl:text>$</xsl:text>
@@ -583,7 +599,6 @@ schemas:
 						<!-- Not an array constructor -->
 						<xsl:call-template name="RenderPassParams">
 							<xsl:with-param name="Indent" select="$Indent"/>
-							<xsl:with-param name="RenderEmptyBrackets" select="not($inlineAttributeConstructor)"/>
 						</xsl:call-template>
 					</xsl:otherwise>
 				</xsl:choose>
@@ -941,9 +956,9 @@ schemas:
 	<xsl:template match="plx:delegate">
 		<xsl:param name="Indent"/>
 		<xsl:variable name="returns" select="plx:returns"/>
-		<!--<xsl:call-template name="RenderAttributes">
+		<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>-->
+		</xsl:call-template>
 		<!--<xsl:if test="$returns">
 			<xsl:for-each select="$returns">
 				<xsl:call-template name="RenderAttributes">
@@ -1005,9 +1020,9 @@ schemas:
 	</xsl:template>
 	<xsl:template match="plx:enumItem">
 		<xsl:param name="Indent"/>
-		<!--<xsl:call-template name="RenderAttributes">
+		<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>-->
+		</xsl:call-template>
 		<xsl:text>const </xsl:text>
 		<xsl:value-of select="@name"/>
 		<xsl:for-each select="plx:initialize">
@@ -1067,9 +1082,9 @@ schemas:
 		</xsl:if>
 
 		<!-- With an implicit delegate in place, get back to rendering the event itself -->
-		<!--<xsl:call-template name="RenderAttributes">
+		<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>-->
+		</xsl:call-template>
 		<xsl:if test="not($isSimpleExplicitImplementation)">
 			<xsl:if test="not(parent::plx:interface)">
 				<xsl:call-template name="RenderVisibility"/>
@@ -1243,13 +1258,8 @@ schemas:
 	</xsl:template>
 	<xsl:template match="plx:field">
 		<xsl:param name="Indent"/>
-		<xsl:call-template name="WriteDocBlock">
+		<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
-			<xsl:with-param name="Contents">
-				<xsl:call-template name="RenderAttributes">
-					<xsl:with-param name="Indent" select="$Indent"/>
-				</xsl:call-template>
-			</xsl:with-param>
 		</xsl:call-template>
 		<xsl:choose>
 			<xsl:when test="@const">
@@ -1748,69 +1758,116 @@ schemas:
 		<xsl:value-of select="@name"/>
 	</xsl:template>
 	<xsl:template match="plx:namespace" mode="IndentInfo">
+		<xsl:variable name="useBlockStyle" select="$namespaceStyle='block'"/>
 		<xsl:variable name="blockStyleFragment">
 			<xsl:choose>
-				<xsl:when test="parent::plx:namespace">
-					<xsl:text>blockSibling</xsl:text>
-				</xsl:when>
-				<xsl:when test="@name='.global' and not(preceding-sibling::plx:namespace) and not(following-sibling::plx:namespace) and not(child::plx:namespace)">
-					<xsl:text>nakedBlock</xsl:text>
+				<xsl:when test="$useBlockStyle">
+					<xsl:text>nakedIndentedBlock</xsl:text>
 				</xsl:when>
 				<xsl:otherwise>
-					<xsl:text>blockWithNestedSiblings</xsl:text>
+					<xsl:text>nakedBlockMember</xsl:text>
 				</xsl:otherwise>
 			</xsl:choose>
 		</xsl:variable>
+		<xsl:variable name="nestedNamespaces" select="boolean(child::plx:namespace)"/>
 		<xsl:call-template name="CustomizeIndentInfo">
 			<xsl:with-param name="defaultInfo">
 				<xsl:apply-imports/>
 			</xsl:with-param>
 			<xsl:with-param name="style" select="string($blockStyleFragment)"/>
+			<xsl:with-param name="filterChildrenCallback" select="$nestedNamespaces"/>
+			<xsl:with-param name="afterCloseCallback" select="$nestedNamespaces"/>
+			<xsl:with-param name="closeBlockCallback" select="$useBlockStyle"/>
 		</xsl:call-template>
 	</xsl:template>
-	<xsl:template name="fullNamespaceName">
-		<xsl:variable name="currentName" select="string(@name)"/>
-		<xsl:for-each select="parent::plx:namespace[not(@name='.global')]">
-			<xsl:call-template name="fullNamespaceName"/>
-			<xsl:text>\</xsl:text>
+	<xsl:template match="plx:namespace" mode="FilterChild">
+		<xsl:param name="Child"/>
+		<xsl:if test="$Child[self::plx:namespace]">
+			<xsl:text>1</xsl:text>
+		</xsl:if>
+	</xsl:template>
+	<xsl:template match="plx:namespace" mode="CloseBlock">
+		<xsl:param name="Indent"/>
+		<xsl:text>}</xsl:text>
+		<xsl:value-of select="$NewLine"/>
+	</xsl:template>
+	<xsl:template match="plx:namespace" mode="AfterClose">
+		<xsl:param name="Indent"/>
+		<xsl:for-each select="child::plx:namespace">
+			<xsl:call-template name="RenderElement">
+				<xsl:with-param name="Indent" select="$Indent"/>
+				<xsl:with-param name="Statement" select="false()"/>
+			</xsl:call-template>
 		</xsl:for-each>
+	</xsl:template>
+	<xsl:template name="fullNamespaceName">
+		<xsl:param name="incorporateParents" select="true()"/>
+		<xsl:variable name="currentName" select="string(@name)"/>
+		<xsl:if test="$incorporateParents">
+			<xsl:for-each select="parent::plx:namespace[not(@name='.global')]">
+				<xsl:call-template name="fullNamespaceName"/>
+				<xsl:text>\</xsl:text>
+			</xsl:for-each>
+		</xsl:if>
 		<xsl:value-of select="translate($currentName,'.','\')"/>
 	</xsl:template>
 	<xsl:template match="plx:namespace">
 		<xsl:param name="Indent"/>
-		<xsl:variable name="isGlobal" select="@name='.global'"/>
-		<xsl:variable name="imports" select="ancestor::plx:root/plx:namespaceImport"/>
-		<xsl:variable name="renderName" select="parent::plx:namespace or not($isGlobal) or preceding-sibling::plx:namespace or following-sibling::plx:namespace or child::plx:namespace"/>
-		<xsl:if test="$renderName">
+		<!-- The 'one' namespace style will not be global and will not be nested (one global is not rendered, can't nest with one element) -->
+		<xsl:if test="not($namespaceStyle='none')">
+			<xsl:variable name="singleNamespace" select="$namespaceStyle='one'"/>
+			<xsl:variable name="name" select="string(@name)"/>
+			<xsl:variable name="isGlobal" select="$name='.global'"/>
 			<xsl:text>namespace </xsl:text>
-			<xsl:if test="not($isGlobal)">
-				<xsl:call-template name="fullNamespaceName"/>
-			</xsl:if>
+			<xsl:choose>
+				<xsl:when test="$name='.global'">
+					<!-- This can't be the 'one' case, which must be a named namespace (or it would be none). -->
+					<xsl:text>{</xsl:text>
+				</xsl:when>
+				<xsl:otherwise>
+					<!-- Translate dot notation and resolve parent namespaces. -->
+					<xsl:call-template name="fullNamespaceName"/>
+					<xsl:choose>
+						<xsl:when test="$namespaceStyle='one'">
+							<xsl:text>;</xsl:text>
+							<xsl:value-of select="$NewLine"/>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:text> {</xsl:text>
+						</xsl:otherwise>
+					</xsl:choose>
+				</xsl:otherwise>
+			</xsl:choose>
+
+			<!-- Render imports inside the namespace statement for each namespace. -->
+			<xsl:variable name="imports" select="ancestor::plx:root/plx:namespaceImport"/>
 			<xsl:if test="$imports">
-				<xsl:text>;</xsl:text>
 				<xsl:value-of select="$NewLine"/>
-			</xsl:if>
-		</xsl:if>
-		<xsl:if test="$imports">
-			<xsl:for-each select="$imports">
-				<xsl:call-template name="RenderElement">
-					<xsl:with-param name="Indent" select="$Indent"/>
-					<xsl:with-param name="Statement" select="not($renderName) or position()!=last()"/>
-				</xsl:call-template>
-			</xsl:for-each>
-			<!-- Brace will go after the last import, don't try to switch a brace style for this. -->
-			<xsl:if test="$renderName">
-				<xsl:text>;</xsl:text>
+				<xsl:variable name="nextIndentFragment">
+					<xsl:value-of select="$Indent"/>
+					<xsl:if test="$namespaceStyle='block'">
+						<xsl:value-of select="$SingleIndent"/>
+					</xsl:if>
+				</xsl:variable>
+				<xsl:variable name="nextIndent" select="string($nextIndentFragment)"/>
+				<xsl:for-each select="$imports">
+					<xsl:call-template name="RenderElement">
+						<xsl:with-param name="Indent" select="$nextIndent"/>
+						<xsl:with-param name="Statement" select="true()"/>
+					</xsl:call-template>
+				</xsl:for-each>
 			</xsl:if>
 		</xsl:if>
 	</xsl:template>
 	<xsl:template match="plx:namespaceImport">
 		<xsl:text>use </xsl:text>
+		<xsl:call-template name="fullNamespaceName">
+			<xsl:with-param name="incorporateParents" select="false()"/>
+		</xsl:call-template>
 		<xsl:if test="string-length(@alias)">
+			<xsl:text> as </xsl:text>
 			<xsl:value-of select="@alias"/>
-			<xsl:text> = </xsl:text>
 		</xsl:if>
-		<xsl:call-template name="fullNamespaceName"/>
 	</xsl:template>
 	<xsl:template match="plx:nullKeyword">
 		<xsl:text>null</xsl:text>
@@ -1916,17 +1973,17 @@ schemas:
 					<xsl:copy-of select="plx:attribute"/>
 					<plx:attribute dataTypeName="SpecialName" dataTypeQualifier="System.Runtime.CompilerServices"/>
 				</xsl:variable>
-				<!--<xsl:for-each select="exsl:node-set($modifiedAttributesFragment)">
+				<xsl:for-each select="exsl:node-set($modifiedAttributesFragment)">
 					<xsl:call-template name="RenderAttributes">
 						<xsl:with-param name="Indent" select="$Indent"/>
 					</xsl:call-template>
-				</xsl:for-each>-->
+				</xsl:for-each>
 			</xsl:when>
-			<!--<xsl:otherwise>
+			<xsl:otherwise>
 				<xsl:call-template name="RenderAttributes">
 					<xsl:with-param name="Indent" select="$Indent"/>
 				</xsl:call-template>
-			</xsl:otherwise>-->
+			</xsl:otherwise>
 		</xsl:choose>
 		<xsl:variable name="returns" select="plx:returns"/>
 		<!--<xsl:for-each select="$returns">
@@ -2026,9 +2083,9 @@ schemas:
 	</xsl:template>
 	<xsl:template match="plx:property">
 		<xsl:param name="Indent"/>
-		<!--<xsl:call-template name="RenderAttributes">
+		<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
-		</xsl:call-template>-->
+		</xsl:call-template>
 		<xsl:variable name="returns" select="plx:returns"/>
 		<!--<xsl:for-each select="$returns">
 			<xsl:call-template name="RenderAttributes">
@@ -2262,18 +2319,9 @@ schemas:
 		<xsl:variable name="rawValue">
 			<xsl:call-template name="RenderRawString"/>
 		</xsl:variable>
-		<xsl:choose>
-			<xsl:when test="ancestor::plx:attribute">
-				<xsl:call-template name="RenderAttributeString">
-					<xsl:with-param name="String" select="string($rawValue)"/>
-				</xsl:call-template>
-			</xsl:when>
-			<xsl:otherwise>
-				<xsl:call-template name="RenderString">
-					<xsl:with-param name="String" select="string($rawValue)"/>
-				</xsl:call-template>
-			</xsl:otherwise>
-		</xsl:choose>
+		<xsl:call-template name="RenderString">
+			<xsl:with-param name="String" select="string($rawValue)"/>
+		</xsl:call-template>
 	</xsl:template>
 	<xsl:template match="plx:structure">
 		<xsl:param name="Indent"/>
@@ -2469,7 +2517,6 @@ schemas:
 		<xsl:param name="Indent"/>
 		<xsl:call-template name="WriteDocBlock">
 			<xsl:with-param name="Indent"/>
-			<xsl:with-param name="LineAfter" select="false()"/>
 			<xsl:with-param name="Contents">
 				<xsl:variable name="docBodyFragment">
 					<xsl:apply-imports/>
@@ -2480,19 +2527,12 @@ schemas:
 					<xsl:value-of select="$NewLine"/>
 					<xsl:value-of select="$Indent"/>
 				</xsl:if>
-				<xsl:for-each select="../..">
-					<xsl:call-template name="RenderAttributes">
-						<xsl:with-param name="Indent" select="$Indent"/>
-						<xsl:with-param name="InvokedByDocComment" select="true()"/>
-					</xsl:call-template>
-				</xsl:for-each>
 			</xsl:with-param>
 		</xsl:call-template>
 	</xsl:template>
 	<xsl:template name="WriteDocBlock">
 		<xsl:param name="Indent"/>
 		<xsl:param name="Contents"/>
-		<xsl:param name="LineAfter" select="true()"/>
 		<xsl:variable name="contentsString" select="string($Contents)"/>
 		<xsl:if test="$contentsString">
 			<xsl:text>/**</xsl:text>
@@ -2500,10 +2540,6 @@ schemas:
 			<xsl:value-of select="$Indent"/>
 			<xsl:value-of select="$contentsString"/>
 			<xsl:text>*/</xsl:text>
-			<xsl:if test="$LineAfter">
-				<xsl:value-of select="$NewLine"/>
-				<xsl:value-of select="$Indent"/>
-			</xsl:if>
 		</xsl:if>
 	</xsl:template>
 	<xsl:template name="RenderAttribute">
@@ -2586,60 +2622,51 @@ schemas:
 		</xsl:choose>
 	</xsl:template>
 	<xsl:template match="plx:attribute">
-		<!-- Note that this is called by the preview window only, provide a mockup. -->
-		<xsl:variable name="dummyFragment">
-			<plx:root>
-				<xsl:copy-of select="."/>
-			</plx:root>
-		</xsl:variable>
-		<xsl:text>/**</xsl:text>
-		<xsl:value-of select="$NewLine"/>
-		<xsl:for-each select="exsl:node-set($dummyFragment)/*">
-			<xsl:call-template name="RenderAttributes">
-				<xsl:with-param name="Indent" select="''"/>
-				<xsl:with-param name="Inline" select="true()"/>
-			</xsl:call-template>
-		</xsl:for-each>
-		<xsl:value-of select="$NewLine"/>
-		<xsl:text>*/</xsl:text>
+		<xsl:param name="Indent"/>
+		<xsl:text>#[</xsl:text>
+		<xsl:call-template name="RenderAttribute">
+			<xsl:with-param name="Indent" select="$Indent"/>
+		</xsl:call-template>
+		<xsl:text>]</xsl:text>
 	</xsl:template>
 	<xsl:template name="RenderAttributes">
 		<xsl:param name="Indent"/>
 		<xsl:param name="Inline" select="false()"/>
 		<xsl:param name="Prefix" select="''"/>
-		<xsl:param name="InvokedByDocComment" select="false()"/>
-		<xsl:if test="$InvokedByDocComment or not(plx:leadingInfo/plx:docComment)">
-			<xsl:choose>
-				<xsl:when test="$Inline">
-					<!--Put them all in a single bracket-->
-					<xsl:for-each select="plx:attribute">
-						<xsl:choose>
-							<xsl:when test="position()=1">
-								<xsl:text>* @</xsl:text>
-							</xsl:when>
-							<xsl:otherwise>
-								<xsl:text> @</xsl:text>
-							</xsl:otherwise>
-						</xsl:choose>
-						<xsl:value-of select="$Prefix"/>
-						<xsl:call-template name="RenderAttribute">
-							<xsl:with-param name="Indent" select="$Indent"/>
-						</xsl:call-template>
-					</xsl:for-each>
-				</xsl:when>
-				<xsl:otherwise>
-					<xsl:for-each select="plx:attribute">
-						<xsl:text>* @</xsl:text>
-						<xsl:value-of select="$Prefix"/>
-						<xsl:call-template name="RenderAttribute">
-							<xsl:with-param name="Indent" select="$Indent"/>
-						</xsl:call-template>
-						<xsl:value-of select="$NewLine"/>
-						<xsl:value-of select="$Indent"/>
-					</xsl:for-each>
-				</xsl:otherwise>
-			</xsl:choose>
-		</xsl:if>
+		<xsl:choose>
+			<xsl:when test="$Inline">
+				<!--Put them all in a single bracket-->
+				<xsl:for-each select="plx:attribute">
+					<xsl:choose>
+						<xsl:when test="position()=1">
+							<xsl:text>#[</xsl:text>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:text>, </xsl:text>
+						</xsl:otherwise>
+					</xsl:choose>
+					<xsl:value-of select="$Prefix"/>
+					<xsl:call-template name="RenderAttribute">
+						<xsl:with-param name="Indent" select="$Indent"/>
+					</xsl:call-template>
+					<xsl:if test="position()=last()">
+						<xsl:text>] </xsl:text>
+					</xsl:if>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:for-each select="plx:attribute">
+					<xsl:text>#[</xsl:text>
+					<xsl:value-of select="$Prefix"/>
+					<xsl:call-template name="RenderAttribute">
+						<xsl:with-param name="Indent" select="$Indent"/>
+					</xsl:call-template>
+					<xsl:text>]</xsl:text>
+					<xsl:value-of select="$NewLine"/>
+					<xsl:value-of select="$Indent"/>
+				</xsl:for-each>
+			</xsl:otherwise>
+		</xsl:choose>
 	</xsl:template>
 	<xsl:template name="RenderArrayDescriptor">
 		<xsl:text>[</xsl:text>
@@ -3324,64 +3351,6 @@ schemas:
 			</xsl:when>
 		</xsl:choose>
 	</xsl:template>
-	<xsl:template name="RenderAttributeString">
-		<!-- An attribute string is double quoted with inner double quotes doubled. There are no expansions. -->
-		<xsl:param name="String"/>
-		<xsl:param name="AddQuotes" select="true()"/>
-		<!-- Render with literal (single-quoted) strings. We aren't doing expansions at this point. -->
-		<xsl:variable name="quote" select="'&quot;'"/>
-		<xsl:choose>
-			<xsl:when test="string-length($String)">
-				<xsl:variable name="firstChar" select="substring($String,1,1)"/>
-				<xsl:choose>
-					<xsl:when test='$quote=$firstChar'>
-						<xsl:if test="$AddQuotes">
-							<xsl:text>&quot;</xsl:text>
-						</xsl:if>
-						<xsl:text>&quot;&quot;</xsl:text>
-						<xsl:call-template name="RenderAttributeString">
-							<xsl:with-param name="String" select="substring($String,2)"/>
-							<xsl:with-param name="AddQuotes" select="false()"/>
-						</xsl:call-template>
-					</xsl:when>
-					<xsl:otherwise>
-						<xsl:variable name="beforeFragment">
-							<xsl:variable name="beforeQuote" select='substring-before($String,$quote)'/>
-							<xsl:if test="$beforeQuote">
-								<xsl:value-of select="$beforeQuote"/>
-							</xsl:if>
-						</xsl:variable>
-						<xsl:variable name="before" select="string($beforeFragment)"/>
-						<xsl:choose>
-							<xsl:when test="$before">
-								<xsl:if test="$AddQuotes">
-									<xsl:text>&quot;</xsl:text>
-								</xsl:if>
-								<xsl:value-of select="$before"/>
-								<xsl:text>&quot;&quot;</xsl:text>
-								<xsl:call-template name="RenderString">
-									<xsl:with-param name="String" select="substring($String,string-length($before)+2)"/>
-									<xsl:with-param name="AddQuotes" select="false()"/>
-								</xsl:call-template>
-							</xsl:when>
-							<xsl:otherwise>
-								<xsl:if test="$AddQuotes">
-									<xsl:text>&quot;</xsl:text>
-								</xsl:if>
-								<xsl:value-of select="$String"/>
-							</xsl:otherwise>
-						</xsl:choose>
-					</xsl:otherwise>
-				</xsl:choose>
-				<xsl:if test="$AddQuotes">
-					<xsl:text>&quot;</xsl:text>
-				</xsl:if>
-			</xsl:when>
-			<xsl:when test="$AddQuotes">
-				<xsl:text>&quot;&quot;</xsl:text>
-			</xsl:when>
-		</xsl:choose>
-	</xsl:template>
 	<xsl:template name="RenderType">
 		<xsl:param name="RenderArray" select="true()"/>
 		<xsl:param name="DataTypeName" select="@dataTypeName"/>
@@ -3416,7 +3385,9 @@ schemas:
 				<!--<xsl:value-of select="@dataTypeName"/>-->
 				<xsl:variable name="qualifier" select="string(@dataTypeQualifier)"/>
 				<xsl:if test="$qualifier">
-					<xsl:text>\</xsl:text>
+					<xsl:if test="not(key('ImportsByAlias',$qualifier))">
+						<xsl:text>\</xsl:text>
+					</xsl:if>
 					<xsl:if test="not($qualifier='.global')">
 						<xsl:value-of select="translate($qualifier,'.','\')"/>
 						<xsl:text>\</xsl:text>
@@ -3672,13 +3643,8 @@ schemas:
 	<xsl:template name="RenderTypeDefinition">
 		<xsl:param name="Indent"/>
 		<xsl:param name="TypeKeyword" select="local-name()"/>
-		<xsl:call-template name="WriteDocBlock">
+		<xsl:call-template name="RenderAttributes">
 			<xsl:with-param name="Indent" select="$Indent"/>
-			<xsl:with-param name="Contents">
-				<xsl:call-template name="RenderAttributes">
-					<xsl:with-param name="Indent" select="$Indent"/>
-				</xsl:call-template>
-			</xsl:with-param>
 		</xsl:call-template>
 		<!--<xsl:call-template name="RenderVisibility"/>-->
 		<xsl:call-template name="RenderReplacesName"/>
@@ -4135,14 +4101,15 @@ schemas:
 		<xsl:text>&lt;?php</xsl:text>
 		<xsl:value-of select="$NewLine"/>
 		<xsl:value-of select="$Indent"/>
-		<!-- namespaceImports are rendered with namespaces if there are non-global namespaces. -->
-		<xsl:variable name="hasRenderedNamespaces" select="child::plx:namespace[not(@name='.global')]"/>
-		<xsl:for-each select="child::*[not($hasRenderedNamespaces) or not(self::plx:namespaceImport)]">
+		<!-- namespaceImports are rendered with namespaces if there are non-global namespaces. This has already been verified. -->
+		<xsl:variable name="noNamespace" select="$namespaceStyle='none'"/>
+		<xsl:for-each select="child::*[not(self::plx:namespaceImport) or $noNamespace]">
 			<xsl:call-template name="RenderElement">
 				<xsl:with-param name="Indent" select="$Indent"/>
 				<xsl:with-param name="Statement" select="true()"/>
 			</xsl:call-template>
 		</xsl:for-each>
-		<xsl:text>?&gt;</xsl:text>
+		<!-- Don't use the close tag unless there is trailing html. -->
+		<!--<xsl:text>?&gt;</xsl:text>-->
 	</xsl:template>
 </xsl:stylesheet>

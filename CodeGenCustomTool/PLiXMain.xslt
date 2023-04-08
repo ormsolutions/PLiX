@@ -69,7 +69,12 @@
 				</xs:enumeration>
 				<xs:enumeration value="nakedBlock">
 					<xs:annotation>
-						<xs:documentation>An element that acts like a block in that it contains elements for its parent block, but does not imply additional indentation.</xs:documentation>
+						<xs:documentation>An element that acts like a block in that it contains elements for its parent block, but does not imply additional indentation and is not itself rendered.</xs:documentation>
+					</xs:annotation>
+				</xs:enumeration>
+				<xs:enumeration value="nakedBlockMember">
+					<xs:annotation>
+						<xs:documentation>An element that acts like a block in that it contains elements for its parent block, but does not imply additional indentation. The member itself is rendered.</xs:documentation>
 					</xs:annotation>
 				</xs:enumeration>
 				<xs:enumeration value="nakedIndentedBlock">
@@ -115,6 +120,16 @@
 				<xs:attribute name="closeBlockCallback" type="xs:boolean" use="optional">
 					<xs:annotation>
 						<xs:documentation>Set to true if a template with the CloseBlock mode should be called for the element after its children are rendered. The template will be called with the output stream indented to the block level. The custom callback should finish with a &lt;xsl:value-of select="$NewLine"/&gt;. If the style is nakedIndentedBlock, then the stream is not pre-indented and the provided Indent level is the indent level of the children, not the current element.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="filterChildrenCallback" type="xs:boolean" use="optional">
+					<xs:annotation>
+						<xs:documentation>Set to true if a template with the FilterChild mode should be called with a 'Child' parameter before each child is rendered. A non-empty text return will filter the child.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="afterCloseCallback" type="xs:boolean" use="optional">
+					<xs:annotation>
+						<xs:documentation>Set to true if a template with the AfterClose mode should be called for the element after it is fully rendered. The template will be called with the output stream indented at same level as the original call. This can be used along with FilterChild to recursively render child elements as siblings.</xs:documentation>
 					</xs:annotation>
 				</xs:attribute>
 				<!-- Additional attributes here should have corresponding parameters in the CustomizeIndentInfo template below -->
@@ -294,6 +309,8 @@
 		<xsl:param name="closeBlockCallback"/>
 		<xsl:param name="statementClose"/>
 		<xsl:param name="statementNotClosed"/>
+		<xsl:param name="filterChildrenCallback"/>
+		<xsl:param name="afterCloseCallback"/>
 		<xsl:for-each select="exsl:node-set($defaultInfo)/child::*">
 			<xsl:copy>
 				<xsl:copy-of select="@*"/>
@@ -326,6 +343,16 @@
 						</xsl:if>
 					</xsl:otherwise>
 				</xsl:choose>
+				<xsl:if test="$filterChildrenCallback">
+					<xsl:attribute name="filterChildrenCallback">
+						<xsl:value-of select="$filterChildrenCallback"/>
+					</xsl:attribute>
+				</xsl:if>
+				<xsl:if test="$afterCloseCallback">
+					<xsl:attribute name="afterCloseCallback">
+						<xsl:value-of select="$afterCloseCallback"/>
+					</xsl:attribute>
+				</xsl:if>
 			</xsl:copy>
 		</xsl:for-each>
 	</xsl:template>
@@ -622,6 +649,20 @@
 			<xsl:text>' but did not define a template with the CloseBlock mode for an element with this type.</xsl:text>
 		</xsl:message>-->
 	</xsl:template>
+	<xsl:template match="*" mode="AfterClose">
+		<xsl:text>UNRENDERED_AFTER_CLOSE-</xsl:text>
+		<xsl:value-of select="local-name()"/>
+		<xsl:value-of select="$NewLine"/>
+		<!--<xsl:message terminate="no">
+			<xsl:text>The language handler specified an AfterClose callback for '</xsl:text>
+			<xsl:value-of select="name()"/>
+			<xsl:text>' but did not define a template with the AfterClose mode for an element with this type.</xsl:text>
+		</xsl:message>-->
+	</xsl:template>
+	<xsl:template match="*" mode="FilterChild">
+		<!-- Intentionally empty to block default recursion in case the formatter doesn't match the
+		mode signalled with filterChildrenCallback sent to CustomizeIndentInfo. -->
+	</xsl:template>
 	<xsl:template name="RenderElement">
 		<xsl:param name="Indent"/>
 		<xsl:param name="LocalItemKey"/>
@@ -798,9 +839,10 @@
 			</xsl:if>
 		</xsl:variable>
 		<xsl:variable name="nextLocalItemKey" select="string($nextLocalItemKeyFragment)"/>
+		<xsl:variable name="filterChildren" select="boolean($IndentInfo[@filterChildrenCallback='true' or @filterChildrenCallback='1'])"/>
 		<xsl:choose>
 			<xsl:when test="not($ProcessSecondaryBlock) and $IndentStyle='secondaryBlock'"/>
-			<xsl:when test="$leadBlock or $IndentStyle='blockMember' or $IndentStyle='nakedIndentedBlock'">
+			<xsl:when test="$leadBlock or $IndentStyle='blockMember' or $IndentStyle='nakedIndentedBlock' or $IndentStyle='nakedBlockMember'">
 				<xsl:variable name="updateCaseLabels" select="$RequireCaseLabels and self::plx:switch"/>
 				<xsl:variable name="caseLabelsFragment">
 					<xsl:if test="$updateCaseLabels">
@@ -832,7 +874,7 @@
 				</xsl:variable>
 				<xsl:variable name="newCaseLabels" select="exsl:node-set($caseLabelsFragment)/child::*[not(following-sibling::*/@condition=@condition)]"/>
 				<xsl:variable name="hasInfo" select="not($leadBlock)"/>
-				<xsl:variable name="isNakedIndent" select="$IndentStyle='nakedIndentedBlock'"/>
+				<xsl:variable name="isNakedIndent" select="$IndentStyle='nakedIndentedBlock' or $IndentStyle='nakedBlockMember'"/>
 				<xsl:if test="$hasInfo">
 					<xsl:for-each select="(plx:leadingInfo | plx:blockLeadingInfo)/child::plx:*">
 						<xsl:call-template name="RenderElement">
@@ -851,7 +893,7 @@
 							<xsl:with-param name="Indent" select="$Indent"/>
 							<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
 							<!-- The next case labels don't apply until we're inside the switch scope, so always
-						 use the original case labels here. -->
+							use the original case labels here. -->
 							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
 						</xsl:apply-templates>
 					</xsl:when>
@@ -860,7 +902,7 @@
 							<xsl:with-param name="Indent" select="$Indent"/>
 							<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
 							<!-- The next case labels don't apply until we're inside the switch scope, so always
-						 use the original case labels here. -->
+							use the original case labels here. -->
 							<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
 						</xsl:apply-templates>
 					</xsl:otherwise>
@@ -881,26 +923,68 @@
 						<xsl:value-of select="$NewLine"/>
 					</xsl:otherwise>
 				</xsl:choose>
-				<xsl:variable name="nextIndent" select="concat($Indent,$SingleIndent)"/>
+				<xsl:variable name="nextIndentFragment">
+					<xsl:choose>
+						<xsl:when test="$IndentStyle='nakedBlockMember'">
+							<xsl:value-of select="$Indent"/>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:value-of select="$Indent"/>
+							<xsl:value-of select="$SingleIndent"/>
+						</xsl:otherwise>
+					</xsl:choose>
+				</xsl:variable>
+				<xsl:variable name="nextIndent" select="string($nextIndentFragment)"/>
 				<xsl:choose>
 					<!-- These two blocks are exactly the same except for the CaseLabels with-param values -->
 					<xsl:when test="$updateCaseLabels">
-						<xsl:for-each select="child::*">
-							<xsl:call-template name="RenderElement">
-								<xsl:with-param name="Indent" select="$nextIndent"/>
-								<xsl:with-param name="Statement" select="true()"/>
-								<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
-								<xsl:with-param name="CaseLabels" select="$newCaseLabels"/>
-							</xsl:call-template>
-							<xsl:if test="position()=last() and $IndentStyle='blockWithNestedSiblings'">
-								<xsl:for-each select="plx:blockTrailingInfo/child::*">
-									<xsl:call-template name="RenderElement">
-										<xsl:with-param name="Indent" select="$Indent"/>
-										<xsl:with-param name="Statement" select="true()"/>
-									</xsl:call-template>
+						<xsl:choose>
+							<!-- These two blocks are also the same except for child filtering. -->
+							<xsl:when test="$filterChildren">
+								<xsl:variable name="parent" select="."/>
+								<xsl:for-each select="child::*">
+									<xsl:variable name="filterFragment">
+										<xsl:apply-templates select="$parent" mode="FilterChild">
+											<xsl:with-param name="Child" select="."/>
+										</xsl:apply-templates>
+									</xsl:variable>
+									<xsl:if test="not(string($filterFragment))">
+										<xsl:call-template name="RenderElement">
+											<xsl:with-param name="Indent" select="$nextIndent"/>
+											<xsl:with-param name="Statement" select="true()"/>
+											<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+											<xsl:with-param name="CaseLabels" select="$newCaseLabels"/>
+										</xsl:call-template>
+									</xsl:if>
+									<xsl:if test="position()=last() and $IndentStyle='blockWithNestedSiblings'">
+										<xsl:for-each select="plx:blockTrailingInfo/child::*">
+											<xsl:call-template name="RenderElement">
+												<xsl:with-param name="Indent" select="$Indent"/>
+												<xsl:with-param name="Statement" select="true()"/>
+											</xsl:call-template>
+										</xsl:for-each>
+									</xsl:if>
 								</xsl:for-each>
-							</xsl:if>
-						</xsl:for-each>
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:for-each select="child::*">
+									<xsl:call-template name="RenderElement">
+										<xsl:with-param name="Indent" select="$nextIndent"/>
+										<xsl:with-param name="Statement" select="true()"/>
+										<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+										<xsl:with-param name="CaseLabels" select="$newCaseLabels"/>
+									</xsl:call-template>
+									<xsl:if test="position()=last() and $IndentStyle='blockWithNestedSiblings'">
+										<xsl:for-each select="plx:blockTrailingInfo/child::*">
+											<xsl:call-template name="RenderElement">
+												<xsl:with-param name="Indent" select="$Indent"/>
+												<xsl:with-param name="Statement" select="true()"/>
+											</xsl:call-template>
+										</xsl:for-each>
+									</xsl:if>
+								</xsl:for-each>
+							</xsl:otherwise>
+						</xsl:choose>
 						<xsl:if test="$IndentStyle='blockWithSecondarySiblings'">
 							<xsl:call-template name="RenderSecondaryBlocks">
 								<xsl:with-param name="Indent" select="$nextIndent"/>
@@ -912,22 +996,63 @@
 						</xsl:if>
 					</xsl:when>
 					<xsl:otherwise>
-						<xsl:for-each select="child::*">
-							<xsl:call-template name="RenderElement">
-								<xsl:with-param name="Indent" select="$nextIndent"/>
-								<xsl:with-param name="Statement" select="true()"/>
-								<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
-								<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
-							</xsl:call-template>
-							<xsl:if test="position()=last() and $IndentStyle='blockWithNestedSiblings'">
-								<xsl:for-each select="plx:blockTrailingInfo/child::*">
-									<xsl:call-template name="RenderElement">
-										<xsl:with-param name="Indent" select="$Indent"/>
-										<xsl:with-param name="Statement" select="true()"/>
-									</xsl:call-template>
+						<xsl:choose>
+							<!-- These two blocks are also the same except for child filtering. -->
+							<xsl:when test="$filterChildren">
+								<xsl:variable name="parent" select="."/>
+								<xsl:for-each select="child::*">
+									<xsl:variable name="filterFragment">
+										<xsl:apply-templates select="$parent" mode="FilterChild">
+											<xsl:with-param name="Child" select="."/>
+										</xsl:apply-templates>
+									</xsl:variable>
+									<xsl:if test="not(string($filterFragment))">
+										<xsl:call-template name="RenderElement">
+											<xsl:with-param name="Indent" select="$nextIndent"/>
+											<xsl:with-param name="Statement" select="true()"/>
+											<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+											<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+										</xsl:call-template>
+									</xsl:if>
+									<xsl:if test="position()=last() and $IndentStyle='blockWithNestedSiblings'">
+										<xsl:for-each select="plx:blockTrailingInfo/child::*">
+											<xsl:variable name="filterChildFragment2">
+												<xsl:apply-templates select="." mode="BlockChildRender"/>
+											</xsl:variable>
+											<xsl:if test="not(string($filterChildFragment2))">
+												<xsl:call-template name="RenderElement">
+													<xsl:with-param name="Indent" select="$Indent"/>
+													<xsl:with-param name="Statement" select="true()"/>
+												</xsl:call-template>
+											</xsl:if>
+										</xsl:for-each>
+									</xsl:if>
 								</xsl:for-each>
-							</xsl:if>
-						</xsl:for-each>
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:for-each select="child::*">
+									<xsl:call-template name="RenderElement">
+										<xsl:with-param name="Indent" select="$nextIndent"/>
+										<xsl:with-param name="Statement" select="true()"/>
+										<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+										<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+									</xsl:call-template>
+									<xsl:if test="position()=last() and $IndentStyle='blockWithNestedSiblings'">
+										<xsl:for-each select="plx:blockTrailingInfo/child::*">
+											<xsl:variable name="filterChildFragment2">
+												<xsl:apply-templates select="." mode="BlockChildRender"/>
+											</xsl:variable>
+											<xsl:if test="not(string($filterChildFragment2))">
+												<xsl:call-template name="RenderElement">
+													<xsl:with-param name="Indent" select="$Indent"/>
+													<xsl:with-param name="Statement" select="true()"/>
+												</xsl:call-template>
+											</xsl:if>
+										</xsl:for-each>
+									</xsl:if>
+								</xsl:for-each>
+							</xsl:otherwise>
+						</xsl:choose>
 						<xsl:if test="$IndentStyle='blockWithSecondarySiblings'">
 							<xsl:call-template name="RenderSecondaryBlocks">
 								<xsl:with-param name="Indent" select="$nextIndent"/>
@@ -1123,29 +1248,79 @@
 						<xsl:value-of select="$NewLine"/>
 					</xsl:otherwise>
 				</xsl:choose>
-				<xsl:for-each select="child::*">
-					<xsl:call-template name="RenderElement">
-						<xsl:with-param name="Indent" select="$Indent"/>
-						<xsl:with-param name="Statement" select="true()"/>
-						<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
-						<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
-					</xsl:call-template>
-				</xsl:for-each>
+				<xsl:choose>
+					<xsl:when test="$filterChildren">
+						<xsl:variable name="parent" select="."/>
+						<xsl:for-each select="child::*">
+							<xsl:variable name="filterFragment">
+								<xsl:apply-templates select="$parent" mode="FilterChild">
+									<xsl:with-param name="Child" select="."/>
+								</xsl:apply-templates>
+							</xsl:variable>
+							<xsl:if test="not(string($filterFragment))">
+								<xsl:call-template name="RenderElement">
+									<xsl:with-param name="Indent" select="$Indent"/>
+									<xsl:with-param name="Statement" select="true()"/>
+									<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+									<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+								</xsl:call-template>
+							</xsl:if>
+						</xsl:for-each>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:for-each select="child::*">
+							<xsl:call-template name="RenderElement">
+								<xsl:with-param name="Indent" select="$Indent"/>
+								<xsl:with-param name="Statement" select="true()"/>
+								<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+								<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+							</xsl:call-template>
+						</xsl:for-each>
+					</xsl:otherwise>
+				</xsl:choose>
 			</xsl:when>
 			<xsl:when test="$IndentStyle='nakedBlock'">
-				<xsl:for-each select="child::*">
-					<xsl:call-template name="RenderElement">
-						<xsl:with-param name="Indent" select="$Indent"/>
-						<xsl:with-param name="Statement" select="$Statement"/>
-						<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
-						<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
-					</xsl:call-template>
-				</xsl:for-each>
+				<xsl:choose>
+					<xsl:when test="$filterChildren">
+						<xsl:variable name="parent" select="."/>
+						<xsl:for-each select="child::*">
+							<xsl:variable name="filterFragment">
+								<xsl:apply-templates select="$parent" mode="FilterChild">
+									<xsl:with-param name="Child" select="."/>
+								</xsl:apply-templates>
+							</xsl:variable>
+							<xsl:if test="not(string($filterFragment))">
+								<xsl:call-template name="RenderElement">
+									<xsl:with-param name="Indent" select="$Indent"/>
+									<xsl:with-param name="Statement" select="$Statement"/>
+									<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+									<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+								</xsl:call-template>
+							</xsl:if>
+						</xsl:for-each>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:for-each select="child::*">
+							<xsl:call-template name="RenderElement">
+								<xsl:with-param name="Indent" select="$Indent"/>
+								<xsl:with-param name="Statement" select="$Statement"/>
+								<xsl:with-param name="LocalItemKey" select="$nextLocalItemKey"/>
+								<xsl:with-param name="CaseLabels" select="$CaseLabels"/>
+							</xsl:call-template>
+						</xsl:for-each>
+					</xsl:otherwise>
+				</xsl:choose>
 			</xsl:when>
 			<xsl:when test="$IndentStyle='blankLine'">
 				<xsl:value-of select="$NewLine"/>
 			</xsl:when>
 		</xsl:choose>
+		<xsl:variable name="afterCloseCallback" select="$IndentInfo/@afterCloseCallback"/>
+		<xsl:if test="$afterCloseCallback='true' or $afterCloseCallback='1'">
+			<xsl:apply-templates select="." mode="AfterClose">
+				<xsl:with-param name="Indent" select="$Indent"/>
+			</xsl:apply-templates>
+		</xsl:if>
 	</xsl:template>
 	<xsl:template name="RenderSecondaryBlocks">
 		<xsl:param name="Indent"/>
