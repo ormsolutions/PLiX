@@ -223,6 +223,7 @@ schemas:
 			<xsl:otherwise>0</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
+	<xsl:template match="plx:nullFallbackOperator" mode="Precedence">94</xsl:template>
 	<xsl:template match="plx:conditionalOperator" mode="Precedence">96</xsl:template>
 	<xsl:template match="plx:assign" mode="Precedence">100</xsl:template>
 
@@ -1868,6 +1869,18 @@ schemas:
 			<xsl:text> as </xsl:text>
 			<xsl:value-of select="@alias"/>
 		</xsl:if>
+	</xsl:template>
+	<xsl:template match="plx:nullFallbackOperator">
+		<xsl:param name="Indent"/>
+		<xsl:apply-templates select="plx:left/child::*" mode="ResolvePrecedence">
+			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Context" select="."/>
+		</xsl:apply-templates>
+		<xsl:text> ?? </xsl:text>
+		<xsl:apply-templates select="plx:right/child::*" mode="ResolvePrecedence">
+			<xsl:with-param name="Indent" select="$Indent"/>
+			<xsl:with-param name="Context" select="."/>
+		</xsl:apply-templates>
 	</xsl:template>
 	<xsl:template match="plx:nullKeyword">
 		<xsl:text>null</xsl:text>
@@ -4001,8 +4014,8 @@ schemas:
 		</xsl:if>
 	</xsl:template>
 	<!-- Inline expansion templates -->
-	<xsl:template match="plx:increment|plx:decrement|plx:conditionalOperator" mode="ExpandInline">
-		<!-- Leave this empty. Support all inline expansion except plx:nullFallbackOperator -->
+	<xsl:template match="plx:increment|plx:decrement|plx:conditionalOperator|plx:nullFallbackOperator" mode="ExpandInline">
+		<!-- Leave this empty. Support all inline expansion. -->
 	</xsl:template>
 	<xsl:template match="plx:assign" mode="ExpandInline">
 		<xsl:if test="plx:left/child::*[self::plx:callInstance | self::plx:callStatic | self::plx:callThis][@type='property']">
