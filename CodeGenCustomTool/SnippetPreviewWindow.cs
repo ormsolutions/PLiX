@@ -569,7 +569,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					// Get an object to tie to the IDE
 					textLines = (IVsTextLines)Marshal.GetObjectForIUnknown(pBuf);
 					objectWithSite = textLines as IObjectWithSite;
-					objectWithSite.SetSite(serviceProvider.GetService(typeof(IOleServiceProvider)));
+					objectWithSite.SetSite(serviceProvider);
 					IVsTextBuffer buffer = (IVsTextBuffer)textLines;
 					uint bufferFlags;
 					buffer.GetStateFlags(out bufferFlags);
@@ -584,7 +584,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					}
 				}
 
-				// assign an initial language service to the
+				// assign an initial language service to the text lines
 				if (myCurrentLanguageServiceGuid != Guid.Empty)
 				{
 					ErrorHandler.ThrowOnFailure(textLines.SetLanguageServiceID(ref myCurrentLanguageServiceGuid));

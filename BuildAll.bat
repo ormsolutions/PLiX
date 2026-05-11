@@ -12,6 +12,9 @@ IF "%TargetVisualStudioNumericVersion%"=="15.0" (
 ) ELSE IF "%TargetVisualStudioNumericVersion%"=="17.0" (
 	MSBuild.exe /nologo "%RootDir%\CodeGen.VS2022.sln" %*
 	MSBuild.exe /nologo "%RootDir%\VSIXInstall\VSIXOnly\PLiXVSIX.VS2022.sln" %*
+) ELSE IF "%TargetVisualStudioNumericVersion%"=="18.0" (
+	MSBuild.exe /nologo "%RootDir%\CodeGen.VS2026.sln" %*
+	MSBuild.exe /nologo "%RootDir%\VSIXInstall\VSIXOnly\PLiXVSIX.VS2026.sln" %*
 ) ELSE IF "%PadVer:~-4%" LEQ "8.0" (
 	IF NOT DEFINED FrameworkSDKDir (CALL "%VS80COMNTOOLS%\vsvars32.bat")
 	MSBuild.exe /nologo "%RootDir%\CodeGen.sln" %*

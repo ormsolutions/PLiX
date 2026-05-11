@@ -17,6 +17,7 @@
     <DefineConstants Condition="$(VisualStudioVersion) &gt;= 15.0">$(DefineConstants);VISUALSTUDIO_15_0</DefineConstants>
     <DefineConstants Condition="$(VisualStudioVersion) &gt;= 16.0">$(DefineConstants);VISUALSTUDIO_16_0</DefineConstants>
     <DefineConstants Condition="$(VisualStudioVersion) &gt;= 17.0">$(DefineConstants);VISUALSTUDIO_17_0</DefineConstants>
+    <DefineConstants Condition="$(VisualStudioVersion) &gt;= 18.0">$(DefineConstants);VISUALSTUDIO_18_0</DefineConstants>
   </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
