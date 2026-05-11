@@ -25,6 +25,9 @@ using Microsoft.VisualStudio;
 using IServiceProvider = System.IServiceProvider;
 using IOleServiceProvider = Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
 using System.Reflection;
+using System.Threading.Tasks;
+using System.Threading;
+using System.Net;
 
 namespace Neumont.Tools.CodeGeneration.Plix.Shell
 {
@@ -40,7 +43,12 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 	/// </summary>
 	// This attribute tells the registration utility (regpkg.exe) that this class needs
 	// to be registered as package.
-	[PackageRegistration(UseManagedResourcesOnly = true)]
+	[PackageRegistration(
+#if ASYNC_PACKAGE
+		AllowsBackgroundLoading = true,
+#endif
+		UseManagedResourcesOnly = true
+	)]
 	// A Visual Studio component can be registered under different registry roots; for instance
 	// when you debug your package you want to register it in the experimental hive. This
 	// attribute specifies the registry root to use if no one is provided to regpkg.exe with
@@ -59,7 +67,15 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 	// This attribute is needed to let the shell know that this package exposes some menus.
 	[ProvideMenuResource(1000, 1)]
 	[Guid(GuidList.guidPlixPackagePkgString)]
-	public sealed partial class PlixPackage : Package, IOleComponent, IVsInstalledProduct
+	public sealed partial class PlixPackage :
+#if ASYNC_PACKAGE
+		AsyncPackage,
+#else
+		Package,
+#endif
+
+		IOleComponent,
+		IVsInstalledProduct
 	{
 		/////////////////////////////////////////////////////////////////////////////
 		// Overriden Package Implementation
@@ -75,10 +91,72 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 		/// Initialization of the package; this method is called right after the package is sited, so this is the place
 		/// where you can put all the initialization code that rely on services provided by VisualStudio.
 		/// </summary>
+#if ASYNC_PACKAGE
+		protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
+		{
+			await this.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+
+			await base.InitializeAsync(cancellationToken, progress);
+
+			myPreviewWindow = new SnippetPreviewWindow(this); // This just initializes the object with the package callback
+			myPreviewWindow.AttachCommands(); // This attaches the commands to the UI thread
+
+			// Ensure our settings are loaded
+			GetDialogPage(typeof(SnippetPreviewWindowSettings));
+		}
+		protected override async Task<object> InitializeToolWindowAsync(Type toolWindowType, int id, CancellationToken cancellationToken)
+		{
+			if (toolWindowType == typeof(SnippetPreviewWindow))
+			{
+				if (myPreviewWindow != null)
+				{
+					await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+
+					// Initialize the tool window
+					await myPreviewWindow.EnsureWindowFrame();
+
+					// Enable idle handling
+					if (myComponentId == 0)
+					{
+						IOleComponentManager componentManager = await this.GetServiceAsync<SOleComponentManager, IOleComponentManager>(DisposalToken);
+						if (null != componentManager)
+						{
+							OLECRINFO[] pcrinfo = new OLECRINFO[1];
+							pcrinfo[0].cbSize = (uint)Marshal.SizeOf(typeof(OLECRINFO));
+							pcrinfo[0].grfcrf = (uint)(_OLECRF.olecrfNeedIdleTime | _OLECRF.olecrfNeedPeriodicIdleTime);
+							pcrinfo[0].grfcadvf = (uint)(_OLECADVF.olecadvfModal | _OLECADVF.olecadvfRedrawOff); // Not sure why here, just following the Xml Editor Package
+							pcrinfo[0].uIdleTimeInterval = 1000;
+							componentManager.FRegisterComponent(this, pcrinfo, out myComponentId);
+						}
+					}
+				}
+			}
+			return null;
+		}
+		protected override void Dispose(bool disposing)
+		{
+			if (disposing)
+			{
+				if (myComponentId != 0)
+				{
+					// Switch to the UI thread synchronously. We can't do async here
+					ThreadHelper.JoinableTaskFactory.Run(async delegate
+					{
+						await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+						// Now on UI thread, safe to get service and revoke
+						var componentManager = GetService(typeof(SOleComponentManager)) as IOleComponentManager;
+						componentManager?.FRevokeComponent(myComponentId);
+						myComponentId = 0;
+					});
+				}
+			}
+			base.Dispose(disposing);
+		}
+#else // !ASYNC_PACKAGE
 		protected override void Initialize()
 		{
 			base.Initialize();
-
 			if (!SetupMode)
 			{
 				// Ensure our settings are loaded
@@ -124,6 +202,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				return (num == 1);
 			}
 		}
+#endif // ASYNC_PACKAGE
 		protected override void OnLoadOptions(string key, System.IO.Stream stream)
 		{
 			base.OnLoadOptions(key, stream);

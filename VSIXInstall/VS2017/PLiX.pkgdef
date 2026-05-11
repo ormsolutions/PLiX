@@ -3,6 +3,7 @@
 "InprocServer32"="$WinDir$\SYSTEM32\MSCOREE.DLL"
 "Class"="Neumont.Tools.CodeGeneration.Plix.Shell.PlixPackage"
 "CodeBase"="$PackageFolder$\Neumont.Tools.CodeGeneration.PLiX.VSIX.dll"
+"AllowsBackgroundLoad"=dword:00000001
 [$RootKey$\Packages\{bc129a03-26c4-4667-8e12-96225b2d3cd2}]
 "ID"=dword:00000096
 "MinEdition"="Standard"

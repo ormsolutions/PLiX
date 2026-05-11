@@ -29,13 +29,18 @@ using System.Xml;
 using System.Xml.Xsl;
 using System.IO;
 using System.ComponentModel;
+using System.Threading.Tasks;
 
 namespace Neumont.Tools.CodeGeneration.Plix.Shell
 {
 	[ProvideToolWindow(typeof(PlixPackage.SnippetPreviewWindow), Style = VsDockStyle.Tabbed, Orientation = ToolWindowOrientation.Right, Window = ToolWindowGuids.Outputwindow)]
 	[ProvideProfile(typeof(PlixPackage.SnippetPreviewWindowSettings), "ProgrammingLanguageInXml", "SnippetPreviewWindow", 114, 116, false, DescriptionResourceID=118)]
-	partial class PlixPackage : IVsToolWindowFactory
+	partial class PlixPackage
+#if !ASYNC_PACKAGE
+		: IVsToolWindowFactory
+#endif // !ASYNC_PACKAGE
 	{
+#if !ASYNC_PACKAGE
 		#region IVsToolWindowFactory Implementation
 		/// <summary>
 		/// Shadow the toolwindow creation in the base Package code. Enables use
@@ -50,6 +55,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			return 0;
 		}
 		#endregion // IVsToolWindowFactory Implementation
+#endif // !ASYNC_PACKAGE
 		#region SnippetPreviewWindowSettings class
 		// As crazy as it sounds, it is much easier to provide a dialog page
 		// than implementing simple settings. There is a lot more plumbing
@@ -141,6 +147,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 			// Tool window management fields
 			private IVsWindowFrame myToolWindowFrame;
 			private IVsTextLines myToolWindowTextLines;
+			private IVsCodeWindow myCodeWindow;
 
 			// Command and package management fields
 			private PlixPackage myPackage;
@@ -372,16 +379,24 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					}
 				}
 			}
-#endregion // ConnectionPointCookie struct
-#region Constructors
+			#endregion // ConnectionPointCookie struct
+			#region Constructors
 			public SnippetPreviewWindow(PlixPackage package)
 			{
 				myPackage = package;
+#if !ASYNC_PACKAGE
+				this.AttachCommands();
+			}
+			private void AttachCommands()
+#else
+			}
+			public void AttachCommands()
+#endif
+			{
+				OleMenuCommandService commandService = myPackage.GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
 				// Add our command handlers for menu (commands must exist in the .ctc file)
-				OleMenuCommandService commandService = package.GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
 				if (commandService != null)
 				{
-
 					// Create the preview window menu item
 					MenuCommand menuItem = new MenuCommand(new EventHandler(ShowSnippetPreviewWindow), new CommandID(GuidList.guidPlixPackageCmdSet, (int)PkgCmdIDList.cmdidPlixSnippetPreviewWindow));
 					commandService.AddCommand(menuItem);
@@ -396,9 +411,9 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					FormatterInfo.InitializeCommands(this, commandService);
 				}
 			}
-#endregion // Constructors
-#region Command handlers
-#region Dynamic parent choice menu handling
+			#endregion // Constructors
+			#region Command handlers
+			#region Dynamic parent choice menu handling
 			/// <summary>
 			/// Standard pattern for handling dynamic start menus
 			/// </summary>
@@ -509,21 +524,59 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					Reformat();
 				}
 			}
-#endregion // Dynamic parent choice menu handling
+			#endregion // Dynamic parent choice menu handling
 			/// <summary>
 			/// Show the snippet preview window
 			/// </summary>
 			private void ShowSnippetPreviewWindow(object sender, EventArgs e)
 			{
+#if ASYNC_PACKAGE
+				_ = myPackage.JoinableTaskFactory.RunAsync(async delegate
+				{
+					IVsWindowFrame windowFrame = await EnsureWindowFrame();
+					if (windowFrame != null)
+					{
+						await myPackage.JoinableTaskFactory.SwitchToMainThreadAsync();
+						windowFrame.Show();
+					}
+				});
+#else
 				EnsureWindowFrame().Show();
+#endif
 			}
-#endregion // Command handlers
-#region Public methods and accessors
+			#endregion // Command handlers
+
+			#region Public methods and accessors
+#if ASYNC_PACKAGE
+			private Task<IVsWindowFrame> myInitWindowFrameTask;
 			/// <summary>
 			/// Make sure the window frame exists
 			/// </summary>
 			/// <returns>The <see cref="IVsWindowFrame"/></returns>
-			public IVsWindowFrame EnsureWindowFrame()
+			public Task<IVsWindowFrame> EnsureWindowFrame()
+			{
+				IVsWindowFrame frame = myToolWindowFrame;
+				if (frame != null)
+				{
+					myInitWindowFrameTask = null;
+					return Task.FromResult(frame);
+				}
+
+				// If we are already initializing, everyone just waits for the same task
+				var task = myInitWindowFrameTask;
+				if (task != null)
+				{
+					return task;
+				}
+				task = myInitWindowFrameTask = CreateSnippetPreviewWindow();
+				return task;
+			}
+#else
+			/// <summary>
+			/// Make sure the window frame exists
+			/// </summary>
+			/// <returns>The <see cref="IVsWindowFrame"/></returns>
+			IVsWindowFrame EnsureWindowFrame()
 			{
 				IVsWindowFrame frame = myToolWindowFrame;
 				if (frame == null)
@@ -533,6 +586,7 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				}
 				return frame;
 			}
+#endif
 			/// <summary>
 			/// Handle idle processing
 			/// </summary>
@@ -547,12 +601,32 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 					}
 				}
 			}
-#endregion // Public methods and accessors
-#region SnippetPreviewWindow Creation
+			#endregion // Public methods and accessors
+			#region SnippetPreviewWindow Creation
+#if ASYNC_PACKAGE
+			private async Task<IVsWindowFrame> CreateSnippetPreviewWindow()
+			{
+				IAsyncServiceProvider serviceProvider = myPackage;
+				System.Threading.CancellationToken cancellationToken = myPackage.DisposalToken;
+#else
 			private void CreateSnippetPreviewWindow()
 			{
 				IServiceProvider serviceProvider = myPackage;
-				ILocalRegistry3 locReg = (ILocalRegistry3)serviceProvider.GetService(typeof(ILocalRegistry));
+#endif
+				ILocalRegistry3 locReg;
+				IVsUIShell shell;
+				IVsMonitorSelection monitor;
+#if ASYNC_PACKAGE
+				locReg = await serviceProvider.GetServiceAsync<SLocalRegistry, ILocalRegistry3>(cancellationToken);
+				shell = await serviceProvider.GetServiceAsync<SVsUIShell, IVsUIShell>(cancellationToken);
+				monitor = await serviceProvider.GetServiceAsync<SVsShellMonitorSelection, IVsMonitorSelection>(cancellationToken);
+				await myPackage.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+#else
+				locReg = (ILocalRegistry3)serviceProvider.GetService(typeof(ILocalRegistry));
+				shell = (IVsUIShell)serviceProvider.GetService(typeof(IVsUIShell));
+				monitor = (IVsMonitorSelection)serviceProvider.GetService(typeof(IVsMonitorSelection));
+#endif
+
 				IntPtr pBuf = IntPtr.Zero;
 				Guid iid = typeof(IVsTextLines).GUID;
 				ErrorHandler.ThrowOnFailure(locReg.CreateInstance(
@@ -619,7 +693,6 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				ErrorHandler.ThrowOnFailure(codeWindow.SetBuffer(textLines));
 
 				IVsWindowFrame windowFrame;
-				IVsUIShell shell = (IVsUIShell)serviceProvider.GetService(typeof(IVsUIShell));
 				Guid emptyGuid = Guid.Empty;
 				Guid snippetPreviewWindowGuid = GuidList.SnippetPreviewWindowGuid;
 				// CreateToolWindow ARGS
@@ -658,9 +731,9 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				// Cache our settings
 				myToolWindowFrame = windowFrame;
 				myToolWindowTextLines = textLines;
+				myCodeWindow = codeWindow;
 
 				// Synchronize with the current document and start listening for selection changes
-				IVsMonitorSelection monitor = (IVsMonitorSelection)serviceProvider.GetService(typeof(IVsMonitorSelection));
 				object frameObject;
 				IVsWindowFrame documentFrame = null;
 				if (ErrorHandler.Succeeded(monitor.GetCurrentElementValue((uint)VSConstants.VSSELELEMID.SEID_DocumentFrame, out frameObject)) &&
@@ -672,9 +745,14 @@ namespace Neumont.Tools.CodeGeneration.Plix.Shell
 				{
 					Reformat();
 				}
+
 				// UNDONE: Do something with IVsWindowFrameNotify3 so we can turn off advising when the window is not visible
 				uint monitorCookie;
 				monitor.AdviseSelectionEvents(this, out monitorCookie);
+
+#if ASYNC_PACKAGE
+				return windowFrame;
+#endif
 			}
 #endregion SnippetPreviewWindow Creation
 #region Text change callback interfaces
